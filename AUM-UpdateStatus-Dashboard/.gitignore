@@ -1,0 +1,10 @@
+.azure/
+.bicep/
+*.local.bicepparam
+*.parameters.local.json
+*.tmp
+*.log
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
