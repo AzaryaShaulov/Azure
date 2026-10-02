@@ -1,0 +1,1407 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## Arc-enabled SQL Server — Migration Assessment Report\n\nRead-only inventory, migration readiness, and target recommendations sourced from Azure Resource Graph (`microsoft.azurearcdata/sqlserverinstances`).\n\nUse the parameters below to scope subscriptions, resource groups, and assessment freshness threshold."
+      },
+      "name": "title"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "p-subs",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscriptions",
+            "type": 6,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "includeAll": false
+            }
+          },
+          {
+            "id": "p-rg",
+            "version": "KqlParameterItem/1.0",
+            "name": "ResourceGroup",
+            "label": "Resource group",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances' or (type =~ 'microsoft.hybridcompute/machines' and (tostring(properties.detectedProperties.mssqldiscovered) =~ 'true' or tostring(properties.mssqldiscovered) =~ 'true'))\n| distinct resourceGroup\n| project value = resourceGroup, label = resourceGroup\n| order by label asc",
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "crossComponentResources": [
+              "{Subscriptions}"
+            ],
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "p-fresh",
+            "version": "KqlParameterItem/1.0",
+            "name": "FreshnessThresholdDays",
+            "label": "Freshness threshold (days)",
+            "type": 1,
+            "isRequired": true,
+            "typeSettings": {
+              "paramValidationRules": [
+                { "match": true, "regExp": "^[1-9][0-9]{0,3}$", "message": "Enter a whole number from 1 to 9999." }
+              ]
+            },
+            "value": "30"
+          },
+          {
+            "id": "p-currency",
+            "version": "KqlParameterItem/1.0",
+            "name": "CurrencyFilter",
+            "label": "Currency",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "*",
+              "showDefault": false
+            },
+            "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| extend c = coalesce(tostring(properties.migration.assessment.settings.currency), 'Unknown')\n| distinct c\n| project value = c, label = c\n| order by label asc",
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "crossComponentResources": [
+              "{Subscriptions}"
+            ],
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "p-tagname",
+            "version": "KqlParameterItem/1.0",
+            "name": "TagName",
+            "label": "Tag name (optional)",
+            "type": 1,
+            "typeSettings": {
+              "paramValidationRules": [
+                { "match": true, "regExp": "^[^'\\\\\u0000-\u001f]*$", "message": "Apostrophes, backslashes, and control characters are not supported in this filter." }
+              ]
+            },
+            "value": ""
+          },
+          {
+            "id": "p-tagvalue",
+            "version": "KqlParameterItem/1.0",
+            "name": "TagValue",
+            "label": "Tag value (optional)",
+            "type": 1,
+            "typeSettings": {
+              "paramValidationRules": [
+                { "match": true, "regExp": "^[^'\\\\\u0000-\u001f]*$", "message": "Apostrophes, backslashes, and control characters are not supported in this filter." }
+              ]
+            },
+            "value": ""
+          },
+          {
+            "id": "p-instance",
+            "version": "KqlParameterItem/1.0",
+            "name": "InstanceFilter",
+            "label": "SQL instance (Databases)",
+            "type": 2,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "typeSettings": {
+              "additionalResourceOptions": ["value::all"],
+              "showDefault": false
+            },
+            "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n| project value = tolower(id), label = strcat(name, ' / ', resourceGroup, ' / ', subscriptionId)\n| order by label asc",
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "crossComponentResources": ["{Subscriptions}"],
+            "value": "value::all"
+          }
+        ],
+        "style": "pills",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "p-tab",
+            "version": "KqlParameterItem/1.0",
+            "name": "SelectedTab",
+            "type": 10,
+            "isRequired": true,
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[{\"value\":\"overview\",\"label\":\"Overview\",\"selected\":true},{\"value\":\"inventory\",\"label\":\"Inventory\"},{\"value\":\"readiness\",\"label\":\"Assessment & Arc Readiness\"},{\"value\":\"recommendations\",\"label\":\"Migration Target Recommendations\"},{\"value\":\"databases\",\"label\":\"Databases Assessed\"},{\"value\":\"pricing\",\"label\":\"Pricing: PAYGO vs RI\"}]"
+          }
+        ],
+        "style": "above",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources"
+      },
+      "name": "tabs-selector"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### Assessment & Arc Readiness\n\nOperational readiness for Arc-enabled SQL Server hosts and instances. This view combines Arc connectivity, SQL extension health, inventory reporting, migration-assessment freshness, target readiness, pricing availability, and prerequisite checks. SQL-detected Arc hosts without a visible SQL instance remain visible; instance-only assessment fields show `Not applicable`.\n\n**Columns to read first**\n- **Overall Readiness / Action Required** — the highest-priority condition and the actions needed to address it.\n- **Azure Arc Connected / SQL Server Extension Status / Inventory Reporting** — host connectivity, extension health, and whether successful inventory was uploaded within three days.\n- **Migration Assessment Enabled** — whether `properties.migration.assessment.enabled` is reported as enabled.\n- **Assessment Freshness / Last Migration Report Upload** — freshness derived from the selected threshold and the latest reported upload time.\n- **MI Readiness / DB Readiness / VM Readiness** — server-level target status reported by the migration assessment.\n- **Next Action / Migration Assessment Results** — links to relevant guidance and the Arc SQL resource.\n\nGreen means configured and healthy; yellow means attention or unverified evidence; red means failed, unhealthy, or unsupported; gray means not configured or not applicable. ARG does not expose the current assessment job status, and a report timestamp proves only that results were uploaded. [Migration assessment guidance](https://learn.microsoft.com/en-us/sql/sql-server/azure-arc/migration-assessment?view=sql-server-ver17)"
+            },
+            "name": "ready-title"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| project ResourceId = id, SQLInstanceName = coalesce(tostring(properties.instanceName), name), InstanceResourceGroup = resourceGroup, InstanceSubscription = subscriptionId, InstanceTags = tags, HostMachineId = tolower(tostring(properties.containerResourceId)), InventoryRaw = tostring(properties.lastInventoryUploadTime), CurrentVersion = tostring(properties.currentVersion), MigrationEnabled = tobool(properties.migration.assessment.enabled), AssessmentRaw = tostring(properties.migration.assessment.assessmentUploadTime), Recommendations = properties.migration.assessment.skuRecommendationResults\n| join kind=fullouter (\n    resources\n    | where type =~ 'microsoft.hybridcompute/machines' or (type =~ 'microsoft.hybridcompute/machines/extensions' and tostring(properties.publisher) =~ 'Microsoft.AzureData' and tostring(properties.type) in~ ('WindowsAgent.SqlServer','LinuxAgent.SqlServer'))\n    | extend IsHost = type =~ 'microsoft.hybridcompute/machines'\n    | extend HostMachineId = iff(IsHost, tolower(id), tolower(substring(id, 0, indexof(tolower(id), '/extensions/'))))\n    | summarize ExtensionCount = countif(not(IsHost)), HostRows = make_list(iff(IsHost, pack('ResourceId', id, 'Name', name, 'ResourceGroup', resourceGroup, 'Subscription', subscriptionId, 'Tags', tags, 'OS', tostring(properties.osName), 'Status', tostring(properties.status), 'SQLDetected', tostring(properties.detectedProperties.mssqldiscovered) =~ 'true' or tostring(properties.mssqldiscovered) =~ 'true'), dynamic(null))), ExtensionRows = make_list(iff(not(IsHost), pack('State', tostring(properties.provisioningState), 'Message', tostring(properties.instanceView.status.message)), dynamic(null))) by HostMachineId\n    | project HostMachineId, HostResourceId = tostring(HostRows[0].ResourceId), HostName = tostring(HostRows[0].Name), HostResourceGroup = tostring(HostRows[0].ResourceGroup), HostSubscription = tostring(HostRows[0].Subscription), HostTags = HostRows[0].Tags, HostOS = tostring(HostRows[0].OS), AgentStatus = tostring(HostRows[0].Status), SQLDetected = tobool(HostRows[0].SQLDetected), ExtensionCount, ExtensionState = tostring(ExtensionRows[0].State), ExtensionMessage = tostring(ExtensionRows[0].Message)\n) on HostMachineId\n| where isnotempty(ResourceId) or SQLDetected == true\n| extend HasInstance = isnotempty(ResourceId), HostMachineId = coalesce(HostMachineId, HostMachineId1), ResourceGroup = coalesce(InstanceResourceGroup, HostResourceGroup), SubscriptionId = coalesce(InstanceSubscription, HostSubscription), ScopeTags = iff(isnotempty(ResourceId), InstanceTags, HostTags)\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or ResourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(ScopeTags['{TagName}']) =~ '{TagValue}'\n| extend InventoryTime = todatetime(InventoryRaw), AssessmentTime = todatetime(AssessmentRaw), Threshold = toint('{FreshnessThresholdDays}'), SQLMajorVersion = toint(split(CurrentVersion, '.')[0]), UploadStatus = extract(@'uploadStatus\\s*:\\s*([^;\\s]+)', 1, ExtensionMessage), AgentHealth = extract(@'SQL Server Extension Agent:\\s*([^;\\r\\n]+)', 1, ExtensionMessage), ExtensionDate = extract(@'timestampUTC\\s*:\\s*([0-9]{4}[-/][0-9]{2}[-/][0-9]{2})', 1, ExtensionMessage)\n| extend ExtensionTime = todatetime(replace_string(ExtensionDate, '/', '-')), AgeDays = datetime_diff('day', now(), AssessmentTime)\n| extend ArcConnected = case(AgentStatus =~ 'Connected', 'Yes', AgentStatus in~ ('Disconnected','Expired'), 'No', 'Unknown'), ExtensionInstalled = iff(ExtensionCount > 0, 'Yes', 'Unknown'), InventoryEvidence = case(isempty(InventoryRaw), 'No inventory evidence', isnull(InventoryTime) or InventoryTime > now(), 'Invalid timestamp', InventoryTime < ago(3d), 'Stale', 'Recent successful upload'), MigrationAssessmentEnabled = case(not(HasInstance), 'Not applicable', MigrationEnabled == true, 'Yes', MigrationEnabled == false, 'No', 'Unknown')\n| extend ExtensionStatus = case(isnull(ExtensionCount) or ExtensionCount == 0, 'Unknown', ExtensionCount != 1, 'Attention: multiple extensions', ExtensionState =~ 'Failed', 'Failed', ExtensionState in~ ('Creating','Updating','Transitioning'), 'Running', ExtensionState =~ 'Deleted', 'Not Installed', isnotempty(AgentHealth) and AgentHealth !startswith 'Healthy', 'Unhealthy', ExtensionState =~ 'Succeeded' and AgentHealth startswith 'Healthy' and UploadStatus =~ 'OK' and ExtensionTime >= ago(3d) and ExtensionTime <= now() and ArcConnected == 'Yes', 'Healthy', 'Attention')\n| extend Reporting = case(ExtensionCount == 1 and isnotempty(UploadStatus) and UploadStatus !~ 'OK', 'Failed', ArcConnected == 'No', 'Unhealthy', InventoryEvidence != 'Recent successful upload', InventoryEvidence, ExtensionStatus in ('Failed','Unhealthy','Not Installed'), 'Unhealthy', ArcConnected != 'Yes' or ExtensionInstalled != 'Yes' or ExtensionCount != 1, 'Unknown', 'Reporting')\n| extend AssessmentFreshness = case(not(HasInstance), 'Not applicable', isnull(Threshold) or Threshold < 1 or Threshold > 9999, 'Invalid threshold', isempty(AssessmentRaw), 'No data', isnull(AssessmentTime), 'Invalid timestamp', AssessmentTime > now(), 'Future timestamp', AgeDays > Threshold, 'Stale', AgeDays <= 7, 'Fresh', 'Recent'), MI = iff(HasInstance, coalesce(tostring(Recommendations.azureSqlManagedInstance.recommendationStatus), 'Unknown'), 'Not applicable'), DB = iff(HasInstance, coalesce(tostring(Recommendations.azureSqlDatabase.recommendationStatus), 'Unknown'), 'Not applicable'), VM = iff(HasInstance, coalesce(tostring(Recommendations.azureSqlVirtualMachine.recommendationStatus), 'Unknown'), 'Not applicable')\n| extend PricingStatus = case(not(HasInstance), 'Not applicable', isnull(Recommendations), 'No results', (MI =~ 'Ready' and (isnull(todouble(Recommendations.azureSqlManagedInstance.monthlyCost.totalCost)) or todouble(Recommendations.azureSqlManagedInstance.monthlyCost.totalCost) < 0)) or (DB =~ 'Ready' and (isnull(todouble(Recommendations.azureSqlDatabase.monthlyCost.totalCost)) or todouble(Recommendations.azureSqlDatabase.monthlyCost.totalCost) < 0)) or (VM =~ 'Ready' and (isnull(todouble(Recommendations.azureSqlVirtualMachine.monthlyCost.totalCost)) or todouble(Recommendations.azureSqlVirtualMachine.monthlyCost.totalCost) < 0)), 'Ready target price unavailable', MI !~ 'Ready' and DB !~ 'Ready' and VM !~ 'Ready', 'No Ready target', 'Ready target prices available'), PrerequisiteStatus = case(not(HasInstance), 'Not applicable until instance is visible', HostOS =~ 'linux', 'Unsupported: Linux assessment', isnotnull(SQLMajorVersion) and SQLMajorVersion < 12, 'Unsupported: SQL Server before 2014', isnull(SQLMajorVersion), 'SQL build not reported; other prerequisites not verified', 'Other prerequisites not verified')\n| extend OverallReadiness = case(not(HasInstance), 'Instance discovery or visibility required', PrerequisiteStatus startswith 'Unsupported', PrerequisiteStatus, ArcConnected == 'No', 'Arc disconnected', ArcConnected == 'Unknown', 'Arc status unknown', ExtensionStatus in ('Failed','Unhealthy'), ExtensionStatus, ExtensionStatus != 'Healthy', ExtensionStatus, Reporting != 'Reporting', strcat('Inventory: ', Reporting), MigrationAssessmentEnabled == 'No', 'Migration assessment disabled', MigrationAssessmentEnabled == 'Unknown', 'Migration assessment state unknown', AssessmentFreshness !in ('Fresh','Recent'), strcat('Assessment: ', AssessmentFreshness), PricingStatus != 'Ready target prices available', PricingStatus, 'Ready and current')\n| extend ReadinessSeverity = case(not(HasInstance), 1, PrerequisiteStatus startswith 'Unsupported', 2, ArcConnected == 'No', 3, ArcConnected == 'Unknown', 4, ExtensionStatus in ('Failed','Unhealthy'), 5, ExtensionStatus != 'Healthy', 6, Reporting != 'Reporting', 7, MigrationAssessmentEnabled == 'No', 8, MigrationAssessmentEnabled == 'Unknown', 9, AssessmentFreshness !in ('Fresh','Recent'), 10, PricingStatus != 'Ready target prices available', 11, 12)\n| extend ActionRequired = strcat(iff(not(HasInstance), 'Verify SQL discovery and instance read permissions; ', ''), iff(ArcConnected != 'Yes', 'Check Arc connectivity and host visibility; ', ''), iff(ExtensionStatus != 'Healthy', 'Verify SQL extension installation and health; ', ''), iff(Reporting != 'Reporting', 'Check inventory uploads and telemetry; ', ''), iff(PrerequisiteStatus startswith 'Unsupported', strcat(PrerequisiteStatus, '; '), ''), iff(HasInstance and MigrationAssessmentEnabled != 'Yes', 'Enable or verify migration assessment; ', ''), iff(HasInstance and AssessmentFreshness !in ('Fresh','Recent'), 'Run or verify migration assessment results; ', ''), iff(HasInstance and PricingStatus != 'Ready target prices available', 'Review readiness and pricing results; ', ''))\n| extend NextAction = case(not(HasInstance), 'https://learn.microsoft.com/en-us/sql/sql-server/azure-arc/connect', PrerequisiteStatus startswith 'Unsupported', 'https://learn.microsoft.com/en-us/sql/sql-server/azure-arc/migration-assessment?view=sql-server-ver17', ArcConnected != 'Yes' or ExtensionStatus != 'Healthy', 'https://learn.microsoft.com/en-us/sql/sql-server/azure-arc/troubleshoot-extension', Reporting != 'Reporting', 'https://learn.microsoft.com/en-us/sql/sql-server/azure-arc/troubleshoot-extension', MigrationAssessmentEnabled != 'Yes' or AssessmentFreshness !in ('Fresh','Recent') or PricingStatus != 'Ready target prices available', 'https://learn.microsoft.com/en-us/sql/sql-server/azure-arc/migration-assessment?view=sql-server-ver17', ''), ResultsResource = iff(isnotnull(AssessmentTime) and AssessmentTime <= now() and HasInstance, ResourceId, '')\n| extend ServerName = coalesce(HostName, tostring(split(HostMachineId, '/')[8]), 'Unknown')\n| order by ReadinessSeverity asc, ServerName asc, SQLInstanceName asc\n| project ['Server Name'] = ServerName, ['SQL Instance Name'] = iff(HasInstance, SQLInstanceName, 'Not discovered / not visible'), ['Overall Readiness'] = OverallReadiness, ['Action Required'] = ActionRequired, ['Azure Arc Connected'] = ArcConnected, ['SQL Server Extension Status'] = ExtensionStatus, ['Inventory Reporting'] = Reporting, ['Last Successful Inventory Upload'] = InventoryTime, ['Migration Assessment Enabled'] = MigrationAssessmentEnabled, ['Assessment Freshness'] = AssessmentFreshness, ['Last Migration Report Upload'] = AssessmentTime, ['MI Readiness'] = MI, ['DB Readiness'] = DB, ['VM Readiness'] = VM, ['Host OS'] = HostOS, ['Next Action'] = NextAction, ['Migration Assessment Results'] = ResultsResource, ['SQL Resource'] = ResourceId, ['Host Resource'] = HostResourceId, ResourceGroup, SubscriptionId",
+              "size": 0,
+              "title": "Assessment and Arc readiness by SQL instance or detected host",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": ["{Subscriptions}"],
+              "visualization": "table",
+              "showAnalytics": true,
+              "showExportToExcel": true,
+              "gridSettings": {
+                "filter": true,
+                "rowLimit": 1000,
+                "formatters": [
+                  { "columnMatch": "Overall Readiness", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Ready and current", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Arc disconnected", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Unsupported: Linux host", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Unsupported: SQL Server before 2014", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Failed", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Unhealthy", "representation": "red", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "Azure Arc Connected", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Yes", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "No", "representation": "red", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "SQL Server Extension Status", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Healthy", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Failed", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Unhealthy", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Not Installed", "representation": "gray", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "Inventory Reporting", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Reporting", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Failed", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Unhealthy", "representation": "red", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "Migration Assessment Enabled", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Yes", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "No", "representation": "gray", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Not applicable", "representation": "gray", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "Assessment Freshness", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Fresh", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Recent", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Stale", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Not applicable", "representation": "gray", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "MI Readiness", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Ready", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "NotReady", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Not applicable", "representation": "gray", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "DB Readiness", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Ready", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "NotReady", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Not applicable", "representation": "gray", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "VM Readiness", "formatter": 18, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                    { "operator": "==", "thresholdValue": "Ready", "representation": "green", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "NotReady", "representation": "red", "text": "{0}" },
+                    { "operator": "==", "thresholdValue": "Not applicable", "representation": "gray", "text": "{0}" },
+                    { "operator": "Default", "thresholdValue": null, "representation": "yellow", "text": "{0}" }
+                  ] } },
+                  { "columnMatch": "Migration Assessment Results", "formatter": 7, "formatOptions": { "linkTarget": "Resource", "linkLabel": "Open SQL resource: Migration > Assessments" } },
+                  { "columnMatch": "Next Action", "formatter": 7, "formatOptions": { "linkTarget": "Url", "linkLabel": "Open guidance" } },
+                  { "columnMatch": "Last Successful Inventory Upload", "formatter": 6 },
+                  { "columnMatch": "Last Migration Report Upload", "formatter": 6 },
+                  { "columnMatch": "SQL Resource", "formatter": 7, "formatOptions": { "linkTarget": "Resource", "linkLabel": "Open SQL resource" } },
+                  { "columnMatch": "Host Resource", "formatter": 7, "formatOptions": { "linkTarget": "Resource", "linkLabel": "Open Arc server" } }
+                ]
+              }
+            },
+            "name": "ready-grid"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "SelectedTab", "comparison": "isEqualTo", "value": "readiness" },
+      "name": "group-readiness"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### Overview\n\nExecutive snapshot of Arc-enabled SQL Server instances in scope. All numbers come from Azure Resource Graph and reflect the latest reported Arc inventory and migration-assessment payloads.\n\n**Tiles to read first**\n- **Migration assessment coverage** — counts total instances and whether assessment is enabled, disabled, or not reported.\n- **Assessment freshness alert** — groups instances by the selected freshness threshold and highlights missing, invalid, future, or stale uploads.\n- **Servers ready by recommended target** — server-level Ready / NotReady status for Azure SQL MI, Azure SQL DB, and SQL Server on Azure VM. Per-database inventory is in **Databases Assessed**.\n- **Assessment cost options & strategy** — active lookback, percentile, discount, target location, strategy, and SQL/Windows license options that drive reported costs.\n\nReadiness is instance-level; detailed database compatibility findings require the Arc assessment report. Costs are retail assessment estimates and stale assessments may contain outdated prices.\n\nSource: [AzureWorkbooks repository](https://github.com/AzaryaShaulov/AzureWorkbooks)"
+            },
+            "name": "ov-title"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n| extend asmt = properties.migration.assessment\n| extend Enabled = tobool(asmt.enabled)\n| summarize Total = count(), AssessmentEnabled = countif(Enabled == true), AssessmentDisabled = countif(Enabled == false), AssessmentUnknown = countif(isnull(Enabled))\n| project Metric = pack_array('Total Arc SQL instances','Migration assessment enabled','Migration assessment disabled','Assessment state unknown'), Value = pack_array(Total, AssessmentEnabled, AssessmentDisabled, AssessmentUnknown)\n| mv-expand Metric to typeof(string), Value to typeof(long)",
+              "size": 4,
+              "title": "Migration assessment coverage",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [
+                "{Subscriptions}"
+              ],
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Metric",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "blue"
+                  },
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "50",
+            "name": "ov-card-coverage"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n| extend asmt = properties.migration.assessment\n| extend Threshold = toint('{FreshnessThresholdDays}'), AssessmentUploadTime = todatetime(asmt.assessmentUploadTime)\n| extend AgeDays = datetime_diff('day', now(), AssessmentUploadTime)\n| extend FreshnessBucket = case(isnull(Threshold) or Threshold < 1 or Threshold > 9999, 'Invalid threshold', isempty(tostring(asmt.assessmentUploadTime)), 'No data', isnull(AssessmentUploadTime), 'Invalid timestamp', AssessmentUploadTime > now(), 'Future timestamp', AgeDays > Threshold, 'Stale', AgeDays <= 7, 'Fresh', 'Recent')\n| summarize Value = count() by Metric = FreshnessBucket\n| order by Metric asc",
+              "size": 4,
+              "title": "Assessment freshness alert",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [
+                "{Subscriptions}"
+              ],
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Metric",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "redBright"
+                  },
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "50",
+            "name": "ov-card-freshness"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n| extend r = properties.migration.assessment.skuRecommendationResults\n| extend MI = coalesce(tostring(r.azureSqlManagedInstance.recommendationStatus), 'Unknown'), DB = coalesce(tostring(r.azureSqlDatabase.recommendationStatus), 'Unknown'), VM = coalesce(tostring(r.azureSqlVirtualMachine.recommendationStatus), 'Unknown')\n| summarize ReadyForMI = countif(MI =~ 'Ready'), ReadyForDB = countif(DB =~ 'Ready'), ReadyForVM = countif(VM =~ 'Ready'), NotReadyAnywhere = countif(MI =~ 'NotReady' and DB =~ 'NotReady' and VM =~ 'NotReady'), UnknownTargets = countif(MI !in~ ('Ready','NotReady') or DB !in~ ('Ready','NotReady') or VM !in~ ('Ready','NotReady'))\n| project Metric = pack_array('Ready for Azure SQL MI','Ready for Azure SQL DB','Ready for SQL on Azure VM','All three targets NotReady','At least one target unknown'), Value = pack_array(ReadyForMI, ReadyForDB, ReadyForVM, NotReadyAnywhere, UnknownTargets)\n| mv-expand Metric to typeof(string), Value to typeof(long)",
+              "size": 4,
+              "title": "Servers ready by recommended target (server-level readiness)",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [
+                "{Subscriptions}"
+              ],
+              "visualization": "tiles",
+              "tileSettings": {
+                "titleContent": {
+                  "columnMatch": "Metric",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": "Value",
+                  "formatter": 12,
+                  "formatOptions": {
+                    "palette": "greenRed"
+                  },
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "style": "decimal",
+                      "maximumFractionDigits": 0
+                    }
+                  }
+                },
+                "showBorder": true,
+                "size": "auto"
+              }
+            },
+            "customWidth": "50",
+            "name": "ov-card-targets"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n| extend s = properties.migration.assessment.settings\n| where isnotnull(s)\n| summarize Instances = count()\n    by Lookback        = tostring(s.lookbackPeriodInDays),\n       Percentile      = tostring(s.percentile),\n       DiscountPct     = tostring(s.discountPercentage),\n       TargetLocation  = tostring(s.targetLocation),\n       Strategy        = tostring(s.strategy),\n       SqlLicense      = tostring(s.costOptions.sqlLicenseCostOption),\n       WindowsLicense  = tostring(s.costOptions.windowsLicenseCostOption)\n| order by Instances desc",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Assessment cost options & strategy (SQL/Windows license model, discount %, target location — drives every cost number on every tab)",
+              "showExportToExcel": true,
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [
+                "{Subscriptions}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Instances",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "blue"
+                    }
+                  }
+                ],
+                "filter": true
+              }
+            },
+            "customWidth": "100",
+            "name": "ov-card-config"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "overview"
+      },
+      "name": "group-overview"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### Inventory — Arc-enabled SQL Server instances\n\nOne row per Arc SQL instance, joined with its parent Arc-enabled host machine and Arc SQL extension when those resources are visible.\n\n**Columns to read first**\n- **SQLInstanceName / SQLVersion / SQLProductVersion / SQLEdition** — SQL identity and version details reported by the Arc SQL resource.\n- **SQLCoreCount** — vCores reported by the agent and used by the assessment engine for SKU sizing.\n- **HostMachineName / HostOSName / HostOSVersion / AgentVersion / AgentStatus** — properties from the joined `microsoft.hybridcompute/machines` resource. A disconnected agent stops inventory and assessment updates.\n- **ArcSqlExtInstalled / ArcSqlExtVersion / ArcSqlExtState** — state of the Arc SQL Server extension (`WindowsAgent.SqlServer` or `LinuxAgent.SqlServer`).\n- **LastInventoryUpload** — the latest SQL inventory upload reported to Azure Resource Manager.\n- **ResourceId** — opens the Arc SQL resource; selecting a row also scopes the database filter to that full resource ID.\n\nMissing host or extension data can indicate limited permissions or incomplete inventory, not necessarily an absent installation. Inventory and assessment timestamps represent separate uploads."
+            },
+            "name": "inv-title"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n| extend p = properties\n| project\n    SQLArcResourceName = name,\n    ResourceGroup      = resourceGroup,\n    SubscriptionId     = subscriptionId,\n    Location           = location,\n    ResourceId         = id,\n    SQLInstanceName    = tostring(coalesce(p.instanceName, p.sqlInstanceName, name)),\n    SQLVersion         = tostring(coalesce(p.version, p.sqlVersion)),\n    SQLProductVersion  = coalesce(tostring(p.currentVersion), 'Unknown'),\n    SQLEdition         = tostring(p.edition),\n    SQLCoreCount       = coalesce(toint(p.cores), toint(p.vCore), toint(p.coreCount)),\n    HostMachineId      = tolower(tostring(p.containerResourceId)),\n    LastInventoryUpload = todatetime(p.lastInventoryUploadTime)\n| join kind=leftouter (\n    resources\n    | where type =~ 'microsoft.hybridcompute/machines'\n    | extend mp = properties\n    | project\n        HostMachineId    = tolower(id),\n        HostMachineName  = name,\n        HostOSName       = tostring(mp.osName),\n        HostOSVersion    = tostring(mp.osVersion),\n        HostOSSku        = tostring(mp.osSku),\n        HostLastSeen     = todatetime(mp.lastStatusChange),\n        AgentVersion     = tostring(mp.agentVersion),\n        AgentStatus      = tostring(mp.status)\n) on HostMachineId\n| join kind=leftouter (\n    resources\n    | where type =~ 'microsoft.hybridcompute/machines/extensions'\n    | where tolower(tostring(properties.publisher)) == 'microsoft.azuredata'\n    | where tostring(properties.type) in~ ('WindowsAgent.SqlServer','LinuxAgent.SqlServer')\n    | extend HostMachineId = tolower(substring(id, 0, indexof(tolower(id), '/extensions/')))\n    | summarize take_any(*) by HostMachineId\n    | project HostMachineId, ArcSqlExtInstalled = 'Yes', ArcSqlExtVersion = tostring(properties.typeHandlerVersion), ArcSqlExtState = tostring(properties.provisioningState)\n) on HostMachineId\n| extend ArcSqlExtInstalled = coalesce(ArcSqlExtInstalled, 'No')\n| project-away HostMachineId1, HostMachineId2\n| order by SubscriptionId asc, ResourceGroup asc, SQLArcResourceName asc",
+              "size": 0,
+              "showAnalytics": true,
+              "exportFieldName": "ResourceId",
+              "exportParameterName": "InstanceFilter",
+              "showExportToExcel": true,
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [
+                "{Subscriptions}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "LastInventoryUpload",
+                    "formatter": 6
+                  },
+                  {
+                    "columnMatch": "HostLastSeen",
+                    "formatter": 6
+                  },
+                  {
+                    "columnMatch": "AgentStatus",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Connected",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Disconnected",
+                          "representation": "red",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "ArcSqlExtInstalled",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Yes",
+                          "representation": "success",
+                          "text": "Yes"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "critical",
+                          "text": "No"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "ArcSqlExtVersion",
+                    "formatter": 1
+                  },
+                  {
+                    "columnMatch": "ArcSqlExtState",
+                    "formatter": 1
+                  },
+                  {
+                    "columnMatch": "HostMachineId",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "ResourceId",
+                    "formatter": 7,
+                    "formatOptions": {
+                      "linkTarget": "Resource",
+                      "linkLabel": "Open"
+                    }
+                  },
+                  {
+                    "columnMatch": "SubscriptionId",
+                    "formatter": 5
+                  }
+                ],
+                "filter": true,
+                "sortBy": [
+                  {
+                    "itemKey": "SQLArcResourceName",
+                    "sortOrder": 1
+                  }
+                ]
+              },
+              "sortBy": [
+                {
+                  "itemKey": "SQLArcResourceName",
+                  "sortOrder": 1
+                }
+              ]
+            },
+            "name": "inv-grid"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "inventory"
+      },
+      "name": "group-inventory"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### Migration Target Recommendations\n\nOne row per **SQL instance and target SKU**. An assessed instance can produce candidate rows for **Azure SQL MI**, **Azure SQL DB**, and **SQL Server on Azure VM**. Use the target and preferred filters to narrow the table.\n\n**Columns to read first**\n- **Preferred** — `Yes` when the workbook selects the target using the configured strategy and a valid Ready price. For `MigrateToPaaS`, the least-cost Ready MI or DB is selected; for `MigrateToIaaS`, a Ready VM is selected.\n- **Target Readiness** — the assessment-reported status. `Recommendation not reported` means no status is present and does not mean NotReady.\n- **Assessment Status / Status Explanation** — whether assessment is enabled and the first actionable reason a row cannot be compared or selected.\n- **ServerBlockers / ImpactedObjectCount** — assessment-reported counts; detailed compatibility findings are not exposed in this ARG view.\n- **MonthlyCost** — reported total of compute, storage, IOPS, SQL license, and Windows license components in the instance currency.\n- **SKU and disk columns** — recommended service tier, hardware, compute, storage, throughput, VM shape, and first reported disk configuration.\n\nPreferred selection is a workbook comparison rule, not a replacement for the assessment engine's recommendation. Missing license-cost values are not zero or proof of entitlement. [Compatibility findings and remediation](https://learn.microsoft.com/en-us/sql/sql-server/azure-arc/migration-assessment#compatibility) are available from the Arc SQL resource's Migration > Assessments report, subject to telemetry permissions.",
+              "style": "info"
+            },
+            "name": "rec-title"
+          },
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "p-target",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "TargetFilter",
+                  "label": "Target",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "jsonData": "[{\"value\":\"Azure SQL MI\",\"label\":\"Azure SQL MI\",\"selected\":true},{\"value\":\"Azure SQL DB\",\"label\":\"Azure SQL DB\",\"selected\":true},{\"value\":\"SQL Server on Azure VM\",\"label\":\"SQL Server on Azure VM\",\"selected\":true}]",
+                  "value": [
+                    "Azure SQL MI",
+                    "Azure SQL DB",
+                    "SQL Server on Azure VM"
+                  ]
+                },
+                {
+                  "id": "p-onlypref",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "OnlyPreferred",
+                  "label": "Show only preferred",
+                  "type": 2,
+                  "isRequired": true,
+                  "jsonData": "[{\"value\":\"true\",\"label\":\"Yes\"},{\"value\":\"false\",\"label\":\"No\",\"selected\":true}]"
+                }
+              ],
+              "style": "pills",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources"
+            },
+            "name": "rec-params"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n| extend asmt = properties.migration.assessment\n| extend r = asmt.skuRecommendationResults, Strategy = tostring(asmt.settings.strategy), Currency = coalesce(tostring(asmt.settings.currency), 'Unknown')\n| where 'value::all' in ({CurrencyFilter}) or '*' in ({CurrencyFilter}) or Currency in ({CurrencyFilter})\n| extend MICost = todouble(r.azureSqlManagedInstance.monthlyCost.totalCost), DBCost = todouble(r.azureSqlDatabase.monthlyCost.totalCost), VMCost = todouble(r.azureSqlVirtualMachine.monthlyCost.totalCost)\n| extend MIReadyCost = iff(tobool(asmt.enabled) == true and tostring(r.azureSqlManagedInstance.recommendationStatus) =~ 'Ready' and MICost >= 0, MICost, real(null)), DBReadyCost = iff(tobool(asmt.enabled) == true and tostring(r.azureSqlDatabase.recommendationStatus) =~ 'Ready' and DBCost >= 0, DBCost, real(null)), VMReadyCost = iff(tobool(asmt.enabled) == true and tostring(r.azureSqlVirtualMachine.recommendationStatus) =~ 'Ready' and VMCost >= 0, VMCost, real(null))\n| extend PaaSCheapest = min_of(MIReadyCost, DBReadyCost)\n| extend PreferredTarget = case(Strategy =~ 'MigrateToIaaS' and isnotnull(VMReadyCost), 'SQL Server on Azure VM', Strategy =~ 'MigrateToPaaS' and isnotnull(PaaSCheapest) and MIReadyCost == PaaSCheapest, 'Azure SQL MI', Strategy =~ 'MigrateToPaaS' and isnotnull(PaaSCheapest), 'Azure SQL DB', '')\n| extend SelectedTotal = case(PreferredTarget == 'SQL Server on Azure VM', VMReadyCost, PreferredTarget == 'Azure SQL MI', MIReadyCost, PreferredTarget == 'Azure SQL DB', DBReadyCost, real(null)), BaselineReady = max_of(MIReadyCost, DBReadyCost, VMReadyCost)\n| extend ComparisonStatus = case(Currency == 'Unknown', 'Unknown currency', isnull(tobool(asmt.enabled)), 'Assessment state unknown', tobool(asmt.enabled) != true, 'Assessment disabled', Strategy !in~ ('MigrateToIaaS','MigrateToPaaS'), 'Unrecognized strategy', isnull(SelectedTotal), 'No Ready priced target for strategy', 'Comparable')\n| extend MonthlyDifference = iff(ComparisonStatus == 'Comparable', BaselineReady - SelectedTotal, real(null))\n| extend impacted = asmt.impactedObjectsSummary\n| project name, id, resourceGroup, subscriptionId, Currency, Strategy, PreferredTarget, ComparisonStatus, AssessmentStatus = case(isnull(tobool(asmt.enabled)), 'State not reported', tobool(asmt.enabled) == true, 'Enabled', 'Disabled'), Targets = pack_array(pack('Target','Azure SQL MI','Data',r.azureSqlManagedInstance,'ImpactedObjectCount',toint(array_length(impacted.azureSqlManagedInstance))), pack('Target','Azure SQL DB','Data',r.azureSqlDatabase,'ImpactedObjectCount',toint(array_length(impacted.azureSqlDatabase))), pack('Target','SQL Server on Azure VM','Data',r.azureSqlVirtualMachine,'ImpactedObjectCount',toint(array_length(impacted.azureSqlVirtualMachine))))\n| mv-expand Targets\n| extend Target = tostring(Targets.Target), Data = Targets.Data, ImpactedObjectCount = toint(Targets.ImpactedObjectCount)\n| extend sku = Data.targetSku, ReportedReadiness = tostring(Data.recommendationStatus)\n| extend TargetReadiness = case(AssessmentStatus == 'Disabled', 'Not assessed: disabled', AssessmentStatus == 'State not reported', 'Not assessed: state not reported', isempty(ReportedReadiness), 'Recommendation not reported', ReportedReadiness)\n| extend IsPreferredByStrategy = ComparisonStatus == 'Comparable' and Target == PreferredTarget, ServerBlockers = toint(Data.numberOfServerBlockerIssues)\n| extend Notes = case(AssessmentStatus == 'Disabled', 'Migration assessment is disabled; enable and run it to produce target recommendations.', AssessmentStatus == 'State not reported', 'Migration assessment state was not reported; verify Arc inventory and assessment configuration.', TargetReadiness == 'Recommendation not reported', 'No recommendation was reported for this target; run or verify the migration assessment and result upload.', Currency == 'Unknown', 'Assessment currency was not reported; costs cannot be compared or a preferred target selected.', ComparisonStatus != 'Comparable', ComparisonStatus, IsPreferredByStrategy, 'Selected by workbook strategy and Ready price; confirm database compatibility in the Arc assessment report.', TargetReadiness =~ 'NotReady', 'Review compatibility findings in the Arc resource: Migration > Assessments.', TargetReadiness =~ 'Ready', 'Ready alternative; not the workbook-selected target.', strcat('Assessment reported an unrecognized readiness value: ', TargetReadiness))\n| where Target in ({TargetFilter})\n| where '{OnlyPreferred}' == 'false' or IsPreferredByStrategy == true\n| extend Preferred = iff(IsPreferredByStrategy, 'Yes', '')\n| extend dataDisks = sku.dataDiskSizes, logDisks = sku.logDiskSizes, tempDbDisks = sku.tempDbDiskSizes, vmSize = sku.virtualMachineSize\n| extend dataDiskCount = array_length(dataDisks), logDiskCount = array_length(logDisks), tempDbDiskCount = array_length(tempDbDisks)\n| extend DataDisk = case(isnull(dataDiskCount), 'Unknown', dataDiskCount == 0, 'None reported', strcat(iff(dataDiskCount == 1, '1 disk: ', strcat(dataDiskCount, ' disks; first: ')), coalesce(tostring(dataDisks[0].size), 'Unknown SKU'), ', ', coalesce(tostring(dataDisks[0].maxSizeInGib), 'Unknown'), ' GiB, ', coalesce(tostring(dataDisks[0].maxIops), 'Unknown'), ' IOPS, ', coalesce(tostring(dataDisks[0].maxThroughputInMbps), 'Unknown'), ' MB/s, cache=', coalesce(tostring(dataDisks[0].caching), 'Unknown')))\n| extend LogDisk = case(isnull(logDiskCount), 'Unknown', logDiskCount == 0, 'None reported', strcat(iff(logDiskCount == 1, '1 disk: ', strcat(logDiskCount, ' disks; first: ')), coalesce(tostring(logDisks[0].size), 'Unknown SKU'), ', ', coalesce(tostring(logDisks[0].maxSizeInGib), 'Unknown'), ' GiB, ', coalesce(tostring(logDisks[0].maxIops), 'Unknown'), ' IOPS, ', coalesce(tostring(logDisks[0].maxThroughputInMbps), 'Unknown'), ' MB/s, cache=', coalesce(tostring(logDisks[0].caching), 'Unknown')))\n| extend TempDbDisk = case(isnull(tempDbDiskCount), 'Unknown', tempDbDiskCount == 0, 'None reported', strcat(iff(tempDbDiskCount == 1, '1 disk: ', strcat(tempDbDiskCount, ' disks; first: ')), coalesce(tostring(tempDbDisks[0].size), 'Unknown SKU'), ', ', coalesce(tostring(tempDbDisks[0].maxSizeInGib), 'Unknown'), ' GiB, ', coalesce(tostring(tempDbDisks[0].maxIops), 'Unknown'), ' IOPS, ', coalesce(tostring(tempDbDisks[0].maxThroughputInMbps), 'Unknown'), ' MB/s, cache=', coalesce(tostring(tempDbDisks[0].caching), 'Unknown')))\n| project Preferred, SQLArcResourceName = name, Target, ['Target Readiness'] = TargetReadiness, ['Assessment Status'] = AssessmentStatus, ServerBlockers, ['Status Explanation'] = Notes, MonthlyCost = todouble(Data.monthlyCost.totalCost), ComputeCost = todouble(Data.monthlyCost.computeCost), StorageCost = todouble(Data.monthlyCost.storageCost), IOPSCost = todouble(Data.monthlyCost.iopsCost), SQLLicenseCost = todouble(Data.monthlyCost.sqlLicenseCost), WindowsLicenseCost = todouble(Data.monthlyCost.windowsLicenseCost), Currency, Strategy, PurchasingModel = tostring(sku.category.sqlPurchasingModel), SkuServiceTier = tostring(sku.category.sqlServiceTier), SkuHardware = tostring(sku.category.hardwareType), SkuComputeTier = tostring(sku.category.computeTier), SkuComputeSize = toint(sku.computeSize), ZoneRedundant = tobool(sku.category.zoneRedundancyAvailable), SkuStorageMaxSizeMB = todouble(sku.storageMaxSizeInMb), SkuMaxStorageIops = todouble(sku.maxStorageIops), SkuMaxThroughputMBps = todouble(sku.maxThroughputMBps), PredictedDataMB = todouble(sku.predictedDataSizeInMb), PredictedLogMB = todouble(sku.predictedLogSizeInMb), VmAzureSku = tostring(vmSize.azureSkuName), VmFamily = tostring(vmSize.virtualMachineFamily), VmVCPUs = toint(vmSize.vCPUsAvailable), VmAltSkus = iff(isnotnull(sku.category.availableVmSkus), strcat_array(sku.category.availableVmSkus, ', '), ''), DataDisk, LogDisk, TempDbDisk, ImpactedObjectCount, ResourceId = id, ResourceGroup = resourceGroup, SubscriptionId = subscriptionId\n| order by Preferred desc, SQLArcResourceName asc, MonthlyCost asc",
+              "size": 0,
+              "showAnalytics": true,
+              "showExportToExcel": true,
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [
+                "{Subscriptions}"
+              ],
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Preferred",
+                    "formatter": 1,
+                    "formatOptions": {
+                      "customColumnWidthSetting": "40px"
+                    }
+                  },
+                  {
+                    "columnMatch": "Target Readiness",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Ready",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "NotReady",
+                          "representation": "red",
+                          "text": "{0}"
+                        },                        {
+                          "operator": "==",
+                          "thresholdValue": "Not assessed: disabled",
+                          "representation": "gray",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Recommendation not reported",
+                          "representation": "yellow",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Assessment Status",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Enabled",
+                          "representation": "success",
+                          "text": "Enabled"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Disabled",
+                          "representation": "critical",
+                          "text": "Disabled"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "warning",
+                          "text": "State not reported"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Status Explanation",
+                    "formatter": 1
+                  },
+                  {
+                    "columnMatch": "MonthlyCost",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "ComputeCost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "StorageCost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "IOPSCost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SQLLicenseCost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "WindowsLicenseCost",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "ZoneRedundant",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "true",
+                          "representation": "success",
+                          "text": "Yes"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "disabled",
+                          "text": "No"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "SkuComputeSize",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 17,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SkuStorageMaxSizeMB",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SkuMaxStorageIops",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SkuMaxThroughputMBps",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "PredictedDataMB",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "PredictedLogMB",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "VmVCPUs",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 17,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SubscriptionId",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "ResourceGroup",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "ResourceId",
+                    "formatter": 7,
+                    "formatOptions": {
+                      "linkTarget": "Resource",
+                      "linkLabel": "Open"
+                    }
+                  }
+                ],
+                "rowLimit": 1000,
+                "filter": true,
+                "sortBy": [
+                  {
+                    "itemKey": "Preferred",
+                    "sortOrder": 2
+                  },
+                  {
+                    "itemKey": "SQLArcResourceName",
+                    "sortOrder": 1
+                  },
+                  {
+                    "itemKey": "MonthlyCost",
+                    "sortOrder": 1
+                  }
+                ]
+              },
+              "sortBy": [
+                  {
+                    "itemKey": "Preferred",
+                    "sortOrder": 2
+                  },
+                  {
+                    "itemKey": "SQLArcResourceName",
+                    "sortOrder": 1
+                  },
+                  {
+                    "itemKey": "MonthlyCost",
+                    "sortOrder": 1
+                  }
+                ]
+            },
+            "name": "rec-grid"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "recommendations"
+      },
+      "name": "group-recommendations"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### Databases Assessed\n\nOne row per reported database (`microsoft.azurearcdata/sqlserverinstances/databases`). Use **SQL instance (Databases)** to select one or more parent instances; **All** shows every reported database in the current subscription, resource-group, and tag scope.\n\n**Columns to read first**\n- **DatabaseName / DatabaseState** — database name and reported state such as Online, Offline, or Restoring.\n- **SizeMB / SpaceAvailableMB / DataFileSizeMB / LogFileSizeMB** — storage footprint reported by the Arc agent.\n- **RecoveryMode / CompatibilityLevel / Collation / IsReadOnly / IsEncrypted** — reported SQL database configuration. `IsEncrypted` reports encryption state; it is not proof of migration readiness.\n- **CreatedDate / LastUpload** — database creation time and latest database inventory upload.\n- **ServerAssessment** — Enabled, Disabled, or Unknown on the parent SQL instance.\n- **ServerMI / ServerDB / ServerVM** — parent-instance Ready, NotReady, or Unknown status for each target; these are not per-database compatibility results.\n\nARG does not expose detailed per-database compatibility reasons in this table. Review the [Arc assessment Compatibility report](https://learn.microsoft.com/en-us/sql/sql-server/azure-arc/migration-assessment#compatibility) for object-level findings."
+            },
+            "name": "db-title"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances/databases'\n| extend p = properties, parts = split(id, '/')\n| extend ParentId = tolower(strcat_array(array_slice(parts, 0, 8), '/'))\n| where 'value::all' in ({InstanceFilter}) or '*' in ({InstanceFilter}) or ParentId in~ ({InstanceFilter})\n| project DatabaseName = name, SQLArcResourceName = tostring(parts[8]), ParentId, ResourceGroup = resourceGroup, SubscriptionId = subscriptionId, Location = location, ResourceId = id, DatabaseState = tostring(p.state), SizeMB = todouble(p.sizeMB), SpaceAvailableMB = todouble(p.spaceAvailableMB), DataFileSizeMB = todouble(p.dataFileSizeMB), LogFileSizeMB = todouble(p.logFileSizeMB), RecoveryMode = tostring(p.recoveryMode), CompatibilityLevel = toint(p.compatibilityLevel), Collation = tostring(p.collationName), IsReadOnly = tobool(p.isReadOnly), IsEncrypted = tobool(p.databaseOptions.isEncrypted), CreatedDate = todatetime(p.databaseCreationDate), LastUpload = todatetime(p.lastDatabaseUploadTime)\n| join kind=inner (\n    resources\n    | where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n    | where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n    | where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n    | extend asmt = properties.migration.assessment\n    | extend results = asmt.skuRecommendationResults\n    | project ParentId = tolower(id), ServerAssessment = case(isnull(tobool(asmt.enabled)), 'Unknown', tobool(asmt.enabled) == true, 'Enabled', 'Disabled'), ServerMI = coalesce(tostring(results.azureSqlManagedInstance.recommendationStatus), 'Unknown'), ServerDB = coalesce(tostring(results.azureSqlDatabase.recommendationStatus), 'Unknown'), ServerVM = coalesce(tostring(results.azureSqlVirtualMachine.recommendationStatus), 'Unknown'), ServerStrategy = tostring(asmt.settings.strategy)\n) on ParentId\n| project-away ParentId, ParentId1\n| order by SQLArcResourceName asc, DatabaseName asc",
+              "size": 0,
+              "showAnalytics": true,
+              "showExportToExcel": true,
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [
+                "{Subscriptions}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "DatabaseState",
+                    "formatter": 1
+                  },
+                  {
+                    "columnMatch": "IsEncrypted",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "true",
+                          "representation": "success",
+                          "text": ""
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "disabled",
+                          "text": ""
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "SizeMB",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SpaceAvailableMB",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "DataFileSizeMB",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "LogFileSizeMB",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "CreatedDate",
+                    "formatter": 6
+                  },
+                  {
+                    "columnMatch": "LastUpload",
+                    "formatter": 6
+                  },
+                  {
+                    "columnMatch": "ResourceId",
+                    "formatter": 7,
+                    "formatOptions": {
+                      "linkTarget": "Resource",
+                      "linkLabel": "Open"
+                    }
+                  },
+                  {
+                    "columnMatch": "SubscriptionId",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "ServerAssessment",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Enabled",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "ServerMI",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Ready",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "NotReady",
+                          "representation": "red",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "ServerDB",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Ready",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "NotReady",
+                          "representation": "red",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "ServerVM",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Ready",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "NotReady",
+                          "representation": "red",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "filter": true,
+                "sortBy": [
+                  {
+                    "itemKey": "$gen_heatmap_SizeMB_7",
+                    "sortOrder": 2
+                  }
+                ]
+              },
+              "sortBy": [
+                {
+                  "itemKey": "$gen_heatmap_SizeMB_7",
+                  "sortOrder": 2
+                }
+              ]
+            },
+            "name": "db-grid"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "databases"
+      },
+      "name": "group-databases"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### Pricing: PAYGO vs RI\n\n> **Preview pricing.** These figures use assessment-reported retail estimates and do **not** reflect customer-specific discounts, private offers, or an existing reservation portfolio.\n\nFor each assessed SQL instance and Azure target, this tab compares three compute purchase models. License costs are excluded; each option is calculated from compute, storage, and IOPS.\n\n**Columns to read first**\n- **Cheapest** — the lowest available PAYG, one-year RI, or three-year RI estimate for an instance and target.\n- **PricingStatus** — Complete only when each option is reported exactly once with valid non-negative components.\n- **PAYG** — reported `WithNoOptionsSelected` option.\n- **RI_1Yr** — reported `With1YearRIAndProd` option.\n- **RI_3Yr** — reported `With3YearRIAndProd` option.\n- **SavingsVsPAYG_3Yr_Pct** — `(PAYG - RI_3Yr) / PAYG × 100` when both values are valid.\n- **AnnualSavings_3Yr** — `(PAYG - RI_3Yr) × 12`, assuming unchanged monthly prices and usage.\n- **Readiness** — server-level Ready / NotReady status for the target. NotReady rows remain visible for inspection and are not purchase recommendations.\n\n`Unavailable` means an option is absent, duplicated, incomplete, or has a negative component; an explicit zero remains valid. Currency and assessment discount/target-location settings are reported per instance."
+            },
+            "name": "prc-title"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.azurearcdata/sqlserverinstances'\n| where 'value::all' in ({ResourceGroup}) or '*' in ({ResourceGroup}) or resourceGroup in~ ({ResourceGroup})\n| where '{TagName}' == '' or tostring(tags['{TagName}']) =~ '{TagValue}'\n| extend asmt = properties.migration.assessment\n| where isnotnull(asmt) and isnotnull(asmt.skuRecommendationResults)\n| extend r = asmt.skuRecommendationResults, Currency = coalesce(tostring(asmt.settings.currency), 'Unknown')\n| where 'value::all' in ({CurrencyFilter}) or '*' in ({CurrencyFilter}) or Currency in ({CurrencyFilter})\n| extend Targets = pack_array(\n    pack('Target','Azure SQL MI', 'Data',r.azureSqlManagedInstance),\n    pack('Target','Azure SQL DB', 'Data',r.azureSqlDatabase),\n    pack('Target','SQL Server on Azure VM', 'Data',r.azureSqlVirtualMachine))\n| mv-expand Targets\n| extend Target = tostring(Targets.Target), Data = Targets.Data\n| extend Readiness = coalesce(tostring(Data.recommendationStatus), 'Unknown')\n| extend opts = iff(coalesce(array_length(Data.monthlyCostOptions), 0) == 0, dynamic([null]), Data.monthlyCostOptions)\n| mv-expand opt = opts\n| extend KeyName = tostring(opt.keyName), v = opt.keyValue\n| extend OptCompute = todouble(v.computeCost), OptStorage = todouble(v.storageCost), OptIops = todouble(v.iopsCost)\n| extend OptTotal = iff(OptCompute >= 0 and OptStorage >= 0 and OptIops >= 0, OptCompute + OptStorage + OptIops, real(null))\n| summarize\n    PAYG = sumif(OptTotal, KeyName =~ 'WithNoOptionsSelected'),\n    RI_1Yr = sumif(OptTotal, KeyName =~ 'With1YearRIAndProd'),\n    RI_3Yr = sumif(OptTotal, KeyName =~ 'With3YearRIAndProd'),\n    PAYGRows = countif(KeyName =~ 'WithNoOptionsSelected'),\n    RI1Rows = countif(KeyName =~ 'With1YearRIAndProd'),\n    RI3Rows = countif(KeyName =~ 'With3YearRIAndProd'),\n    PAYGValid = countif(KeyName =~ 'WithNoOptionsSelected' and isnotnull(OptTotal)),\n    RI1Valid = countif(KeyName =~ 'With1YearRIAndProd' and isnotnull(OptTotal)),\n    RI3Valid = countif(KeyName =~ 'With3YearRIAndProd' and isnotnull(OptTotal))\n    by ResourceId = id, SQLArcResourceName = name, ResourceGroup = resourceGroup, SubscriptionId = subscriptionId, Currency, Target, Readiness\n| extend PAYG = iff(PAYGRows == 1 and PAYGValid == 1, PAYG, real(null)), RI_1Yr = iff(RI1Rows == 1 and RI1Valid == 1, RI_1Yr, real(null)), RI_3Yr = iff(RI3Rows == 1 and RI3Valid == 1, RI_3Yr, real(null))\n| extend Lowest = min_of(PAYG, RI_1Yr, RI_3Yr)\n| extend Cheapest = case(isnull(Lowest), 'Unavailable', PAYG == Lowest, 'PAYG', RI_1Yr == Lowest, '1-yr RI', '3-yr RI')\n| extend PricingStatus = iff(isnotnull(PAYG) and isnotnull(RI_1Yr) and isnotnull(RI_3Yr), 'Complete', 'Incomplete or unavailable')\n| extend SavingsVsPAYG_3Yr_Pct = iff(PAYG > 0 and isnotnull(RI_3Yr), round(100.0 * (PAYG - RI_3Yr) / PAYG, 1), real(null))\n| extend AnnualSavings_3Yr = (PAYG - RI_3Yr) * 12\n| project Cheapest, PricingStatus, SQLArcResourceName, Target, Readiness, PAYG, RI_1Yr, RI_3Yr, SavingsVsPAYG_3Yr_Pct, AnnualSavings_3Yr, Currency, ResourceId, ResourceGroup, SubscriptionId\n| order by SQLArcResourceName asc, Target asc",
+              "size": 0,
+              "showAnalytics": true,
+              "showExportToExcel": true,
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [
+                "{Subscriptions}"
+              ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Cheapest",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "3-yr RI",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "1-yr RI",
+                          "representation": "blue",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "Readiness",
+                    "formatter": 18,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Ready",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "NotReady",
+                          "representation": "red",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "thresholdValue": null,
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "columnMatch": "PAYG",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "redBright"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "emptyValCustomText": "Unavailable",
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "RI_1Yr",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "blue"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "emptyValCustomText": "Unavailable",
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "RI_3Yr",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "green"
+                    },
+                    "numberFormat": {
+                      "unit": 0,
+                      "emptyValCustomText": "Unavailable",
+                      "options": {
+                        "style": "decimal",
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SavingsVsPAYG_3Yr_Pct",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "max": 100,
+                      "palette": "greenRed"
+                    },
+                    "numberFormat": {
+                      "unit": 1,
+                      "emptyValCustomText": "Unavailable",
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "AnnualSavings_3Yr",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "emptyValCustomText": "Unavailable",
+                      "options": {
+                        "style": "decimal",
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "SubscriptionId",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "ResourceGroup",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "ResourceId",
+                    "formatter": 7,
+                    "formatOptions": {
+                      "linkTarget": "Resource",
+                      "linkLabel": "Open"
+                    }
+                  }
+                ],
+                "rowLimit": 2000,
+                "filter": true
+              },
+              "sortBy": []
+            },
+            "name": "prc-grid"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "SelectedTab",
+        "comparison": "isEqualTo",
+        "value": "pricing"
+      },
+      "name": "group-pricing"
+    }  ],
+  "fallbackResourceIds": [
+    "Azure Monitor"
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
