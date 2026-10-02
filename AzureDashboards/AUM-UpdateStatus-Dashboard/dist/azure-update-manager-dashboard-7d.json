@@ -1,0 +1,391 @@
+{
+  "properties": {
+    "lenses": {
+      "0": {
+        "order": 0,
+        "parts": {
+          "0": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "colSpan": 19,
+              "rowSpan": 2
+            },
+            "metadata": {
+              "inputs": [],
+              "type": "Extension/HubsExtension/PartType/MarkdownPart",
+              "settings": {
+                "content": {
+                  "settings": {
+                    "content": "# Azure Update Manager Operations Dashboard\n**Data range: last 7 days.** Latest maintenance run per configuration within this range. **Stalled:** in progress with no update for more than 10 minutes. **Long-running:** in progress for more than 90 minutes while data is fresh.",
+                    "title": "",
+                    "subtitle": ""
+                  }
+                }
+              }
+            }
+          },
+          "1": {
+            "position": {
+              "x": 0,
+              "y": 2,
+              "colSpan": 19,
+              "rowSpan": 1
+            },
+            "metadata": {
+              "inputs": [],
+              "type": "Extension/HubsExtension/PartType/MarkdownPart",
+              "settings": {
+                "content": {
+                  "settings": {
+                    "content": "# Progress",
+                    "title": "",
+                    "subtitle": ""
+                  }
+                }
+              }
+            }
+          },
+          "2": {
+            "position": {
+              "x": 0,
+              "y": 3,
+              "colSpan": 10,
+              "rowSpan": 5
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Server progress by operating system and version",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "resources|where type in~ ('microsoft.compute/virtualmachines','microsoft.hybridcompute/machines')|extend ResourceId=tolower(id),OperatingSystem=case( type =~ 'microsoft.compute/virtualmachines',coalesce(tostring(properties.storageProfile.imageReference.sku),tostring(properties.storageProfile.osDisk.osType)),type =~ 'microsoft.hybridcompute/machines',coalesce(tostring(properties.osSku),tostring(properties.osName),tostring(properties.osType)),'Unknown'),OsVersion=case( type =~ 'microsoft.compute/virtualmachines',tostring(properties.storageProfile.imageReference.version),type =~ 'microsoft.hybridcompute/machines',tostring(properties.osVersion),'Unknown')|project ResourceId,OperatingSystem=iff(isempty(OperatingSystem),'Unknown',OperatingSystem),OsVersion=iff(isempty(OsVersion),'Unknown',OsVersion)|join kind=inner ( maintenanceresources|where type =~ 'microsoft.maintenance/applyupdates'|extend ResourceId=tolower(tostring(properties.resourceId)),StartUtc=todatetime(properties.startDateTime),RawStatus=tostring(properties.status)|where StartUtc >= ago(7d)|where isnotempty(ResourceId)|summarize arg_max(StartUtc,*) by ResourceId|extend OperationStatus=case( RawStatus in~ ('CompletedSuccess','NoUpdatesPending','UpdateSuccessfullyApplied','Succeeded','CompletedWithWarnings'),'Completed',RawStatus in~ ('Failed','Cancelled','ShutdownOrUnresponsive'),'Failed',RawStatus in~ ('InProgress','WaitingOnOngoingUpdate'),'InProgress','Other')|project ResourceId,OperationStatus ) on ResourceId|summarize TargetedServers=count(),CompletedServers=countif(OperationStatus =~ 'Completed'),FailedServers=countif(OperationStatus =~ 'Failed'),InProgressServers=countif(OperationStatus =~ 'InProgress') by OperatingSystem,OsVersion|order by FailedServers desc,InProgressServers desc,TargetedServers desc,OperatingSystem asc,OsVersion asc",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          },
+          "3": {
+            "position": {
+              "x": 10,
+              "y": 3,
+              "colSpan": 9,
+              "rowSpan": 5
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Completed, targeted, and failed servers by maintenance configuration",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "maintenanceresources|where type =~ 'microsoft.maintenance/applyupdates'|extend ResourceId=tolower(tostring(properties.resourceId)),ConfigurationId=tolower(tostring(properties.maintenanceConfigurationId)),CorrelationId=tolower(tostring(properties.correlationId)),StartUtc=todatetime(properties.startDateTime),EndUtc=todatetime(properties.endDateTime),SourceLastUpdatedUtc=todatetime(coalesce(properties.lastModifiedDateTime,properties.endDateTime,properties.startDateTime)),RawStatus=tostring(properties.status),RawError=tostring(properties.errorDetails)|where isnotempty(ResourceId) and isnotempty(ConfigurationId) and isnotempty(CorrelationId)|where StartUtc >= ago(7d)|join kind=inner ( maintenanceresources|where type =~ 'microsoft.maintenance/applyupdates'|extend ConfigurationId=tolower(tostring(properties.maintenanceConfigurationId)),LatestStartUtc=todatetime(properties.startDateTime)|where isnotempty(ConfigurationId)|where LatestStartUtc >= ago(7d)|summarize LatestStartUtc=max(LatestStartUtc) by ConfigurationId ) on ConfigurationId|where StartUtc == LatestStartUtc|summarize arg_max(SourceLastUpdatedUtc,*) by ResourceId,ConfigurationId|extend OperationStatus=case( RawStatus in~ ('CompletedSuccess','NoUpdatesPending','UpdateSuccessfullyApplied','Succeeded'),'Succeeded',RawStatus in~ ('CompletedWithWarnings'),'SucceededWithWarnings',RawStatus in~ ('InProgress','WaitingOnOngoingUpdate'),'InProgress',RawStatus in~ ('NotStarted'),'NotStarted',RawStatus in~ ('Failed','Cancelled','ShutdownOrUnresponsive'),'Failed','Unknown'),DataFreshness=case( isnull(SourceLastUpdatedUtc),'Unknown',datetime_diff('minute',now(),SourceLastUpdatedUtc) <= 10,'Fresh','Stale'),DurationMinutes=case( isnull(StartUtc),long(null),isnotnull(EndUtc),datetime_diff('minute',EndUtc,StartUtc),datetime_diff('minute',now(),StartUtc))|extend IsTerminal=OperationStatus in~ ('Succeeded','SucceededWithWarnings','Failed'),IsStalled=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Stale',IsLongRunning=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Fresh' and DurationMinutes > 90,MaintenanceConfiguration=tostring(split(ConfigurationId,'/')[8]),ServerName=tostring(split(ResourceId,'/')[8]),ResourceType=strcat(tostring(split(ResourceId,'/')[6]),'/',tostring(split(ResourceId,'/')[7]))|project ServerName,ResourceType,MaintenanceConfiguration,OperationStatus,DataFreshness,StartUtc,EndUtc,SourceLastUpdatedUtc,DurationMinutes,IsTerminal,IsStalled,IsLongRunning,ErrorInformation=RawError,CorrelationId,ResourceId,ConfigurationId|summarize Targeted=count(),Completed=countif(IsTerminal),Failed=countif(OperationStatus =~ 'Failed') by MaintenanceConfiguration|project MaintenanceConfiguration,CompletedServers=Completed,TargetedServers=Targeted,FailedServers=Failed|order by FailedServers desc,CompletedServers asc",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          },
+          "4": {
+            "position": {
+              "x": 0,
+              "y": 8,
+              "colSpan": 9,
+              "rowSpan": 4
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Maintenance reporting health",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "maintenanceresources|where type =~ 'microsoft.maintenance/applyupdates'|extend ResourceId=tolower(tostring(properties.resourceId)),ConfigurationId=tolower(tostring(properties.maintenanceConfigurationId)),CorrelationId=tolower(tostring(properties.correlationId)),StartUtc=todatetime(properties.startDateTime),EndUtc=todatetime(properties.endDateTime),SourceLastUpdatedUtc=todatetime(coalesce(properties.lastModifiedDateTime,properties.endDateTime,properties.startDateTime)),RawStatus=tostring(properties.status),RawError=tostring(properties.errorDetails)|where isnotempty(ResourceId) and isnotempty(ConfigurationId) and isnotempty(CorrelationId)|where StartUtc >= ago(7d)|join kind=inner ( maintenanceresources|where type =~ 'microsoft.maintenance/applyupdates'|extend ConfigurationId=tolower(tostring(properties.maintenanceConfigurationId)),LatestStartUtc=todatetime(properties.startDateTime)|where isnotempty(ConfigurationId)|where LatestStartUtc >= ago(7d)|summarize LatestStartUtc=max(LatestStartUtc) by ConfigurationId ) on ConfigurationId|where StartUtc == LatestStartUtc|summarize arg_max(SourceLastUpdatedUtc,*) by ResourceId,ConfigurationId|extend OperationStatus=case( RawStatus in~ ('CompletedSuccess','NoUpdatesPending','UpdateSuccessfullyApplied','Succeeded'),'Succeeded',RawStatus in~ ('CompletedWithWarnings'),'SucceededWithWarnings',RawStatus in~ ('InProgress','WaitingOnOngoingUpdate'),'InProgress',RawStatus in~ ('NotStarted'),'NotStarted',RawStatus in~ ('Failed','Cancelled','ShutdownOrUnresponsive'),'Failed','Unknown'),DataFreshness=case( isnull(SourceLastUpdatedUtc),'Unknown',datetime_diff('minute',now(),SourceLastUpdatedUtc) <= 10,'Fresh','Stale'),DurationMinutes=case( isnull(StartUtc),long(null),isnotnull(EndUtc),datetime_diff('minute',EndUtc,StartUtc),datetime_diff('minute',now(),StartUtc))|extend IsTerminal=OperationStatus in~ ('Succeeded','SucceededWithWarnings','Failed'),IsStalled=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Stale',IsLongRunning=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Fresh' and DurationMinutes > 90,MaintenanceConfiguration=tostring(split(ConfigurationId,'/')[8]),ServerName=tostring(split(ResourceId,'/')[8]),ResourceType=strcat(tostring(split(ResourceId,'/')[6]),'/',tostring(split(ResourceId,'/')[7]))|project ServerName,ResourceType,MaintenanceConfiguration,OperationStatus,DataFreshness,StartUtc,EndUtc,SourceLastUpdatedUtc,DurationMinutes,IsTerminal,IsStalled,IsLongRunning,ErrorInformation=RawError,CorrelationId,ResourceId,ConfigurationId|summarize LatestMaintenanceUpdateUtc=max(SourceLastUpdatedUtc),StaleServers=countif(DataFreshness =~ 'Stale'),UnknownFreshness=countif(DataFreshness =~ 'Unknown'),LatestRunConfigurations=dcount(ConfigurationId)",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          },
+          "5": {
+            "position": {
+              "x": 9,
+              "y": 8,
+              "colSpan": 10,
+              "rowSpan": 4
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Azure Arc Agent status",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "resources|where type =~ 'microsoft.hybridcompute/machines'|extend ArcAgentStatus=tostring(properties.status)|summarize Expired=countif(ArcAgentStatus =~ 'Expired'),Connected=countif(ArcAgentStatus =~ 'Connected'),Offline=countif(ArcAgentStatus in~ ('Disconnected','Offline'))",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          },
+          "6": {
+            "position": {
+              "x": 0,
+              "y": 12,
+              "colSpan": 19,
+              "rowSpan": 1
+            },
+            "metadata": {
+              "inputs": [],
+              "type": "Extension/HubsExtension/PartType/MarkdownPart",
+              "settings": {
+                "content": {
+                  "settings": {
+                    "content": "# Summary",
+                    "title": "",
+                    "subtitle": ""
+                  }
+                }
+              }
+            }
+          },
+          "7": {
+            "position": {
+              "x": 0,
+              "y": 13,
+              "colSpan": 19,
+              "rowSpan": 5
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Server status and completion",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "maintenanceresources|where type =~ 'microsoft.maintenance/applyupdates'|extend ResourceId=tolower(tostring(properties.resourceId)),ConfigurationId=tolower(tostring(properties.maintenanceConfigurationId)),CorrelationId=tolower(tostring(properties.correlationId)),StartUtc=todatetime(properties.startDateTime),EndUtc=todatetime(properties.endDateTime),SourceLastUpdatedUtc=todatetime(coalesce(properties.lastModifiedDateTime,properties.endDateTime,properties.startDateTime)),RawStatus=tostring(properties.status),RawError=tostring(properties.errorDetails)|where isnotempty(ResourceId) and isnotempty(ConfigurationId) and isnotempty(CorrelationId)|where StartUtc >= ago(7d)|join kind=inner ( maintenanceresources|where type =~ 'microsoft.maintenance/applyupdates'|extend ConfigurationId=tolower(tostring(properties.maintenanceConfigurationId)),LatestStartUtc=todatetime(properties.startDateTime)|where isnotempty(ConfigurationId)|where LatestStartUtc >= ago(7d)|summarize LatestStartUtc=max(LatestStartUtc) by ConfigurationId ) on ConfigurationId|where StartUtc == LatestStartUtc|summarize arg_max(SourceLastUpdatedUtc,*) by ResourceId,ConfigurationId|extend OperationStatus=case( RawStatus in~ ('CompletedSuccess','NoUpdatesPending','UpdateSuccessfullyApplied','Succeeded'),'Succeeded',RawStatus in~ ('CompletedWithWarnings'),'SucceededWithWarnings',RawStatus in~ ('InProgress','WaitingOnOngoingUpdate'),'InProgress',RawStatus in~ ('NotStarted'),'NotStarted',RawStatus in~ ('Failed','Cancelled','ShutdownOrUnresponsive'),'Failed','Unknown'),DataFreshness=case( isnull(SourceLastUpdatedUtc),'Unknown',datetime_diff('minute',now(),SourceLastUpdatedUtc) <= 10,'Fresh','Stale'),DurationMinutes=case( isnull(StartUtc),long(null),isnotnull(EndUtc),datetime_diff('minute',EndUtc,StartUtc),datetime_diff('minute',now(),StartUtc))|extend IsTerminal=OperationStatus in~ ('Succeeded','SucceededWithWarnings','Failed'),IsStalled=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Stale',IsLongRunning=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Fresh' and DurationMinutes > 90,MaintenanceConfiguration=tostring(split(ConfigurationId,'/')[8]),ServerName=tostring(split(ResourceId,'/')[8]),ResourceType=strcat(tostring(split(ResourceId,'/')[6]),'/',tostring(split(ResourceId,'/')[7]))|project ServerName,ResourceType,MaintenanceConfiguration,OperationStatus,DataFreshness,StartUtc,EndUtc,SourceLastUpdatedUtc,DurationMinutes,IsTerminal,IsStalled,IsLongRunning,ErrorInformation=RawError,CorrelationId,ResourceId,ConfigurationId|summarize Targeted=count(),NotStarted=countif(OperationStatus =~ 'NotStarted'),InProgress=countif(OperationStatus =~ 'InProgress'),Succeeded=countif(OperationStatus =~ 'Succeeded'),SucceededWithWarnings=countif(OperationStatus =~ 'SucceededWithWarnings'),Failed=countif(OperationStatus =~ 'Failed'),Unknown=countif(OperationStatus =~ 'Unknown'),Stale=countif(DataFreshness =~ 'Stale'),Terminal=countif(IsTerminal),SuccessfulTerminal=countif(OperationStatus in~ ('Succeeded','SucceededWithWarnings'))|extend CompletionPercentage=iff(Targeted == 0,'N/A',strcat(tostring(round(100.0 * todouble(Terminal) / todouble(Targeted),1)),'%')),SuccessPercentage=iff(Terminal == 0,'N/A',strcat(tostring(round(100.0 * todouble(SuccessfulTerminal) / todouble(Terminal),1)),'%'))|project Targeted,NotStarted,InProgress,Succeeded,SucceededWithWarnings,Failed,Unknown,Stale,CompletionPercentage,SuccessPercentage",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          },
+          "8": {
+            "position": {
+              "x": 0,
+              "y": 18,
+              "colSpan": 19,
+              "rowSpan": 4
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Failed, stalled, long-running, restart, stale, and pending totals",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "patchinstallationresources|where type in~ ( 'microsoft.hybridcompute/machines/patchinstallationresults','microsoft.compute/virtualmachines/patchinstallationresults')|extend ResourceId=tolower(tostring(split(tolower(id),'/patchinstallationresults/')[0])),MaintenanceRunId=tolower(tostring(properties.maintenanceRunId)),StartUtc=todatetime(properties.startDateTime),SourceLastUpdatedUtc=todatetime(properties.lastModifiedDateTime),RawStatus=tostring(properties.status),RawRestartStatus=tostring(properties.rebootStatus),OsType=tostring(properties.osType),InstalledPatchCount=toint(properties.installedPatchCount),PendingPatchCount=toint(properties.pendingPatchCount),FailedPatchCount=toint(properties.failedPatchCount),ExcludedPatchCount=toint(properties.excludedPatchCount),NotSelectedPatchCount=toint(properties.notSelectedPatchCount),ErrorInformation=tostring(properties.errorDetails)|where isnotempty(ResourceId) and isnotempty(MaintenanceRunId)|where StartUtc >= ago(7d)|extend ConfigurationId=tostring(split(MaintenanceRunId,'/providers/microsoft.maintenance/applyupdates/')[0])|join kind=inner ( patchinstallationresources|where type in~ ( 'microsoft.hybridcompute/machines/patchinstallationresults','microsoft.compute/virtualmachines/patchinstallationresults')|extend MaintenanceRunId=tolower(tostring(properties.maintenanceRunId)),ConfigurationId=tostring(split(tolower(tostring(properties.maintenanceRunId)),'/providers/microsoft.maintenance/applyupdates/')[0]),LatestStartUtc=todatetime(properties.startDateTime)|where isnotempty(ConfigurationId)|where LatestStartUtc >= ago(7d)|summarize LatestStartUtc=max(LatestStartUtc) by ConfigurationId ) on ConfigurationId|where StartUtc == LatestStartUtc|summarize arg_max(SourceLastUpdatedUtc,*) by ResourceId,ConfigurationId|extend OperationStatus=case( RawStatus =~ 'Succeeded','Succeeded',RawStatus =~ 'CompletedWithWarnings','SucceededWithWarnings',RawStatus =~ 'InProgress','InProgress',RawStatus =~ 'NotStarted','NotStarted',RawStatus =~ 'Failed','Failed','Unknown'),DataFreshness=case( isnull(SourceLastUpdatedUtc),'Unknown',datetime_diff('minute',now(),SourceLastUpdatedUtc) <= 10,'Fresh','Stale'),DurationMinutes=case( isnull(StartUtc),long(null),RawStatus in~ ('Succeeded','CompletedWithWarnings','Failed'),datetime_diff('minute',SourceLastUpdatedUtc,StartUtc),datetime_diff('minute',now(),StartUtc)),RestartStatus=case( RawRestartStatus =~ 'NotNeeded','NotRequired',RawRestartStatus =~ 'Required','Required',RawRestartStatus =~ 'Started','Pending',RawRestartStatus =~ 'Completed','Completed',RawRestartStatus =~ 'Failed','Pending','Unknown')|extend IsStalled=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Stale',IsLongRunning=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Fresh' and DurationMinutes > 90,MaintenanceConfiguration=tostring(split(ConfigurationId,'/')[8]),ServerName=tostring(split(ResourceId,'/')[8]),ResourceType=strcat(tostring(split(ResourceId,'/')[6]),'/',tostring(split(ResourceId,'/')[7]))|project ServerName,ResourceType,OsType,MaintenanceConfiguration,OperationStatus,DataFreshness,StartUtc,SourceLastUpdatedUtc,DurationMinutes,RestartStatus,InstalledPatchCount,PendingPatchCount,FailedPatchCount,ExcludedPatchCount,NotSelectedPatchCount,ErrorInformation,IsStalled,IsLongRunning,MaintenanceRunId,ResourceId|summarize Failed=countif(OperationStatus =~ 'Failed'),Stalled=countif(IsStalled),LongRunning=countif(IsLongRunning),RestartRequiredOrPending=countif(RestartStatus in~ ('Required','Pending')),StaleData=countif(DataFreshness =~ 'Stale'),PendingUpdates=sum(PendingPatchCount)",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          },
+          "9": {
+            "position": {
+              "x": 0,
+              "y": 22,
+              "colSpan": 19,
+              "rowSpan": 7
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Current update compliance",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "patchassessmentresources|where type has 'patchassessmentresults'|where type !has 'softwarepatches'|extend Assessment=parse_json(properties)|extend ResourceId=tolower(tostring(split(tolower(id),'/patchassessmentresults/')[0])),AssessmentLastUpdatedUtc=todatetime(Assessment.lastModifiedDateTime),AssessmentStartUtc=todatetime(Assessment.startDateTime),AssessmentStatus=tostring(Assessment.status),OsType=tostring(Assessment.osType),RebootPending=tobool(Assessment.rebootPending),ErrorInformation=tostring(Assessment.errorDetails),CriticalUpdates=coalesce(toint(Assessment.availablePatchCountByClassification.critical),0),SecurityUpdates=coalesce(toint(Assessment.availablePatchCountByClassification.security),0),UpdateRollups=coalesce(toint(Assessment.availablePatchCountByClassification.updateRollup),0),FeaturePacks=coalesce(toint(Assessment.availablePatchCountByClassification.featurePack),0),ServicePacks=coalesce(toint(Assessment.availablePatchCountByClassification.servicePack),0),DefinitionUpdates=coalesce(toint(Assessment.availablePatchCountByClassification.definition),0),Updates=coalesce(toint(Assessment.availablePatchCountByClassification.updates),0),Tools=coalesce(toint(Assessment.availablePatchCountByClassification.tools),0),OtherUpdates=coalesce(toint(Assessment.availablePatchCountByClassification.other),0)|where AssessmentLastUpdatedUtc >= ago(7d)|where isnotempty(ResourceId)|summarize arg_max(AssessmentLastUpdatedUtc,*) by ResourceId|extend TotalPendingUpdates=CriticalUpdates + SecurityUpdates + UpdateRollups + FeaturePacks + ServicePacks + DefinitionUpdates + Updates + Tools + OtherUpdates,ServerName=tostring(split(ResourceId,'/')[8])|extend ComplianceStatus=case( AssessmentStatus in~ ('Failed','Error'),'AssessmentFailed',AssessmentStatus =~ 'InProgress','AssessmentInProgress',TotalPendingUpdates == 0,'Compliant','UpdatesPending')|project ServerName,OsType,ComplianceStatus,AssessmentStatus,TotalPendingUpdates,CriticalUpdates,SecurityUpdates,RebootPending,AssessmentStartUtc,AssessmentLastUpdatedUtc,ErrorInformation,ResourceId|summarize AssessedServers=count(),CompliantServers=countif(ComplianceStatus =~ 'Compliant'),ServersWithPendingUpdates=countif(ComplianceStatus =~ 'UpdatesPending'),AssessmentFailures=countif(ComplianceStatus =~ 'AssessmentFailed'),AssessmentsInProgress=countif(ComplianceStatus =~ 'AssessmentInProgress'),RebootPendingServers=countif(RebootPending),CriticalUpdatesAvailable=sum(CriticalUpdates),SecurityUpdatesAvailable=sum(SecurityUpdates),TotalUpdatesAvailable=sum(TotalPendingUpdates),LatestAssessmentUtc=max(AssessmentLastUpdatedUtc)",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          },
+          "10": {
+            "position": {
+              "x": 0,
+              "y": 29,
+              "colSpan": 19,
+              "rowSpan": 1
+            },
+            "metadata": {
+              "inputs": [],
+              "type": "Extension/HubsExtension/PartType/MarkdownPart",
+              "settings": {
+                "content": {
+                  "settings": {
+                    "content": "# Immediate attention",
+                    "title": "",
+                    "subtitle": ""
+                  }
+                }
+              }
+            }
+          },
+          "11": {
+            "position": {
+              "x": 0,
+              "y": 30,
+              "colSpan": 19,
+              "rowSpan": 8
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Servers needing attention",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "patchinstallationresources|where type in~ ( 'microsoft.hybridcompute/machines/patchinstallationresults','microsoft.compute/virtualmachines/patchinstallationresults')|extend ResourceId=tolower(tostring(split(tolower(id),'/patchinstallationresults/')[0])),MaintenanceRunId=tolower(tostring(properties.maintenanceRunId)),StartUtc=todatetime(properties.startDateTime),SourceLastUpdatedUtc=todatetime(properties.lastModifiedDateTime),RawStatus=tostring(properties.status),RawRestartStatus=tostring(properties.rebootStatus),OsType=tostring(properties.osType),InstalledPatchCount=toint(properties.installedPatchCount),PendingPatchCount=toint(properties.pendingPatchCount),FailedPatchCount=toint(properties.failedPatchCount),ExcludedPatchCount=toint(properties.excludedPatchCount),NotSelectedPatchCount=toint(properties.notSelectedPatchCount),ErrorInformation=tostring(properties.errorDetails)|where isnotempty(ResourceId) and isnotempty(MaintenanceRunId)|where StartUtc >= ago(7d)|extend ConfigurationId=tostring(split(MaintenanceRunId,'/providers/microsoft.maintenance/applyupdates/')[0])|join kind=inner ( patchinstallationresources|where type in~ ( 'microsoft.hybridcompute/machines/patchinstallationresults','microsoft.compute/virtualmachines/patchinstallationresults')|extend MaintenanceRunId=tolower(tostring(properties.maintenanceRunId)),ConfigurationId=tostring(split(tolower(tostring(properties.maintenanceRunId)),'/providers/microsoft.maintenance/applyupdates/')[0]),LatestStartUtc=todatetime(properties.startDateTime)|where isnotempty(ConfigurationId)|where LatestStartUtc >= ago(7d)|summarize LatestStartUtc=max(LatestStartUtc) by ConfigurationId ) on ConfigurationId|where StartUtc == LatestStartUtc|summarize arg_max(SourceLastUpdatedUtc,*) by ResourceId,ConfigurationId|extend OperationStatus=case( RawStatus =~ 'Succeeded','Succeeded',RawStatus =~ 'CompletedWithWarnings','SucceededWithWarnings',RawStatus =~ 'InProgress','InProgress',RawStatus =~ 'NotStarted','NotStarted',RawStatus =~ 'Failed','Failed','Unknown'),DataFreshness=case( isnull(SourceLastUpdatedUtc),'Unknown',datetime_diff('minute',now(),SourceLastUpdatedUtc) <= 10,'Fresh','Stale'),DurationMinutes=case( isnull(StartUtc),long(null),RawStatus in~ ('Succeeded','CompletedWithWarnings','Failed'),datetime_diff('minute',SourceLastUpdatedUtc,StartUtc),datetime_diff('minute',now(),StartUtc)),RestartStatus=case( RawRestartStatus =~ 'NotNeeded','NotRequired',RawRestartStatus =~ 'Required','Required',RawRestartStatus =~ 'Started','Pending',RawRestartStatus =~ 'Completed','Completed',RawRestartStatus =~ 'Failed','Pending','Unknown')|extend IsStalled=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Stale',IsLongRunning=OperationStatus =~ 'InProgress' and DataFreshness =~ 'Fresh' and DurationMinutes > 90,MaintenanceConfiguration=tostring(split(ConfigurationId,'/')[8]),ServerName=tostring(split(ResourceId,'/')[8]),ResourceType=strcat(tostring(split(ResourceId,'/')[6]),'/',tostring(split(ResourceId,'/')[7]))|project ServerName,ResourceType,OsType,MaintenanceConfiguration,OperationStatus,DataFreshness,StartUtc,SourceLastUpdatedUtc,DurationMinutes,RestartStatus,InstalledPatchCount,PendingPatchCount,FailedPatchCount,ExcludedPatchCount,NotSelectedPatchCount,ErrorInformation,IsStalled,IsLongRunning,MaintenanceRunId,ResourceId|where PendingPatchCount > 0 or FailedPatchCount > 0 or OperationStatus =~ 'Failed' or IsStalled or IsLongRunning or DataFreshness =~ 'Stale' or RestartStatus in~ ('Required','Pending')|extend Priority=case( OperationStatus =~ 'Failed',1,IsStalled,2,RestartStatus in~ ('Required','Pending'),3,IsLongRunning,4,5)|project ServerName,ResourceType,OsType,MaintenanceConfiguration,OperationStatus,DataFreshness,StartUtc,SourceLastUpdatedUtc,DurationMinutes,RestartStatus,InstalledPatchCount,PendingPatchCount,FailedPatchCount,ExcludedPatchCount,NotSelectedPatchCount,ErrorInformation,ResourceId,Priority|order by Priority asc,PendingPatchCount desc,ServerName asc|project-away Priority",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          },
+          "12": {
+            "position": {
+              "x": 0,
+              "y": 38,
+              "colSpan": 19,
+              "rowSpan": 1
+            },
+            "metadata": {
+              "inputs": [],
+              "type": "Extension/HubsExtension/PartType/MarkdownPart",
+              "settings": {
+                "content": {
+                  "settings": {
+                    "content": "# Pending update details",
+                    "title": "",
+                    "subtitle": ""
+                  }
+                }
+              }
+            }
+          },
+          "13": {
+            "position": {
+              "x": 0,
+              "y": 39,
+              "colSpan": 19,
+              "rowSpan": 8
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "partTitle",
+                  "value": "Pending updates by missing server count",
+                  "isOptional": true
+                },
+                {
+                  "name": "query",
+                  "value": "patchassessmentresources|where type has 'patchassessmentresults/softwarepatches'|extend Patch=parse_json(properties)|extend ResourceId=tolower(tostring(split(tolower(id),'/patchassessmentresults/')[0])),AssessmentLastUpdatedUtc=todatetime(Patch.lastModifiedDateTime),UpdateName=tostring(Patch.patchName),KbId=tostring(Patch.kbId),Classification=strcat_array(Patch.classifications,','),Version=tostring(Patch.version),InstallationState=tostring(Patch.installationState)|where AssessmentLastUpdatedUtc >= ago(7d)|where isnotempty(ResourceId) and isnotempty(UpdateName)|where InstallationState !in~ ('Installed','Succeeded')|extend KbId=iff(isempty(KbId),'N/A',KbId),Classification=iff(isempty(Classification),'Unclassified',Classification),Version=iff(isempty(Version),'N/A',Version)|summarize ServersMissingUpdate=dcount(ResourceId),LatestAssessmentUtc=max(AssessmentLastUpdatedUtc) by UpdateName,KbId,Classification,Version|project UpdateName,KbId,Classification,Version,ServersMissingUpdate,LatestAssessmentUtc|order by ServersMissingUpdate desc,UpdateName asc",
+                  "isOptional": true
+                },
+                {
+                  "name": "chartType",
+                  "isOptional": true
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/ArgQueryGridTile",
+              "settings": {}
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "model": {
+        "timeRange": {
+          "value": {
+            "relative": {
+              "duration": 168,
+              "timeUnit": 1
+            }
+          },
+          "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange"
+        },
+        "filterLocale": {
+          "value": "en-us"
+        }
+      }
+    }
+  },
+  "name": "Azure Update Manager Operations Dashboard - 7 days",
+  "type": "Microsoft.Portal/dashboards",
+  "location": "global",
+  "tags": {
+    "hidden-title": "Azure Update Manager Operations Dashboard - Last 7 days"
+  },
+  "apiVersion": "2019-01-01-preview"
+}
