@@ -1,0 +1,46 @@
+// AVD-Insights-CorrelatedHosts
+// Detects session hosts failing multiple performance signals simultaneously.
+// Combines CPU, Memory, and Disk latency signals; fires when {minSignalCount} or more breach thresholds.
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _maxCpuPercent        = 90;
+let _minAvailableMemoryMB = 512;
+let _maxDiskLatencySeconds = 0.025;
+let _minSignalCount       = 2;
+let _window = 15m;
+let cpuHigh = Perf
+| where TimeGenerated > ago(_window)
+| where ObjectName == "Processor Information"
+    and InstanceName == "_Total"
+    and CounterName == "% Processor Time"
+| summarize AvgCpu = avg(CounterValue) by Computer
+| where AvgCpu > _maxCpuPercent
+| project Computer, Signal = "CPU", Value = strcat(round(AvgCpu, 1), "%");
+let memLow = Perf
+| where TimeGenerated > ago(_window)
+| where ObjectName == "Memory"
+    and CounterName == "Available MBytes"
+| summarize AvgMem = avg(CounterValue) by Computer
+| where AvgMem < _minAvailableMemoryMB
+| project Computer, Signal = "Memory", Value = strcat(round(AvgMem, 0), " MB");
+let diskSlow = Perf
+| where TimeGenerated > ago(_window)
+| where ObjectName == "LogicalDisk"
+    and CounterName in ("Avg. Disk sec/Read", "Avg. Disk sec/Write")
+    and InstanceName != "_Total"
+| summarize AvgLatency = avg(CounterValue) by Computer
+| where AvgLatency > _maxDiskLatencySeconds
+| project Computer, Signal = "Disk", Value = strcat(round(AvgLatency * 1000, 1), " ms");
+union cpuHigh, memLow, diskSlow
+| summarize
+    Signals      = make_set(Signal),
+    Details      = make_set(strcat(Signal, "=", Value)),
+    SignalCount  = dcount(Signal)
+    by Computer
+| where SignalCount >= _minSignalCount
+| project
+    Computer,
+    SignalCount,
+    Signals      = strcat_array(Signals, ", "),
+    Details      = strcat_array(Details, " | ")
+| order by SignalCount desc

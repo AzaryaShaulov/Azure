@@ -1,0 +1,26 @@
+// AVD-Insights-Category-GPUPerformance
+// Consolidated category alert: fires when GPU encoding time exceeds the RDP frame budget.
+// Signals: RemoteFX Graphics Average Encoding Time
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// NOTE: Only applicable to GPU-enabled session hosts (NV-series, etc.)
+// Thresholds — edit these values or override at deployment time
+let _maxEncodingTimeMs = 33;
+let _minSampleCount    = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "RemoteFX Graphics"
+    and CounterName == "Average Encoding Time"
+| summarize
+    AvgEncodingMs = avg(CounterValue),
+    MaxEncodingMs = max(CounterValue),
+    SampleCount   = count()
+    by Computer
+| where SampleCount >= _minSampleCount
+    and AvgEncodingMs > _maxEncodingTimeMs
+| project
+    Computer,
+    Signal        = "GPUEncodingTime",
+    AvgEncodingMs = round(AvgEncodingMs, 1),
+    MaxEncodingMs = round(MaxEncodingMs, 1),
+    SampleCount
+| order by AvgEncodingMs desc

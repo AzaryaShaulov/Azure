@@ -1,0 +1,41 @@
+// AVD-Insights-Category-SessionQuality
+// Consolidated category alert: fires when ANY user-experience signal breaches threshold.
+// Signals: Input Delay (Process), Input Delay (Session), Round-Trip Latency, UDP Bandwidth
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _maxInputDelayMs    = 200;
+let _maxRoundTripMs     = 150;
+let _minUdpBandwidthKBps = 500;
+let _minSampleCount     = 3;
+let inputDelayProcess = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "User Input Delay per Process"
+    and CounterName == "Max Input Delay"
+    and InstanceName !in ("_Total", "Idle")
+| summarize AvgValue = avg(CounterValue), MaxValue = max(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue > _maxInputDelayMs
+| project Computer, Signal = "InputDelay-Process", AvgValue = round(AvgValue, 1), MaxValue = round(MaxValue, 1), SampleCount;
+let inputDelaySession = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "User Input Delay per Session"
+    and CounterName == "Max Input Delay"
+    and InstanceName != "_Total"
+| summarize AvgValue = avg(CounterValue), MaxValue = max(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue > _maxInputDelayMs
+| project Computer, Signal = "InputDelay-Session", AvgValue = round(AvgValue, 1), MaxValue = round(MaxValue, 1), SampleCount;
+let roundTrip = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "RemoteFX Network"
+    and CounterName == "Current TCP RTT"
+| summarize AvgValue = avg(CounterValue), MaxValue = max(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue > _maxRoundTripMs
+| project Computer, Signal = "RoundTripLatency", AvgValue = round(AvgValue, 1), MaxValue = round(MaxValue, 1), SampleCount;
+let udpBandwidth = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "RemoteFX Network"
+    and CounterName == "Current UDP Bandwidth"
+| summarize AvgValue = avg(CounterValue), MinValue = min(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue < _minUdpBandwidthKBps
+| project Computer, Signal = "UDPBandwidth", AvgValue = round(AvgValue, 1), MaxValue = round(MinValue, 1), SampleCount;
+union inputDelayProcess, inputDelaySession, roundTrip, udpBandwidth
+| order by Computer asc, Signal asc

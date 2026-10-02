@@ -1,0 +1,25 @@
+﻿// AVD-Insights-InputDelaySession
+// Detects session hosts where User Input Delay per Session exceeds threshold.
+// Counter: \User Input Delay per Session(*)\Max Input Delay
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds  edit these values or override at deployment time
+let _maxInputDelayMs = 200;
+let _minSampleCount  = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "User Input Delay per Session"
+    and CounterName == "Max Input Delay"
+    and InstanceName != "_Total"
+| summarize
+    AvgDelayMs   = avg(CounterValue),
+    MaxDelayMs   = max(CounterValue),
+    SampleCount  = count()
+    by Computer
+| where SampleCount >= _minSampleCount
+    and AvgDelayMs > _maxInputDelayMs
+| project
+    Computer,
+    AvgDelayMs    = round(AvgDelayMs, 1),
+    MaxDelayMs    = round(MaxDelayMs, 1),
+    SampleCount
+| order by AvgDelayMs desc

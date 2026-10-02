@@ -1,0 +1,25 @@
+// AVD-Insights-CPUSaturation
+// Detects session hosts where Processor % Processor Time exceeds {maxCpuPercent}%.
+// Counter: \Processor Information(_Total)\% Processor Time
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _maxCpuPercent   = 90;
+let _minSampleCount  = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Processor Information"
+    and InstanceName == "_Total"
+    and CounterName == "% Processor Time"
+| summarize
+    AvgCpuPercentUsage = avg(CounterValue),
+    MaxCpuPercentUsage = max(CounterValue),
+    SampleCount   = count()
+    by Computer
+| where SampleCount >= _minSampleCount
+    and AvgCpuPercentUsage > _maxCpuPercent
+| project
+    Computer,
+    AvgCpuPercentUsage = round(AvgCpuPercentUsage, 1),
+    MaxCpuPercentUsage = round(MaxCpuPercentUsage, 1),
+    SampleCount
+| order by AvgCpuPercentUsage desc

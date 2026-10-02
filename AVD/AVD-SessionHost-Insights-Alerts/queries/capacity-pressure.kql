@@ -1,0 +1,35 @@
+// AVD-Insights-CapacityPressure
+// Detects session hosts where active session count approaches {capacityPercent}% of the host pool maxSessionLimit.
+// Source table: WVDAgentHealthStatus (AVD diagnostic logs) + Azure Resource Graph (host pool maxSessionLimit)
+// Thresholds — edit the let variable below or override at deployment time
+let _capacityPercent = 90;
+WVDAgentHealthStatus
+| where TimeGenerated > ago(15m)
+| summarize arg_max(TimeGenerated, *) by SessionHostName
+| where Status == "Available"
+| extend
+    ActiveSessions = toint(ActiveSessions),
+    HostPoolName = tolower(extract(@"/hostpools/([^/]+)", 1, tostring(_ResourceId)))
+| where isnotempty(HostPoolName)
+| join hint.remote=left kind=leftouter (
+    arg("").Resources
+    | where type =~ "microsoft.desktopvirtualization/hostpools"
+    | project
+        HostPoolName = tolower(name),
+        MaxSupported = toint(properties.maxSessionLimit)
+) on HostPoolName
+| where isnotempty(MaxSupported)
+| where MaxSupported != 999999
+| extend
+    HostUtilizationPct = round((ActiveSessions * 100.0) / MaxSupported, 1),
+    OverLimit = ActiveSessions > MaxSupported
+| where HostUtilizationPct >= _capacityPercent or OverLimit
+| project
+    HostPoolName,
+    SessionHostName,
+    ActiveSessions,
+    MaxSupported,
+    HostUtilizationPct,
+    OverLimit,
+    LastHeartBeat = TimeGenerated
+| order by HostUtilizationPct desc

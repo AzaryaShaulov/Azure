@@ -1,0 +1,41 @@
+// AVD-Insights-FSLogixCorrelation
+// Detects session hosts where FSLogix profile load/unload delays correlate with host performance degradation.
+// Combines WVDCheckpoints profile timing with Perf counter data for CPU and disk latency.
+// Source tables: WVDCheckpoints + Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _maxProfileLoadMs      = 30000;
+let _maxCpuPercent         = 85;
+let _maxDiskLatencySeconds = 0.025;
+let _window = 30m;
+let profileSlow = WVDCheckpoints
+| where TimeGenerated > ago(_window)
+| where Name in ("OnAttach", "LoadProfile", "OnDetach")
+| extend DurationMs = toint(Parameters.DurationMs)
+| where isnotnull(DurationMs) and DurationMs > _maxProfileLoadMs
+| summarize
+    AvgProfileMs = avg(DurationMs),
+    MaxProfileMs = max(DurationMs),
+    ProfileOps   = count()
+    by SessionHostName = tostring(Parameters.SessionHostName);
+let hostPerf = Perf
+| where TimeGenerated > ago(_window)
+| where (ObjectName == "Processor Information" and InstanceName == "_Total" and CounterName == "% Processor Time")
+    or  (ObjectName == "LogicalDisk" and CounterName in ("Avg. Disk sec/Read", "Avg. Disk sec/Write") and InstanceName != "_Total")
+| extend
+    IsCpu  = (ObjectName == "Processor Information"),
+    IsDisk = (ObjectName == "LogicalDisk")
+| summarize
+    AvgCpu         = avgif(CounterValue, IsCpu),
+    AvgDiskLatency = avgif(CounterValue, IsDisk)
+    by Computer;
+profileSlow
+| join kind=inner hostPerf on $left.SessionHostName == $right.Computer
+| where AvgCpu > _maxCpuPercent or AvgDiskLatency > _maxDiskLatencySeconds
+| project
+    SessionHostName,
+    AvgProfileSec  = round(AvgProfileMs / 1000.0, 1),
+    MaxProfileSec  = round(MaxProfileMs / 1000.0, 1),
+    ProfileOps,
+    AvgCpuPercent  = round(AvgCpu, 1),
+    AvgDiskLatMs   = round(AvgDiskLatency * 1000, 1)
+| order by AvgProfileSec desc

@@ -1,0 +1,148 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1283" viewBox="0 0 1680 980" role="img" aria-labelledby="title desc">
+  <title id="title">AVD Monitoring Decision Guide</title>
+  <desc id="desc">Choose the AVD deployment path based on required monitoring outcomes.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7fafc; }
+      .title { font: 700 28px Segoe UI, Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 16px Segoe UI, Arial, sans-serif; fill: #334155; }
+      .box { fill: #ffffff; stroke: #0f172a; stroke-width: 2; rx: 14; }
+      .decision { fill: #e2e8f0; stroke: #0f172a; stroke-width: 2; rx: 14; }
+      .pathA { fill: #e0f2fe; }
+      .pathB { fill: #dcfce7; }
+      .pathC { fill: #fef3c7; }
+      .header { font: 700 17px Segoe UI, Arial, sans-serif; fill: #0f172a; }
+      .txt { font: 500 14px Segoe UI, Arial, sans-serif; fill: #0f172a; }
+      .small { font: 500 12px Segoe UI, Arial, sans-serif; fill: #334155; }
+      .arrow { stroke: #1e293b; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+      .connector { stroke: #475569; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1e293b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1680" height="980" />
+
+  <text class="title" x="840" y="48" text-anchor="middle">AVD Monitoring Decision Guide</text>
+  <text class="subtitle" x="840" y="76" text-anchor="middle">Select the deployment path based on the outcome your operations team needs.</text>
+
+  <rect class="decision" x="620" y="110" width="440" height="72" />
+  <text class="header" x="840" y="145" text-anchor="middle">What monitoring outcome do you need?</text>
+  <text class="small" x="840" y="166" text-anchor="middle">Connection reliability, session host performance, or full coverage</text>
+
+  <rect class="box pathA" x="70" y="235" width="460" height="80" />
+  <text class="header" x="300" y="266" text-anchor="middle">Path A: Connections, FSlogix, profiles and sign-in alerting</text>
+  <text class="small" x="300" y="288" text-anchor="middle">WVDErrors-focused monitoring</text>
+
+  <rect class="box pathB" x="610" y="235" width="460" height="80" />
+  <text class="header" x="840" y="266" text-anchor="middle">Path B: Session host performance alerting</text>
+  <text class="small" x="840" y="288" text-anchor="middle">Insights and perf-counter focused monitoring</text>
+
+  <rect class="box pathC" x="1150" y="235" width="460" height="80" />
+  <text class="header" x="1380" y="266" text-anchor="middle">Path C: Full AVD monitoring coverage</text>
+  <text class="small" x="1380" y="288" text-anchor="middle">Connection plus performance monitoring</text>
+
+  <path class="arrow" d="M840 182 L300 235" />
+  <path class="arrow" d="M840 182 L840 235" />
+  <path class="arrow" d="M840 182 L1380 235" />
+
+  <rect class="box" x="70" y="355" width="460" height="80" />
+  <text class="txt" x="85" y="382">1. Enable diagnostics:</text>
+  <text class="small" x="85" y="404">AVD-Diagnostics/AVD-Enable-Diagnostic-Logs.ps1</text>
+
+  <rect class="box" x="70" y="449" width="460" height="80" />
+  <text class="txt" x="85" y="476">2. Deploy WVDErrors alert pipeline:</text>
+  <text class="small" x="85" y="498">
+    <tspan x="85" dy="0">AVD-AzAlerts/</tspan>
+    <tspan x="85" dy="14">AVD-Deploy-Alert-LogicApp.ps1</tspan>
+  </text>
+
+  <rect class="box" x="70" y="543" width="460" height="80" />
+  <text class="txt" x="85" y="570">3. Authorize Office 365 API connection in portal</text>
+
+  <rect class="box" x="70" y="637" width="460" height="80" />
+  <text class="txt" x="85" y="664">4. Optional validation:</text>
+  <text class="small" x="85" y="686">
+    <tspan x="85" dy="0">AVD-AzAlerts/</tspan>
+    <tspan x="85" dy="14">AVD-Webhook-TestAlert.ps1</tspan>
+  </text>
+
+  <path class="connector" d="M300 315 L300 355" />
+  <path class="connector" d="M300 435 L300 449" />
+  <path class="connector" d="M300 529 L300 543" />
+  <path class="connector" d="M300 623 L300 637" />
+
+  <rect class="box" x="610" y="355" width="460" height="80" />
+  <text class="txt" x="625" y="382">1. Enable diagnostics:</text>
+  <text class="small" x="625" y="404">AVD-Diagnostics/AVD-Enable-Diagnostic-Logs.ps1</text>
+
+  <rect class="box" x="610" y="449" width="460" height="80" />
+  <text class="txt" x="625" y="476">2. Deploy DCR and policy association:</text>
+  <text class="small" x="625" y="498">
+    <tspan x="625" dy="0">AVD-SessionHost-Insights/</tspan>
+    <tspan x="625" dy="14">AVD-Insights-Enable-PerfMetricsDCRps1</tspan>
+  </text>
+
+  <rect class="box" x="610" y="543" width="460" height="80" />
+  <text class="txt" x="625" y="570">3. Deploy Insights alert pipeline:</text>
+  <text class="small" x="625" y="592">
+    <tspan x="625" dy="0">AVD-SessionHost-Insights-Alerts/</tspan>
+    <tspan x="625" dy="14">AVD-Insights-Alerts-Deploy-LogicApp.ps1</tspan>
+  </text>
+
+  <rect class="box" x="610" y="637" width="460" height="80" />
+  <text class="txt" x="625" y="664">4. Authorize Office 365 API connection in portal</text>
+
+  <rect class="box" x="610" y="731" width="460" height="80" />
+  <text class="txt" x="625" y="758">5. Optional validation:</text>
+  <text class="small" x="625" y="780">
+    <tspan x="625" dy="0">AVD-AzAlerts/</tspan>
+    <tspan x="625" dy="14">AVD-Webhook-TestAlert.ps1</tspan>
+  </text>
+
+  <path class="connector" d="M840 315 L840 355" />
+  <path class="connector" d="M840 435 L840 449" />
+  <path class="connector" d="M840 529 L840 543" />
+  <path class="connector" d="M840 623 L840 637" />
+  <path class="connector" d="M840 717 L840 731" />
+
+  <rect class="box" x="1150" y="355" width="460" height="80" />
+  <text class="txt" x="1165" y="382">1. Enable diagnostics:</text>
+  <text class="small" x="1165" y="404">AVD-Diagnostics/AVD-Enable-Diagnostic-Logs.ps1</text>
+
+  <rect class="box" x="1150" y="449" width="460" height="80" />
+  <text class="txt" x="1165" y="476">2. Deploy WVDErrors alert pipeline:</text>
+  <text class="small" x="1165" y="498">
+    <tspan x="1165" dy="0">AVD-AzAlerts/</tspan>
+    <tspan x="1165" dy="14">AVD-Deploy-Alert-LogicApp.ps1</tspan>
+  </text>
+
+  <rect class="box" x="1150" y="543" width="460" height="80" />
+  <text class="txt" x="1165" y="570">3. Deploy DCR and policy association:</text>
+  <text class="small" x="1165" y="592">
+    <tspan x="1165" dy="0">AVD-SessionHost-Insights/</tspan>
+    <tspan x="1165" dy="14">AVD-Insights-Enable-PerfMetricsDCRps1</tspan>
+  </text>
+
+  <rect class="box" x="1150" y="637" width="460" height="80" />
+  <text class="txt" x="1165" y="664">4. Deploy Insights alert pipeline:</text>
+  <text class="small" x="1165" y="686">
+    <tspan x="1165" dy="0">AVD-SessionHost-Insights-Alerts/</tspan>
+    <tspan x="1165" dy="14">AVD-Insights-Alerts-Deploy-LogicApp.ps1</tspan>
+  </text>
+
+  <rect class="box" x="1150" y="731" width="460" height="80" />
+  <text class="txt" x="1165" y="758">5. Authorize both Office 365 API connections</text>
+
+  <rect class="box" x="1150" y="825" width="460" height="80" />
+  <text class="txt" x="1165" y="852">6. Optional validation with test alerts</text>
+
+  <path class="connector" d="M1380 315 L1380 355" />
+  <path class="connector" d="M1380 435 L1380 449" />
+  <path class="connector" d="M1380 529 L1380 543" />
+  <path class="connector" d="M1380 623 L1380 637" />
+  <path class="connector" d="M1380 717 L1380 731" />
+  <path class="connector" d="M1380 811 L1380 825" />
+</svg>
+

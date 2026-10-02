@@ -1,0 +1,27 @@
+// AVD-Insights-DiskTiming
+// Detects session hosts where Avg. Disk sec/Read or sec/Write exceeds {maxDiskLatencySeconds} seconds.
+// Counters: \LogicalDisk(*)\Avg. Disk sec/Read, \LogicalDisk(*)\Avg. Disk sec/Write
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _maxDiskLatencySeconds = 0.025;
+let _minSampleCount        = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "LogicalDisk"
+    and CounterName in ("Avg. Disk sec/Read", "Avg. Disk sec/Write")
+    and InstanceName != "_Total"
+| summarize
+    AvgLatencySec = avg(CounterValue),
+    MaxLatencySec = max(CounterValue),
+    SampleCount   = count()
+    by Computer, InstanceName, CounterName
+| where SampleCount >= _minSampleCount
+    and AvgLatencySec > _maxDiskLatencySeconds
+| project
+    Computer,
+    Disk          = InstanceName,
+    Direction     = iif(CounterName has "Read", "Read", "Write"),
+    AvgLatencyMs  = round(AvgLatencySec * 1000, 1),
+    MaxLatencyMs  = round(MaxLatencySec * 1000, 1),
+    SampleCount
+| order by AvgLatencyMs desc

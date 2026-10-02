@@ -1,0 +1,34 @@
+// AVD-Insights-DiskFreeSpace
+// Detects session hosts where OS disk (C:) free space percentage drops below {minFreeSpacePercent}%.
+// Counter: \LogicalDisk(C:)\% Free Space, \LogicalDisk(C:)\Free Megabytes
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _minFreeSpacePercent = 20;
+let pctData = Perf
+//| where TimeGenerated > ago(15m)
+| where ObjectName == "LogicalDisk"
+    and InstanceName == "C:"
+    and CounterName == "% Free Space"
+| summarize
+    FreeDiskSpaceLeftPercent = avg(CounterValue),
+    MinFreePercent = min(CounterValue),
+    SampleCount    = count()
+    by Computer;
+let mbData = Perf
+//| where TimeGenerated > ago(15m)
+| where ObjectName == "LogicalDisk"
+    and InstanceName == "C:"
+    and CounterName == "Free Megabytes"
+| summarize
+    FreeDiskSpaceLeftInMB = avg(CounterValue)
+    by Computer;
+pctData
+| join kind=leftouter mbData on Computer
+| where FreeDiskSpaceLeftPercent < _minFreeSpacePercent
+| project
+    Computer,
+    FreeDiskSpaceLeftPercent = round(FreeDiskSpaceLeftPercent, 1),
+    MinFreePercent = round(MinFreePercent, 1),
+    FreeDiskSpaceLeftInMB = round(coalesce(FreeDiskSpaceLeftInMB, 0.0), 0),
+    SampleCount
+| order by FreeDiskSpaceLeftPercent asc

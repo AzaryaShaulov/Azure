@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1760" height="900" viewBox="0 0 1760 900" role="img" aria-labelledby="title desc">
+  <title id="title">AVD Insights Alerts Script Steps and Runtime Flow</title>
+  <desc id="desc">Deployment steps begin with Deploy Logic App Pipeline as step 1, followed by category alert rules and post-run validation, plus runtime flow to query Log Analytics and send emails through Office365.</desc>
+
+  <defs>
+    <marker id="arrowDeploy" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f78d1" />
+    </marker>
+    <marker id="arrowRuntime" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#d9822b" />
+    </marker>
+    <marker id="arrowFailure" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#d14343" />
+    </marker>
+    <marker id="arrowFeedback" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f9d55" />
+    </marker>
+    <style>
+      .bg { fill: #f7fafe; }
+      .lane { fill: #ecf3ff; stroke: #d4e1f7; stroke-width: 1; }
+      .boundaryA { fill: none; stroke: #9db1ca; stroke-width: 1.4; stroke-dasharray: 7 6; }
+      .boundaryB { fill: none; stroke: #9db1ca; stroke-width: 1.4; stroke-dasharray: 7 6; }
+      .title { font: 700 24px Segoe UI, Arial, sans-serif; fill: #1f2d3d; }
+      .subtitle { font: 12px Segoe UI, Arial, sans-serif; fill: #4c5d6f; }
+      .laneTitle { font: 700 14px Segoe UI, Arial, sans-serif; fill: #2b3d4f; }
+      .boundaryTitle { font: 700 12px Segoe UI, Arial, sans-serif; fill: #50657c; }
+      .nodeDeploy { fill: #e9f9ef; stroke: #1f9d55; stroke-width: 1.8; rx: 10; }
+      .nodeStep { fill: #e8f3ff; stroke: #2a78c9; stroke-width: 1.8; rx: 10; }
+      .nodeRuntime { fill: #fff5e9; stroke: #c46a17; stroke-width: 1.8; rx: 10; }
+      .nodeFailure { fill: #ffefef; stroke: #d14343; stroke-width: 1.8; rx: 10; }
+      .nodeText { font: 600 13px Segoe UI, Arial, sans-serif; fill: #1f2d3d; }
+      .small { font: 12px Segoe UI, Arial, sans-serif; fill: #3f5266; }
+      .edgeDeploy { stroke: #1f78d1; stroke-width: 2.2; fill: none; marker-end: url(#arrowDeploy); }
+      .edgeDeployDashed { stroke: #1f78d1; stroke-width: 2.2; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrowDeploy); }
+      .edgeRuntime { stroke: #d9822b; stroke-width: 2.2; fill: none; marker-end: url(#arrowRuntime); }
+      .edgeFailure { stroke: #d14343; stroke-width: 2.2; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrowFailure); }
+      .edgeFeedback { stroke: #1f9d55; stroke-width: 2.2; fill: none; stroke-dasharray: 7 5; marker-end: url(#arrowFeedback); }
+      .legend { fill: #ffffff; stroke: #d4e1f7; stroke-width: 1; }
+      .legendText { font: 12px Segoe UI, Arial, sans-serif; fill: #2b3d4f; }
+      .link { cursor: pointer; }
+      .link:hover rect { stroke-width: 2.4; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1760" height="900" />
+  <text class="title" x="34" y="44">AVD-SessionHost-Insights-Alerts: Deployment, Query, and Email Steps</text>
+  <text class="subtitle" x="34" y="66">Deploy is Step 1. Diagram shows runtime query to Log Analytics and Logic App -> Office365 email delivery.</text>
+
+  <rect class="lane" x="24" y="92" width="1712" height="260" rx="8" />
+  <rect class="lane" x="24" y="372" width="1712" height="500" rx="8" />
+  <text class="laneTitle" x="42" y="116">Deployment and Validation Steps</text>
+  <text class="laneTitle" x="42" y="396">Runtime Alert, Query, and Email Steps</text>
+
+  <rect class="legend" x="1210" y="110" width="520" height="90" rx="8" />
+  <text class="legendText" x="1228" y="132">Legend</text>
+  <path class="edgeDeploy" d="M1228 150 L1288 150" />
+  <text class="legendText" x="1298" y="154">deployment</text>
+  <path class="edgeRuntime" d="M1368 150 L1428 150" />
+  <text class="legendText" x="1438" y="154">runtime</text>
+  <path class="edgeFailure" d="M1518 150 L1578 150" />
+  <text class="legendText" x="1588" y="154">failure path</text>
+  <path class="edgeFeedback" d="M1228 176 L1288 176" />
+  <text class="legendText" x="1298" y="180">feedback loop</text>
+
+  <a class="link" href="AVD-Insights-Alerts-Deploy-LogicApp.ps1" target="_top">
+    <title>Step 1: Deploy Logic App pipeline</title>
+    <rect class="nodeDeploy" x="90" y="176" width="390" height="94" />
+    <text class="nodeText" x="110" y="208">Step 1 - Deploy Logic App Pipeline</text>
+    <text class="small" x="110" y="232">AVD-Insights-Alerts-Deploy-LogicApp.ps1</text>
+    <text class="small" x="110" y="252">Create Logic App, API connection, action group</text>
+  </a>
+
+  <a class="link" href="AVD-Insights-Alerts-Category-Alerts.ps1" target="_top">
+    <title>Step 2: Category alert rules</title>
+    <rect class="nodeStep" x="560" y="176" width="360" height="94" />
+    <text class="nodeText" x="580" y="208">Step 2 - Category Alert Rules</text>
+    <text class="small" x="580" y="232">AVD-Insights-Alerts-Category-Alerts.ps1</text>
+    <text class="small" x="580" y="252">Create/update scheduled query rules</text>
+  </a>
+
+  <a class="link" href="AVD-hosts-Insights-Alerts-Runbook.md" target="_top">
+    <title>Step 3: Post-run validation</title>
+    <rect class="nodeStep" x="1000" y="176" width="390" height="94" />
+    <text class="nodeText" x="1020" y="208">Step 3 - Post-Run Validation</text>
+    <text class="small" x="1020" y="232">Validate deployed resources and bindings</text>
+    <text class="small" x="1020" y="252">Confirm alerts, action group, email path</text>
+  </a>
+
+  <rect class="nodeFailure" x="1440" y="176" width="250" height="94" rx="10" />
+  <text class="nodeText" x="1458" y="208">Fix and Re-run</text>
+  <text class="small" x="1458" y="232">If validation issues remain,</text>
+  <text class="small" x="1458" y="252">adjust config and redeploy</text>
+
+  <path class="edgeDeploy" d="M480 223 L560 223" />
+  <path class="edgeDeploy" d="M920 223 L1000 223" />
+  <path class="edgeFailure" d="M1390 223 L1440 223" />
+  <path class="edgeFeedback" d="M1560 270 L1560 330 L285 330 L285 270" />
+  <text class="small" x="980" y="322">feedback loop to deployment</text>
+
+  <path class="edgeDeployDashed" d="M285 270 L285 320 L740 320 L740 270" />
+  <text class="small" x="486" y="312">deploy script can bootstrap category rules</text>
+
+  <rect class="boundaryA" x="52" y="424" width="900" height="418" rx="8" />
+  <text class="boundaryTitle" x="70" y="446">Boundary: Azure Monitor Alerting and Query</text>
+
+  <rect class="boundaryB" x="972" y="424" width="760" height="418" rx="8" />
+  <text class="boundaryTitle" x="990" y="446">Boundary: Workflow and Messaging Delivery</text>
+
+  <a class="link" href="AVD-Insights-Alert-Matrix.md" target="_top">
+    <title>Category alert matrix</title>
+    <rect class="nodeStep" x="90" y="500" width="300" height="92" />
+    <text class="nodeText" x="108" y="532">Category Alert Rules</text>
+    <text class="small" x="108" y="556">AVD-Insights-Category-*</text>
+    <text class="small" x="108" y="576">Alert fires on threshold match</text>
+  </a>
+
+  <a class="link" href="AVD-Insights-Alerts-Deploy-LogicApp.ps1" target="_top">
+    <title>Action group configured by deployment script</title>
+    <rect class="nodeStep" x="430" y="500" width="260" height="92" />
+    <text class="nodeText" x="448" y="532">Detailed Action Group</text>
+    <text class="small" x="448" y="556">Webhook receiver</text>
+    <text class="small" x="448" y="576">Routes alerts to Logic App</text>
+  </a>
+
+  <a class="link" href="AVD-Insights-Alerts-Deploy-LogicApp.ps1" target="_top">
+    <title>Logic App workflow</title>
+    <rect class="nodeRuntime" x="1020" y="500" width="260" height="92" />
+    <text class="nodeText" x="1038" y="532">Logic App Workflow</text>
+    <text class="small" x="1038" y="556">Receives alert payload</text>
+    <text class="small" x="1038" y="576">Queries and composes email</text>
+  </a>
+
+  <a class="link" href="https://learn.microsoft.com/en-us/azure/azure-monitor/logs/log-analytics-workspace-overview" target="_top">
+    <title>Log Analytics workspace</title>
+    <rect class="nodeStep" x="700" y="660" width="300" height="92" />
+    <text class="nodeText" x="718" y="692">Log Analytics Workspace</text>
+    <text class="small" x="718" y="716">Logic App queries context</text>
+    <text class="small" x="718" y="736">Host, metric, threshold details</text>
+  </a>
+
+  <a class="link" href="AVD-Insights-Alerts-Deploy-LogicApp.ps1" target="_top">
+    <title>Office365 API connection</title>
+    <rect class="nodeRuntime" x="1320" y="500" width="260" height="92" />
+    <text class="nodeText" x="1338" y="532">Office365 API Connection</text>
+    <text class="small" x="1338" y="556">Logic App sends enriched email</text>
+    <text class="small" x="1338" y="576">Authenticated sender path</text>
+  </a>
+
+  <a class="link" href="AVD-hosts-Insights-Alerts-Runbook.md" target="_top">
+    <title>Detailed alert email output</title>
+    <rect class="nodeRuntime" x="1610" y="500" width="110" height="92" />
+    <text class="nodeText" x="1622" y="532">Email</text>
+    <text class="small" x="1622" y="556">Delivered to</text>
+    <text class="small" x="1622" y="576">operations</text>
+  </a>
+
+  <rect class="nodeFailure" x="700" y="780" width="300" height="70" rx="10" />
+  <text class="nodeText" x="718" y="808">Query Failure Path</text>
+  <text class="small" x="718" y="828">Fallback to minimal payload email</text>
+
+  <rect class="nodeFailure" x="1020" y="780" width="260" height="70" rx="10" />
+  <text class="nodeText" x="1038" y="808">Fallback/Minimal Email</text>
+  <text class="small" x="1038" y="828">Reduced context message</text>
+
+  <rect class="nodeFailure" x="1610" y="780" width="110" height="70" rx="10" />
+  <text class="nodeText" x="1622" y="808">Send Failure</text>
+  <text class="small" x="1622" y="828">Run failed</text>
+
+  <path class="edgeRuntime" d="M390 546 L430 546" />
+  <path class="edgeRuntime" d="M690 546 L1020 546" />
+  <path class="edgeRuntime" d="M1280 546 L1320 546" />
+  <path class="edgeRuntime" d="M1580 546 L1610 546" />
+
+  <path class="edgeRuntime" d="M1150 592 L1150 660 L1000 660" />
+  <text class="small" x="1026" y="650">query</text>
+
+  <path class="edgeRuntime" d="M850 660 L850 592 L1020 592" />
+  <text class="small" x="910" y="612">results</text>
+
+  <path class="edgeFailure" d="M1020 546 L850 546 L850 780" />
+  <path class="edgeFailure" d="M1000 815 L1020 815" />
+  <path class="edgeFailure" d="M1280 815 L1450 815 L1450 592" />
+  <path class="edgeFailure" d="M1450 592 L1450 780 L1610 780" />
+</svg>

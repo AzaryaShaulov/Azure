@@ -1,0 +1,24 @@
+﻿// AVD-Insights-UDPBandwidth
+// Detects session hosts where RemoteFX Network UDP bandwidth drops below threshold.
+// Counter: \RemoteFX Network(*)\Current UDP Bandwidth
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds  edit these values or override at deployment time
+let _minUdpBandwidthKBps = 500;
+let _minSampleCount      = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "RemoteFX Network"
+    and CounterName == "Current UDP Bandwidth"
+| summarize
+    AvgBandwidthKBps = avg(CounterValue),
+    MinBandwidthKBps = min(CounterValue),
+    SampleCount      = count()
+    by Computer
+| where SampleCount >= _minSampleCount
+    and AvgBandwidthKBps < _minUdpBandwidthKBps
+| project
+    Computer,
+    AvgBandwidthKBps = round(AvgBandwidthKBps, 1),
+    MinBandwidthKBps = round(MinBandwidthKBps, 1),
+    SampleCount
+| order by AvgBandwidthKBps asc

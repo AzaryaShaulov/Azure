@@ -1,0 +1,35 @@
+﻿// AVD-Insights-SessionImbalance
+// Detects session hosts with a high ratio of inactive (disconnected) sessions consuming resources.
+// Counters: \Terminal Services(*)\Active Sessions, Inactive Sessions, Total Sessions
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds  edit these values or override at deployment time
+let _maxInactivePercent = 50;
+let _minTotalSessions   = 2;
+let active = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Terminal Services"
+    and CounterName == "Active Sessions"
+| summarize ActiveSessions = avg(CounterValue) by Computer;
+let inactive = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Terminal Services"
+    and CounterName == "Inactive Sessions"
+| summarize InactiveSessions = avg(CounterValue) by Computer;
+let total = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Terminal Services"
+    and CounterName == "Total Sessions"
+| summarize TotalSessions = avg(CounterValue) by Computer;
+active
+| join kind=inner inactive on Computer
+| join kind=inner total on Computer
+| where TotalSessions >= _minTotalSessions
+| extend InactivePercent = round((InactiveSessions * 100.0) / TotalSessions, 1)
+| where InactivePercent > _maxInactivePercent
+| project
+    Computer,
+    ActiveSessions   = round(ActiveSessions, 0),
+    InactiveSessions = round(InactiveSessions, 0),
+    TotalSessions    = round(TotalSessions, 0),
+    InactivePercent
+| order by InactivePercent desc

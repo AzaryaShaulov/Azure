@@ -1,0 +1,24 @@
+// AVD-Insights-MemoryPressure
+// Detects session hosts where Available MBytes drops below {minAvailableMemoryMB} MB.
+// Counter: \Memory\Available MBytes
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _minAvailableMemoryMB = 512;
+let _minSampleCount       = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory"
+    and CounterName == "Available MBytes"
+| summarize
+    AvgAvailableMB = avg(CounterValue),
+    MinAvailableMB = min(CounterValue),
+    SampleCount    = count()
+    by Computer
+| where SampleCount >= _minSampleCount
+    and AvgAvailableMB < _minAvailableMemoryMB
+| project
+    Computer,
+    AvgAvailableMB = round(AvgAvailableMB, 0),
+    MinAvailableMB = round(MinAvailableMB, 0),
+    SampleCount
+| order by AvgAvailableMB asc

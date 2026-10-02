@@ -1,0 +1,26 @@
+// AVD-Insights-Category-DiskHealth
+// Consolidated category alert: fires when ANY disk health signal breaches threshold.
+// Signals: Disk Queue Length, Disk Free Space
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _maxAvgQueueLength    = 5;
+let _minFreeSpacePercent  = 10;
+let _minSampleCount       = 3;
+let queueHigh = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "PhysicalDisk"
+    and CounterName == "Avg. Disk Queue Length"
+    and InstanceName != "_Total"
+| summarize AvgValue = avg(CounterValue), MaxValue = max(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue > _maxAvgQueueLength
+| project Computer, Signal = "DiskQueueLength", AvgValue = round(AvgValue, 2), MaxValue = round(MaxValue, 2), SampleCount;
+let freeSpaceLow = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "LogicalDisk"
+    and InstanceName == "C:"
+    and CounterName == "% Free Space"
+| summarize AvgValue = avg(CounterValue), MinValue = min(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue < _minFreeSpacePercent
+| project Computer, Signal = "DiskFreeSpace", AvgValue = round(AvgValue, 1), MaxValue = round(MinValue, 1), SampleCount;
+union queueHigh, freeSpaceLow
+| order by Computer asc, Signal asc

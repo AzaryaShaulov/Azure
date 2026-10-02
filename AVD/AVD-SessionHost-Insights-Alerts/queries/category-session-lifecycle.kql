@@ -1,0 +1,63 @@
+// AVD-Insights-Category-SessionLifecycle
+// Consolidated category alert: fires when ANY session lifecycle signal breaches threshold.
+// Signals: Sign-In Degradation (WVDCheckpoints), Capacity Pressure (WVDAgentHealthStatus + ARG), Session Imbalance (Perf/Terminal Services)
+// Source tables: WVDCheckpoints, WVDAgentHealthStatus, Perf
+// Thresholds — edit these values or override at deployment time
+let _maxSignInDurationMs  = 30000;
+let _capacityPercent      = 90;
+let _maxSessionLimit      = 50;
+let _maxInactivePercent   = 50;
+let _minTotalSessions     = 2;
+let _minSampleCount       = 3;
+let signInSlow = WVDCheckpoints
+| where TimeGenerated > ago(15m)
+| where Source == "WVDConnections"
+| summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated)
+    by CorrelationId, UserName, SessionHostName = tostring(Parameters.SessionHostName)
+| extend DurationMs = datetime_diff('millisecond', EndTime, StartTime)
+| where DurationMs > 0
+| summarize AvgDurationMs = avg(DurationMs), MaxDurationMs = max(DurationMs), SampleCount = count()
+    by Computer = SessionHostName
+| where SampleCount >= _minSampleCount and AvgDurationMs > _maxSignInDurationMs
+| project Computer, Signal = "SignInDegradation",
+    AvgValue = round(AvgDurationMs / 1000.0, 1),
+    MaxValue = round(MaxDurationMs / 1000.0, 1),
+    SampleCount;
+// Note: ARG cross-resource queries (arg("").Resources) are not supported in
+// scheduled query alert context. Uses configurable _maxSessionLimit instead.
+let capacityHigh = WVDAgentHealthStatus
+| where TimeGenerated > ago(15m)
+| summarize arg_max(TimeGenerated, *) by SessionHostName
+| where Status == "Available"
+| extend ActiveSessions = toint(ActiveSessions)
+| where ActiveSessions > 0
+| extend UtilPct = round((ActiveSessions * 100.0) / _maxSessionLimit, 1)
+| where UtilPct >= _capacityPercent or ActiveSessions > _maxSessionLimit
+| project Computer = SessionHostName, Signal = "CapacityPressure",
+    AvgValue = todouble(ActiveSessions),
+    MaxValue = todouble(_maxSessionLimit),
+    SampleCount = 1;
+let active = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Terminal Services" and CounterName == "Active Sessions"
+| summarize ActiveSessions = avg(CounterValue) by Computer;
+let inactive = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Terminal Services" and CounterName == "Inactive Sessions"
+| summarize InactiveSessions = avg(CounterValue) by Computer;
+let total = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Terminal Services" and CounterName == "Total Sessions"
+| summarize TotalSessions = avg(CounterValue) by Computer;
+let sessionImbalance = active
+| join kind=inner inactive on Computer
+| join kind=inner total on Computer
+| where TotalSessions >= _minTotalSessions
+| extend InactivePercent = round((InactiveSessions * 100.0) / TotalSessions, 1)
+| where InactivePercent > _maxInactivePercent
+| project Computer, Signal = "SessionImbalance",
+    AvgValue = InactivePercent,
+    MaxValue = TotalSessions,
+    SampleCount = 1;
+union signInSlow, capacityHigh, sessionImbalance
+| order by Computer asc, Signal asc

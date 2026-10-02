@@ -1,0 +1,33 @@
+// AVD-Insights-SignInDegradation
+// Detects elevated sign-in durations from WVDCheckpoints connection lifecycle events.
+// Source table: WVDCheckpoints (AVD diagnostic logs)
+// Thresholds — edit these values or override at deployment time
+let _maxSignInDurationMs = 30000;
+let _minSampleCount      = 3;
+//
+// Uses the difference between first and last checkpoint per correlation ID
+// to approximate total sign-in duration for each connection attempt.
+WVDCheckpoints
+| where TimeGenerated > ago(15m)
+| where Source == "WVDConnections"
+| summarize
+    StartTime = min(TimeGenerated),
+    EndTime   = max(TimeGenerated)
+    by CorrelationId, UserName, SessionHostName = tostring(Parameters.SessionHostName)
+| extend DurationMs = datetime_diff('millisecond', EndTime, StartTime)
+| where DurationMs > 0
+| summarize
+    AvgDurationMs = avg(DurationMs),
+    MaxDurationMs = max(DurationMs),
+    P95DurationMs = percentile(DurationMs, 95),
+    SampleCount   = count()
+    by SessionHostName
+| where SampleCount >= _minSampleCount
+    and AvgDurationMs > _maxSignInDurationMs
+| project
+    SessionHostName,
+    AvgDurationSec = round(AvgDurationMs / 1000.0, 1),
+    MaxDurationSec = round(MaxDurationMs / 1000.0, 1),
+    P95DurationSec = round(P95DurationMs / 1000.0, 1),
+    SampleCount
+| order by AvgDurationSec desc

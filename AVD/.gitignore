@@ -1,0 +1,22 @@
+﻿
+AVD-Alerts/avd-alerts-report.csv
+AVD-Alerts/avd-alerts-report-305f553d.csv
+AVD-Alerts/Deploy-AVD-Teams-Notifier.ps1
+AVD-AzAlerts/Deploy-AVD-Teams-Notifier.ps1
+AVD-AzAlerts/*.csv
+
+# CSV reports and logs across all subfolders
+**/*.csv
+**/*.log
+
+# Work-in-progress scripts (not ready for repo)
+AVD-SessionHost-Insights/AVD-Insights-Deploy-AMA-Agent.ps1
+
+# AVD-Discord secrets — never commit .env files or local config
+AVD-Discord/.env
+**/.env
+**/.env.*
+AVD-Discord
+avd-teamsnotifier
+
+

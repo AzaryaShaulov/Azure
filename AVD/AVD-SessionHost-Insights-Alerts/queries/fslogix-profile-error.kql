@@ -1,0 +1,22 @@
+﻿// AVD-Insights-FSLogixProfileError
+// Detects FSLogix profile attach/detach failures and disk-full errors from Windows Event Logs.
+// Source table: Event (via DCR WindowsEventLog stream)
+// Event Logs: Microsoft-FSLogix-Apps/Operational, Microsoft-FSLogix-Apps/Admin
+// Thresholds  edit these values or override at deployment time
+let _minErrorCount = 1;
+Event
+| where TimeGenerated > ago(15m)
+| where Source == "Microsoft-FSLogix-Apps"
+| where EventLevelName == "Error"
+| summarize
+    ErrorCount      = count(),
+    EventIds        = make_set(EventID),
+    SampleMessages  = take_any(RenderedDescription, 3)
+    by Computer
+| where ErrorCount >= _minErrorCount
+| project
+    Computer,
+    ErrorCount,
+    EventIds     = strcat_array(EventIds, ", "),
+    SampleMessage = tostring(SampleMessages[0])
+| order by ErrorCount desc

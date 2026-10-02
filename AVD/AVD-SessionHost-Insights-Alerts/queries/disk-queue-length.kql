@@ -1,0 +1,26 @@
+// AVD-Insights-DiskQueueLength
+// Detects session hosts where Avg. Disk Queue Length exceeds {maxAvgQueueLength}.
+// Counter: \PhysicalDisk(*)\Avg. Disk Queue Length
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _maxAvgQueueLength = 5;
+let _minSampleCount    = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "PhysicalDisk"
+    and CounterName == "Avg. Disk Queue Length"
+    and InstanceName != "_Total"
+| summarize
+    AvgQueueLen  = avg(CounterValue),
+    MaxQueueLen  = max(CounterValue),
+    SampleCount  = count()
+    by Computer, InstanceName
+| where SampleCount >= _minSampleCount
+    and AvgQueueLen > _maxAvgQueueLength
+| project
+    Computer,
+    Disk         = InstanceName,
+    AvgQueueLen  = round(AvgQueueLen, 2),
+    MaxQueueLen  = round(MaxQueueLen, 2),
+    SampleCount
+| order by AvgQueueLen desc

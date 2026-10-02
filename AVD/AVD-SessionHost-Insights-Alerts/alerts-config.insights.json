@@ -1,0 +1,156 @@
+{
+  "$schema": "AVD Insights Alert Configuration - v2.0 (Category-Consolidated)",
+  "description": "Reference thresholds and metadata for AVD Insights alerts. Each category is a single scheduled-query alert rule that unions all sub-signals; the alert fires when ANY signal in the category breaches its threshold. NOTE: Actual deployed thresholds are defined as 'let' variables in the KQL files under queries/. Edit the KQL files to change thresholds, then re-deploy.",
+  "alertPrefix": "AVD-Insights-Category",
+  "defaults": {
+    "evaluationFrequency": "PT10M",
+    "windowSize": "PT15M",
+    "severity": 2,
+    "autoMitigate": true,
+    "skipQueryValidation": false
+  },
+  "categories": {
+    "SessionQuality": {
+      "description": "User-experience signals: input delay (per-process and per-session), network round-trip time, and UDP bandwidth.",
+      "alerts": [
+        {
+          "name": "AVD-Insights-Category-SessionQuality",
+          "description": "One or more session-quality signals (InputDelay, RoundTripLatency, UDPBandwidth) breached thresholds.",
+          "queryFile": "queries/category-session-quality.kql",
+          "severity": 2,
+          "evaluationFrequency": "PT10M",
+          "windowSize": "PT15M",
+          "signals": ["InputDelay-Process", "InputDelay-Session", "RoundTripLatency", "UDPBandwidth"],
+          "thresholds": {
+            "maxInputDelayMs": 200,
+            "maxRoundTripMs": 150,
+            "minUdpBandwidthKBps": 500,
+            "minSampleCount": 3
+          }
+        }
+      ]
+    },
+    "HostPerformance": {
+      "description": "Resource saturation signals: CPU, memory, page faults, memory commit, and disk timing.",
+      "alerts": [
+        {
+          "name": "AVD-Insights-Category-HostPerformance",
+          "description": "One or more host-performance signals (CPU, Memory, MemoryCommit, Pages, PageFaults-Baseline, DiskTiming) breached thresholds.",
+          "queryFile": "queries/category-host-performance.kql",
+          "severity": 1,
+          "evaluationFrequency": "PT10M",
+          "windowSize": "PT15M",
+          "signals": ["CPUSaturation", "MemoryPressure", "MemoryCommitRatio", "MemoryPagesPerSec", "PageFaults-Baseline", "DiskTiming"],
+          "thresholds": {
+            "maxCpuPercent": 90,
+            "minAvailableMemoryMB": 512,
+            "maxCommitPercent": 80,
+            "maxPagesPerSec": 100,
+            "baselineMultiplier": 3.0,
+            "maxDiskLatencySeconds": 0.025,
+            "minSampleCount": 3
+          }
+        }
+      ]
+    },
+    "DiskHealth": {
+      "description": "Disk queue depth and free space signals.",
+      "alerts": [
+        {
+          "name": "AVD-Insights-Category-DiskHealth",
+          "description": "One or more disk-health signals (DiskQueueLength, DiskFreeSpace) breached thresholds.",
+          "queryFile": "queries/category-disk-health.kql",
+          "severity": 1,
+          "evaluationFrequency": "PT10M",
+          "windowSize": "PT15M",
+          "signals": ["DiskQueueLength", "DiskFreeSpace"],
+          "thresholds": {
+            "maxAvgQueueLength": 5,
+            "minFreeSpacePercent": 10,
+            "minSampleCount": 3
+          }
+        }
+      ]
+    },
+    "SessionLifecycle": {
+      "description": "Sign-in duration, host pool capacity, and session balance signals.",
+      "alerts": [
+        {
+          "name": "AVD-Insights-Category-SessionLifecycle",
+          "description": "One or more session-lifecycle signals (SignInDegradation, CapacityPressure, SessionImbalance) breached thresholds.",
+          "queryFile": "queries/category-session-lifecycle.kql",
+          "severity": 1,
+          "evaluationFrequency": "PT10M",
+          "windowSize": "PT15M",
+          "signals": ["SignInDegradation", "CapacityPressure", "SessionImbalance"],
+          "thresholds": {
+            "maxSignInDurationMs": 30000,
+            "capacityPercent": 90,
+            "maxSessionLimit": 50,
+            "maxInactivePercent": 50,
+            "minTotalSessions": 2,
+            "minSampleCount": 3
+          }
+        }
+      ]
+    },
+    "CorrelatedSignals": {
+      "description": "Multi-signal correlation alerts combining host performance with session/profile data.",
+      "alerts": [
+        {
+          "name": "AVD-Insights-Category-CorrelatedSignals",
+          "description": "One or more correlated signals (CorrelatedHosts, FSLogixCorrelation) detected multi-dimensional degradation.",
+          "queryFile": "queries/category-correlated-signals.kql",
+          "severity": 1,
+          "evaluationFrequency": "PT10M",
+          "windowSize": "PT30M",
+          "signals": ["CorrelatedHosts", "FSLogixCorrelation"],
+          "thresholds": {
+            "maxCpuPercent": 90,
+            "minAvailableMemoryMB": 512,
+            "maxDiskLatencySeconds": 0.025,
+            "minSignalCount": 2,
+            "maxProfileLoadMs": 30000
+          }
+        }
+      ]
+    },
+    "EventLogAlerts": {
+      "description": "Windows Event Log signals for FSLogix profile health and system errors.",
+      "alerts": [
+        {
+          "name": "AVD-Insights-Category-EventLogAlerts",
+          "description": "FSLogix profile attach/detach failures or VHD errors detected in operational/admin event logs.",
+          "queryFile": "queries/category-event-log-alerts.kql",
+          "severity": 1,
+          "evaluationFrequency": "PT10M",
+          "windowSize": "PT15M",
+          "sourceTable": "Event",
+          "signals": ["FSLogixProfileError"],
+          "thresholds": {
+            "minErrorCount": 1
+          }
+        }
+      ]
+    },
+    "GPUPerformance": {
+      "description": "RemoteFX Graphics encoding and frame delivery signals. Only applicable to GPU-enabled session hosts.",
+      "requiresGPU": true,
+      "alerts": [
+        {
+          "name": "AVD-Insights-Category-GPUPerformance",
+          "description": "GPU encoding time exceeds the 33ms RDP frame budget on GPU-enabled session hosts.",
+          "queryFile": "queries/category-gpu-performance.kql",
+          "severity": 2,
+          "evaluationFrequency": "PT10M",
+          "windowSize": "PT15M",
+          "signals": ["GPUEncodingTime"],
+          "thresholds": {
+            "maxEncodingTimeMs": 33,
+            "minSampleCount": 3
+          }
+        }
+      ]
+    }
+  }
+}

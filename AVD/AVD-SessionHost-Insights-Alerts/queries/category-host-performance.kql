@@ -1,0 +1,66 @@
+// AVD-Insights-Category-HostPerformance
+// Consolidated category alert: fires when ANY host resource signal breaches threshold.
+// Signals: CPU Saturation, Memory Pressure, Memory Commit Ratio, Pages/sec, Page Faults (baseline), Disk Timing
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _maxCpuPercent          = 90;
+let _minAvailableMemoryMB   = 512;
+let _maxCommitPercent       = 80;
+let _maxPagesPerSec         = 100;
+let _maxDiskLatencySeconds  = 0.025;
+let _baselineMultiplier     = 3.0;
+let _baselineLookback       = 24h;
+let _minBaselineSamples     = 10;
+let _minSampleCount         = 3;
+let cpuHigh = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Processor Information"
+    and InstanceName == "_Total"
+    and CounterName == "% Processor Time"
+| summarize AvgValue = avg(CounterValue), MaxValue = max(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue > _maxCpuPercent
+| project Computer, Signal = "CPUSaturation", AvgValue = round(AvgValue, 1), MaxValue = round(MaxValue, 1), SampleCount;
+let memLow = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory"
+    and CounterName == "Available MBytes"
+| summarize AvgValue = avg(CounterValue), MinValue = min(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue < _minAvailableMemoryMB
+| project Computer, Signal = "MemoryPressure", AvgValue = round(AvgValue, 0), MaxValue = round(MinValue, 0), SampleCount;
+let commitHigh = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory"
+    and CounterName == "% Committed Bytes in Use"
+| summarize AvgValue = avg(CounterValue), MaxValue = max(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue > _maxCommitPercent
+| project Computer, Signal = "MemoryCommitRatio", AvgValue = round(AvgValue, 1), MaxValue = round(MaxValue, 1), SampleCount;
+let pagesHigh = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory"
+    and CounterName == "Pages/sec"
+| summarize AvgValue = avg(CounterValue), MaxValue = max(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgValue > _maxPagesPerSec
+| project Computer, Signal = "MemoryPagesPerSec", AvgValue = round(AvgValue, 1), MaxValue = round(MaxValue, 1), SampleCount;
+let pageFaultsBaseline = Perf
+| where TimeGenerated between (ago(_baselineLookback) .. ago(15m))
+| where ObjectName == "Memory" and CounterName == "Page Faults/sec"
+| summarize BaselineAvg = avg(CounterValue), BaselineCount = count() by Computer
+| where BaselineCount >= _minBaselineSamples;
+let pageFaultsRecent = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory" and CounterName == "Page Faults/sec"
+| summarize AvgValue = avg(CounterValue), MaxValue = max(CounterValue), SampleCount = count() by Computer;
+let pageFaultsSpike = pageFaultsRecent
+| join kind=inner pageFaultsBaseline on Computer
+| where AvgValue > (BaselineAvg * _baselineMultiplier)
+| project Computer, Signal = "PageFaults-Baseline", AvgValue = round(AvgValue, 1), MaxValue = round(MaxValue, 1), SampleCount;
+let diskSlow = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "LogicalDisk"
+    and CounterName in ("Avg. Disk sec/Read", "Avg. Disk sec/Write")
+    and InstanceName != "_Total"
+| summarize AvgLatency = avg(CounterValue), MaxLatency = max(CounterValue), SampleCount = count() by Computer
+| where SampleCount >= _minSampleCount and AvgLatency > _maxDiskLatencySeconds
+| project Computer, Signal = "DiskTiming", AvgValue = round(AvgLatency * 1000, 1), MaxValue = round(MaxLatency * 1000, 1), SampleCount;
+union cpuHigh, memLow, commitHigh, pagesHigh, pageFaultsSpike, diskSlow
+| order by Computer asc, Signal asc

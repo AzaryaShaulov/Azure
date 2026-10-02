@@ -1,0 +1,24 @@
+﻿// AVD-Insights-MemoryCommitRatio
+// Detects session hosts where % Committed Bytes in Use exceeds threshold.
+// Counter: \Memory(*)\% Committed Bytes in Use
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds  edit these values or override at deployment time
+let _maxCommitPercent = 80;
+let _minSampleCount   = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory"
+    and CounterName == "% Committed Bytes in Use"
+| summarize
+    AvgCommitPercent = avg(CounterValue),
+    MaxCommitPercent = max(CounterValue),
+    SampleCount      = count()
+    by Computer
+| where SampleCount >= _minSampleCount
+    and AvgCommitPercent > _maxCommitPercent
+| project
+    Computer,
+    AvgCommitPercent = round(AvgCommitPercent, 1),
+    MaxCommitPercent = round(MaxCommitPercent, 1),
+    SampleCount
+| order by AvgCommitPercent desc

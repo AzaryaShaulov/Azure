@@ -1,0 +1,38 @@
+// AVD-Insights-PageFaults
+// Detects session hosts where Page Faults/sec exceeds a dynamic 24h baseline by {baselineMultiplier}x.
+// Counter: \Memory\Page Faults/sec
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds — edit these values or override at deployment time
+let _baselineLookback = 24h;
+let _multiplier       = 3.0;
+let _minSamples       = 10;
+let baseline = Perf
+| where TimeGenerated between (ago(_baselineLookback) .. ago(15m))
+| where ObjectName == "Memory"
+    and CounterName == "Page Faults/sec"
+| summarize
+    BaselineAvg   = avg(CounterValue),
+    BaselineStdev = stdev(CounterValue),
+    BaselineCount = count()
+    by Computer
+| where BaselineCount >= _minSamples;
+let recent = Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory"
+    and CounterName == "Page Faults/sec"
+| summarize
+    RecentAvg   = avg(CounterValue),
+    RecentMax   = max(CounterValue),
+    SampleCount = count()
+    by Computer;
+recent
+| join kind=inner baseline on Computer
+| where RecentAvg > (BaselineAvg * _multiplier)
+| project
+    Computer,
+    RecentAvg     = round(RecentAvg, 1),
+    RecentMax     = round(RecentMax, 1),
+    BaselineAvg   = round(BaselineAvg, 1),
+    Multiplier    = round(RecentAvg / BaselineAvg, 1),
+    SampleCount
+| order by Multiplier desc

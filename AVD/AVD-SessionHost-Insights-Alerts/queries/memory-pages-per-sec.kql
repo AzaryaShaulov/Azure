@@ -1,0 +1,24 @@
+﻿// AVD-Insights-MemoryPagesPerSec
+// Detects session hosts where Pages/sec (hard page faults causing disk I/O) exceeds threshold.
+// Counter: \Memory(*)\Pages/sec
+// Source table: Perf (via DCR Microsoft-Perf stream)
+// Thresholds  edit these values or override at deployment time
+let _maxPagesPerSec  = 100;
+let _minSampleCount  = 3;
+Perf
+| where TimeGenerated > ago(15m)
+| where ObjectName == "Memory"
+    and CounterName == "Pages/sec"
+| summarize
+    AvgPagesPerSec = avg(CounterValue),
+    MaxPagesPerSec = max(CounterValue),
+    SampleCount    = count()
+    by Computer
+| where SampleCount >= _minSampleCount
+    and AvgPagesPerSec > _maxPagesPerSec
+| project
+    Computer,
+    AvgPagesPerSec = round(AvgPagesPerSec, 1),
+    MaxPagesPerSec = round(MaxPagesPerSec, 1),
+    SampleCount
+| order by AvgPagesPerSec desc

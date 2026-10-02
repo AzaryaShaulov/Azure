@@ -1,0 +1,177 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">AVD Session Host Insights Dependency Diagram</title>
+  <desc id="desc">Layered dependency flow for DCR setup, precheck validation, alert deployment, and email delivery. Connectors are routed to avoid visual overlap.</desc>
+
+  <defs>
+    <marker id="arrowFoundation" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f78d1" />
+    </marker>
+    <marker id="arrowValidation" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#6f42c1" />
+    </marker>
+    <marker id="arrowDeployment" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1f9d55" />
+    </marker>
+    <marker id="arrowRuntime" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#d9822b" />
+    </marker>
+    <style>
+      .bg { fill: #f7fafe; }
+      .lane { fill: #ecf3ff; stroke: #d4e1f7; stroke-width: 1; }
+      .title { font: 700 24px Segoe UI, Arial, sans-serif; fill: #1f2d3d; }
+      .subtitle { font: 12px Segoe UI, Arial, sans-serif; fill: #4c5d6f; }
+      .laneTitle { font: 700 14px Segoe UI, Arial, sans-serif; fill: #2b3d4f; }
+      .nodeScript { fill: #e7f3ff; stroke: #1f78d1; stroke-width: 1.6; rx: 8; }
+      .nodeResource { fill: #e9f9ef; stroke: #23864f; stroke-width: 1.6; rx: 8; }
+      .nodeOutput { fill: #fff3e4; stroke: #c46a17; stroke-width: 1.6; rx: 8; }
+      .nodeText { font: 600 13px Segoe UI, Arial, sans-serif; fill: #1f2d3d; }
+      .link { cursor: pointer; }
+      .link:hover rect { stroke-width: 2.2; }
+      .edgeFoundation { stroke: #1f78d1; stroke-width: 2.2; fill: none; marker-end: url(#arrowFoundation); }
+      .edgeValidation { stroke: #6f42c1; stroke-width: 2.2; fill: none; marker-end: url(#arrowValidation); }
+      .edgeDeployment { stroke: #1f9d55; stroke-width: 2.2; fill: none; marker-end: url(#arrowDeployment); }
+      .edgeDeploymentDashed { stroke: #1f9d55; stroke-width: 2.2; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrowDeployment); }
+      .edgeRuntime { stroke: #d9822b; stroke-width: 2.2; fill: none; marker-end: url(#arrowRuntime); }
+      .label { font: 12px Segoe UI, Arial, sans-serif; fill: #41566b; }
+      .legend { fill: #ffffff; stroke: #d4e1f7; stroke-width: 1; }
+      .legendText { font: 12px Segoe UI, Arial, sans-serif; fill: #2b3d4f; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="900" />
+
+  <text class="title" x="40" y="46">AVD Session Host Insights - Dependency Diagram (SVG)</text>
+  <text class="subtitle" x="40" y="68">Left to right progression: scripts -> Azure resources -> processing and delivery</text>
+
+  <rect class="lane" x="30" y="90" width="430" height="770" />
+  <rect class="lane" x="490" y="90" width="470" height="770" />
+  <rect class="lane" x="990" y="90" width="580" height="770" />
+
+  <text class="laneTitle" x="50" y="114">Scripts</text>
+  <text class="laneTitle" x="510" y="114">Azure Monitoring Resources</text>
+  <text class="laneTitle" x="1010" y="114">Processing and Delivery</text>
+
+  <rect class="legend" x="1140" y="116" width="390" height="96" rx="8" />
+  <text class="legendText" x="1160" y="136">Legend</text>
+  <path class="edgeFoundation" d="M1160 154 L1220 154" />
+  <text class="legendText" x="1230" y="158">Foundation (DCR and associations)</text>
+  <path class="edgeValidation" d="M1160 174 L1220 174" />
+  <text class="legendText" x="1230" y="178">Validation checks</text>
+  <path class="edgeDeployment" d="M1160 194 L1220 194" />
+  <text class="legendText" x="1230" y="198">Deployment and bootstrap</text>
+  <path class="edgeRuntime" d="M1360 154 L1420 154" />
+  <text class="legendText" x="1430" y="158">Runtime alert delivery</text>
+
+  <a class="link" href="AVD-Insights-Enable-PerfMetricsDCR.ps1" target="_top">
+    <title>Open AVD-Insights-Enable-PerfMetricsDCR.ps1</title>
+    <rect class="nodeScript" x="60" y="150" width="370" height="64" />
+    <text class="nodeText" x="80" y="177">AVD-Insights-Enable-PerfMetricsDCR.ps1</text>
+    <text class="nodeText" x="80" y="197">Create/update DCR and host associations</text>
+  </a>
+
+  <a class="link" href="../AVD-SessionHost-Insights-Alerts/AVD-Insights-Alerts-Precheck.ps1" target="_top">
+    <title>Open AVD-Insights-Alerts-Precheck.ps1</title>
+    <rect class="nodeScript" x="60" y="310" width="370" height="64" />
+    <text class="nodeText" x="80" y="337">AVD-Insights-Alerts-Precheck.ps1</text>
+    <text class="nodeText" x="80" y="357">Validate RBAC, extensions, and data flow</text>
+  </a>
+
+  <a class="link" href="../AVD-SessionHost-Insights-Alerts/AVD-Insights-Alerts-Deploy-LogicApp.ps1" target="_top">
+    <title>Open AVD-Insights-Alerts-Deploy-LogicApp.ps1</title>
+    <rect class="nodeScript" x="60" y="510" width="370" height="64" />
+    <text class="nodeText" x="80" y="537">AVD-Insights-Alerts-Deploy-LogicApp.ps1</text>
+    <text class="nodeText" x="80" y="557">Deploy Logic App, action group, and bindings</text>
+  </a>
+
+  <a class="link" href="../AVD-SessionHost-Insights-Alerts/AVD-Insights-Alerts-Category-Alerts.ps1" target="_top">
+    <title>Open AVD-Insights-Alerts-Category-Alerts.ps1</title>
+    <rect class="nodeScript" x="60" y="670" width="370" height="64" />
+    <text class="nodeText" x="80" y="697">AVD-Insights-Alerts-Category-Alerts.ps1</text>
+    <text class="nodeText" x="80" y="717">Create or update category alert rules</text>
+  </a>
+
+  <a class="link" href="https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/data-collection-rule-overview" target="_top">
+    <title>Open Data Collection Rule documentation</title>
+    <rect class="nodeResource" x="520" y="150" width="410" height="64" />
+    <text class="nodeText" x="540" y="177">Data Collection Rule (AVD-SessionHost-DCR)</text>
+    <text class="nodeText" x="540" y="197">Perf and InsightsMetrics configuration</text>
+  </a>
+
+  <a class="link" href="https://learn.microsoft.com/en-us/azure/azure-monitor/data-collection/data-collection-rule-associations" target="_top">
+    <title>Open DCR association documentation</title>
+    <rect class="nodeResource" x="520" y="250" width="410" height="64" />
+    <text class="nodeText" x="540" y="277">Session Host DCR Associations</text>
+    <text class="nodeText" x="540" y="297">Per-VM association resources</text>
+  </a>
+
+  <a class="link" href="../AVD-SessionHost-Insights-Alerts/AVD-Insights-Alert-Matrix.md" target="_top">
+    <title>Open Insights alert matrix</title>
+    <rect class="nodeResource" x="520" y="670" width="410" height="64" />
+    <text class="nodeText" x="540" y="697">AVD-Insights-Category-* Alert Rules</text>
+    <text class="nodeText" x="540" y="717">Scheduled query categories</text>
+  </a>
+
+  <a class="link" href="../AVD-SessionHost-Insights-Alerts/AVD-Insights-Alerts-Deploy-LogicApp.ps1" target="_top">
+    <title>Configured by Deploy-LogicApp script</title>
+    <rect class="nodeResource" x="520" y="770" width="410" height="64" />
+    <text class="nodeText" x="540" y="797">Insights Detailed Action Group</text>
+    <text class="nodeText" x="540" y="817">Webhook target for alert notifications</text>
+  </a>
+
+  <a class="link" href="https://learn.microsoft.com/en-us/azure/azure-monitor/logs/log-analytics-workspace-overview" target="_top">
+    <title>Open Log Analytics workspace documentation</title>
+    <rect class="nodeResource" x="1030" y="230" width="500" height="64" />
+    <text class="nodeText" x="1050" y="257">Log Analytics Workspace</text>
+    <text class="nodeText" x="1050" y="277">Source for query enrichment and validation</text>
+  </a>
+
+  <a class="link" href="../AVD-SessionHost-Insights-Alerts/AVD-Insights-Alerts-Deploy-LogicApp.ps1" target="_top">
+    <title>Open Logic App deployment script</title>
+    <rect class="nodeResource" x="1030" y="530" width="500" height="64" />
+    <text class="nodeText" x="1050" y="557">Logic App (Insights Alert Email)</text>
+    <text class="nodeText" x="1050" y="577">Webhook processing and query enrichment</text>
+  </a>
+
+  <a class="link" href="../AVD-SessionHost-Insights-Alerts/AVD-Insights-Alerts-Deploy-LogicApp.ps1" target="_top">
+    <title>Office365 API connection configured by deployment script</title>
+    <rect class="nodeResource" x="1030" y="650" width="500" height="64" />
+    <text class="nodeText" x="1050" y="677">Office365 API Connection</text>
+    <text class="nodeText" x="1050" y="697">Authenticated sender and recipient routing</text>
+  </a>
+
+  <a class="link" href="../AVD-SessionHost-Insights-Alerts/AVD-Insights-Alerts-Runbook.md" target="_top">
+    <title>Open Insights alerts runbook</title>
+    <rect class="nodeOutput" x="1210" y="780" width="320" height="64" />
+    <text class="nodeText" x="1230" y="807">Detailed Alert Email</text>
+    <text class="nodeText" x="1230" y="827">Operator-friendly enriched message</text>
+  </a>
+
+  <path class="edgeFoundation" d="M430 182 L520 182" />
+  <path class="edgeFoundation" d="M725 214 L725 250" />
+  <path class="edgeFoundation" d="M930 282 L980 282 L980 262 L1030 262" />
+
+  <path class="edgeValidation" d="M430 342 L960 342 L960 244 L1030 244" />
+  <text class="label" x="910" y="332">read checks</text>
+
+  <path class="edgeDeploymentDashed" d="M245 574 L245 670" />
+  <text class="label" x="254" y="630">bootstrap if missing</text>
+
+  <path class="edgeDeployment" d="M430 542 L475 542 L475 802 L520 802" />
+  <path class="edgeDeployment" d="M430 542 L980 542 L980 562 L1030 562" />
+  <path class="edgeDeployment" d="M430 542 L950 542 L950 682 L1030 682" />
+
+  <path class="edgeDeployment" d="M430 702 L520 702" />
+  <path class="edgeRuntime" d="M725 734 L725 770" />
+  <text class="label" x="736" y="757">fires</text>
+
+  <path class="edgeRuntime" d="M930 802 L970 802 L970 562 L1030 562" />
+  <text class="label" x="952" y="675">webhook</text>
+
+  <path class="edgeRuntime" d="M1280 530 L1280 294" />
+  <text class="label" x="1290" y="416">query and enrich</text>
+
+  <path class="edgeRuntime" d="M1280 594 L1280 650" />
+  <text class="label" x="1290" y="632">send via</text>
+
+  <path class="edgeRuntime" d="M1280 714 L1370 780" />
+</svg>

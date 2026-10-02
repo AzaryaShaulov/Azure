@@ -1,0 +1,23 @@
+// AVD-Insights-Category-EventLogAlerts
+// Consolidated category alert: fires on FSLogix profile errors from Windows Event Logs.
+// Signals: FSLogix Profile Errors (attach/detach failures, VHD errors)
+// Source table: Event (via DCR WindowsEventLog stream)
+// Thresholds — edit these values or override at deployment time
+let _minErrorCount = 1;
+Event
+| where TimeGenerated > ago(15m)
+| where Source == "Microsoft-FSLogix-Apps"
+| where EventLevelName == "Error"
+| summarize
+    ErrorCount      = count(),
+    EventIds        = make_set(EventID),
+    SampleMessages  = make_list(RenderedDescription, 3)
+    by Computer
+| where ErrorCount >= _minErrorCount
+| project
+    Computer,
+    Signal       = "FSLogixProfileError",
+    ErrorCount,
+    EventIds     = strcat_array(EventIds, ", "),
+    SampleMessage = tostring(SampleMessages[0])
+| order by ErrorCount desc
