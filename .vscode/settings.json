@@ -1,6 +1,9 @@
 {
   "powershell.scriptAnalysis.settingsPath": "${workspaceFolder}/Assessments/VMSKURetirementReport/PSScriptAnalyzerSettings.psd1",
   "powershell.codeFormatting.preset": "OTBS",
+  "chat.instructionsFilesLocations": {
+    "Assessments/VMSKURetirementReport/instructions": true
+  },
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true
 }

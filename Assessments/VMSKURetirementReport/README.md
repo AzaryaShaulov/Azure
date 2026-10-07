@@ -205,11 +205,26 @@ if ($actual -ne $expected) { throw 'Package checksum verification failed.' }
 
 No output means the checksum matched. If verification fails, delete both files and download them again.
 
-### Step 3 - Extract
+### Step 3 - Unblock and extract
+
+The scripts are not digitally signed. On Windows, files downloaded from the internet are marked as blocked, and the
+default `RemoteSigned` execution policy refuses to load blocked unsigned scripts and modules. After the checksum
+matches, unblock the ZIP **before** extracting it so the extracted files are not marked:
 
 ```powershell
+Unblock-File .\VMSKURetirementReport-v1.0.0.zip
 Expand-Archive .\VMSKURetirementReport-v1.0.0.zip -DestinationPath C:\Tools\VMSKURetirementReport -Force
 ```
+
+> If you already extracted the ZIP (for example with Windows Explorer **Extract All**, which copies the blocked
+> mark onto every extracted file) and get *"... .psm1 is not digitally signed. You cannot run this script on the
+> current system"*, unblock the extracted files instead:
+>
+> ```powershell
+> Get-ChildItem C:\Tools\VMSKURetirementReport -Recurse -File | Unblock-File
+> ```
+>
+> Do not change the machine-wide execution policy to work around this.
 
 The PowerShell files now live here:
 
