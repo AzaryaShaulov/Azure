@@ -82,7 +82,12 @@ if ($PSVersionTable.PSVersion -lt [version]'7.2') { throw 'PowerShell 7.2 or lat
 foreach ($arg in @($RemainingArguments)) {
     if ([string]::IsNullOrWhiteSpace($arg)) { continue }
     if ($arg -ceq '--check-modernization') { $CheckModernization = $true }
-    else { throw "Unknown argument '$arg'." }
+    else {
+        $name = ($arg -replace '^-+', '') -replace '[:=].*$', ''
+        $known = @($MyInvocation.MyCommand.Parameters.Keys | Where-Object { $_ -ieq $name } | Select-Object -First 1)
+        if ($arg -like '--*' -and $known.Count) { throw "Unknown argument '$arg'. PowerShell parameters use a single dash: use -$($known[0]) instead." }
+        throw "Unknown argument '$arg'."
+    }
 }
 
 $skillRoot = Split-Path $PSScriptRoot -Parent

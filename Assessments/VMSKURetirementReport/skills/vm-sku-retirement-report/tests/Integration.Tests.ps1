@@ -121,6 +121,11 @@ Describe 'End-to-end assessment of an empty estate (mock Azure)' {
 }
 
 Describe 'Authentication preflight (mock Azure)' {
+    It 'suggests the single-dash parameter for a double-dash PowerShell parameter' {
+        $log = & pwsh -NoProfile -Command "& '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' --tenantID 22222222-2222-2222-2222-222222222222" 2>&1 | Out-String
+        $log = ($log -replace '\s*\|\s*', ' ') -replace '\s+', ' '
+        $log | Should -Match "Unknown argument '--tenantID'\. PowerShell parameters use a single dash: use -TenantId instead\."
+    }
     It 'fails fast with sign-in guidance when az waits for interactive sign-in' {
         $mockDir = Join-Path $PSScriptRoot 'mock'
         $out = Join-Path $TestDrive 'hang'

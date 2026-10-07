@@ -334,6 +334,9 @@ Invoke-Item C:\Reports\vm-sku\full-assessment\index.html
 
 ## Parameters
 
+Parameters use PowerShell's single-dash syntax, for example `-TenantId <tenant-id>` (not `--tenantId`). The only
+double-dash form accepted is `--check-modernization`.
+
 | Parameter | Default | Description |
 |---|---|---|
 | `-TenantId` | Azure CLI default | Assess another signed-in tenant without changing the CLI default subscription |
