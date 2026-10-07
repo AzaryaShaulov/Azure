@@ -1,0 +1,5205 @@
+{
+  "schemaVersion": "1.0",
+  "tool": "VMSKURetirementReport",
+  "toolVersion": "1.0.0",
+  "generatedUtc": "2026-10-07T15:56:10.1336922Z",
+  "asOfDate": "2026-10-05",
+  "tenant": {
+    "Id": "22222222-2222-2222-2222-222222222222",
+    "Name": "Contoso (Sample)"
+  },
+  "signedInAccount": "a****@contoso.example",
+  "parameters": {
+    "TenantId": "22222222-2222-2222-2222-222222222222",
+    "SubscriptionId": null,
+    "Region": null,
+    "HorizonMonths": 36,
+    "OfflineCatalog": true,
+    "QuotaSafetyPct": 20,
+    "MaxCandidates": 3,
+    "IncludeRightsizing": false,
+    "RightsizingLookbackDays": 30,
+    "IncludePricing": true,
+    "CheckModernization": false,
+    "IncludeOperatorAccount": false,
+    "KeepRawData": false
+  },
+  "disclaimer": "UNOFFICIAL ASSESSMENT - FOR PLANNING PURPOSES ONLY. Generated with read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.",
+  "catalog": {
+    "source": "Cached (2026-10-06 00:44 UTC)",
+    "warning": "Offline mode requested.",
+    "sources": [
+      {
+        "Name": "RetiredList",
+        "Url": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "Title": "VM size series retirements, capacity growth restrictions, and modernization guidance - Azure Virtual Machines | Microsoft Learn",
+        "UpdatedAt": "2026-09-27T11:03:00Z",
+        "GitCommitId": "2f92a16c6bec69e97a67d7846657d58e8d9d2467",
+        "MsDate": "2026-09-25T00:00:00Z",
+        "RetrievedUtc": "2026-10-06T00:44:07.4433999Z"
+      },
+      {
+        "Name": "PreviousGen",
+        "Url": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list",
+        "Title": "End of Life Azure VM size series - Azure Virtual Machines | Microsoft Learn",
+        "UpdatedAt": "2026-09-26T06:04:00Z",
+        "GitCommitId": "9ed072b872e388c785f750f825050cc26912b715",
+        "MsDate": "2026-09-25T00:00:00Z",
+        "RetrievedUtc": "2026-10-06T00:44:07.5801659Z"
+      },
+      {
+        "Name": "MigrationGuide",
+        "Url": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "Title": "Retired VM sizes modernization guide - Azure Virtual Machines | Microsoft Learn",
+        "UpdatedAt": "2026-09-26T06:04:00Z",
+        "GitCommitId": "9ed072b872e388c785f750f825050cc26912b715",
+        "MsDate": "2026-09-25T00:00:00Z",
+        "RetrievedUtc": "2026-10-06T00:44:07.7620674Z"
+      }
+    ],
+    "unmappedSeries": [],
+    "nonVmSizeEntries": [
+      {
+        "Category": "ADH",
+        "Name": "Dsv3-Type1, Dsv3-Type2, Esv3-Type1, Esv3-Type2",
+        "Status": "Retired",
+        "PlannedRetirementDate": "2023-06-30",
+        "GuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/dedicated-hosts/sku-lifecycle",
+        "SourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      }
+    ]
+  },
+  "counts": {
+    "Vms": 7,
+    "Nics": 7,
+    "Disks": 1,
+    "AdeExtensions": 0,
+    "AdvisorRetirement": 0,
+    "ServiceHealthRetirement": 0
+  },
+  "summary": {
+    "TotalSubscriptionsScanned": 1,
+    "TotalVmsScanned": 7,
+    "AffectedVms": 6,
+    "AlreadyRetired": 1,
+    "RetirementWithin12Months": 0,
+    "RetirementWithin24Months": 2,
+    "RetirementWithin36Months": 1,
+    "RetirementBeyond36Months": 2,
+    "ModernizationRecommended": 0,
+    "ModernizationOptional": 0,
+    "ModernizeToV7": 0,
+    "ModernizeToV6": 0,
+    "AlreadyOnModernGeneration": 0,
+    "NoRetirementAnnounced": 1,
+    "UnableToDetermine": 0,
+    "VmsRequiringQuotaIncrease": 4,
+    "VmsWithRegionalRestrictions": 0,
+    "VmsRequiringCpuVendorChange": 0,
+    "VmsRequiringManualReview": 2,
+    "HighConfidence": 0,
+    "MediumConfidence": 0,
+    "LowConfidence": 6,
+    "ByEvidenceClass": [
+      {
+        "Key": "Confirmed Retirement",
+        "Count": 5
+      },
+      {
+        "Key": "Already Retired",
+        "Count": 1
+      },
+      {
+        "Key": "No Retirement Announced",
+        "Count": 1
+      }
+    ],
+    "ByWave": [
+      {
+        "Key": "Beyond Horizon",
+        "Count": 2
+      },
+      {
+        "Key": "Wave 2 - Near Term",
+        "Count": 2
+      },
+      {
+        "Key": "None",
+        "Count": 1
+      },
+      {
+        "Key": "Wave 1 - Urgent",
+        "Count": 1
+      },
+      {
+        "Key": "Wave 3 - Planned",
+        "Count": 1
+      }
+    ],
+    "BySubscription": {
+      "Key": "contoso-prod",
+      "Count": 6
+    },
+    "ByRegion": {
+      "Key": "eastus2",
+      "Count": 6
+    },
+    "ByCurrentSku": [
+      {
+        "Key": "Standard_D4s_v3",
+        "Count": 2
+      },
+      {
+        "Key": "Standard_DS3_v2",
+        "Count": 2
+      },
+      {
+        "Key": "Standard_B2ms",
+        "Count": 1
+      },
+      {
+        "Key": "Standard_NC6s_v3",
+        "Count": 1
+      }
+    ],
+    "ByCurrentSkuFamily": [
+      {
+        "Key": "standardDSv2Family",
+        "Count": 2
+      },
+      {
+        "Key": "standardDSv3Family",
+        "Count": 2
+      },
+      {
+        "Key": "ncsv3",
+        "Count": 1
+      },
+      {
+        "Key": "standardBSFamily",
+        "Count": 1
+      }
+    ],
+    "ByRecommendedSku": [
+      {
+        "Key": "Standard_D4ds_v5",
+        "Count": 4
+      },
+      {
+        "Key": "Standard_B2s_v2",
+        "Count": 1
+      },
+      {
+        "Key": "(none)",
+        "Count": 1
+      }
+    ],
+    "ByRecommendedSkuFamily": [
+      {
+        "Key": "standardDDSv5Family",
+        "Count": 4
+      },
+      {
+        "Key": "standardBsv2Family",
+        "Count": 1
+      },
+      {
+        "Key": "(none)",
+        "Count": 1
+      }
+    ],
+    "ByCpuVendor": {
+      "Key": "Intel",
+      "Count": 6
+    },
+    "ByRetirementDate": [
+      {
+        "Key": "2028-05-01",
+        "Count": 2
+      },
+      {
+        "Key": "2029-11-15",
+        "Count": 2
+      },
+      {
+        "Key": "2025-09-30",
+        "Count": 1
+      },
+      {
+        "Key": "2028-11-15",
+        "Count": 1
+      }
+    ],
+    "ByMigrationPriority": [
+      {
+        "Key": "Migration Required Within 24 Months",
+        "Count": 2
+      },
+      {
+        "Key": "Plan Migration",
+        "Count": 2
+      },
+      {
+        "Key": "Immediate Migration Required",
+        "Count": 1
+      },
+      {
+        "Key": "Migration Required Within 36 Months",
+        "Count": 1
+      },
+      {
+        "Key": "No Action Required",
+        "Count": 1
+      }
+    ],
+    "ByDeploymentReadiness": [
+      {
+        "Key": "Quota Increase Required",
+        "Count": 4
+      },
+      {
+        "Key": "Manual Review Required",
+        "Count": 2
+      }
+    ]
+  },
+  "quota": {
+    "family": [
+      {
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "Region": "eastus2",
+        "QuotaName": "standardbsv2family",
+        "QuotaDisplayName": null,
+        "VmCount": 1,
+        "TargetSkus": "Standard_B2s_v2",
+        "Limit": null,
+        "CurrentUsage": null,
+        "Remaining": null,
+        "RequiredVcpu": 2,
+        "RequiredVcpuAllocatedOnly": 2,
+        "PostMigrationUsage": null,
+        "MinimumIncrease": null,
+        "RecommendedIncrease": null,
+        "RecommendedNewLimit": null,
+        "Status": "Manual Validation Required",
+        "DataQuality": "Partially Verified",
+        "Scope": "Retirement"
+      },
+      {
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "Region": "eastus2",
+        "QuotaName": "standardddsv5family",
+        "QuotaDisplayName": "Standard DDSv5 Family vCPUs",
+        "VmCount": 4,
+        "TargetSkus": "Standard_D4ds_v5",
+        "Limit": 100,
+        "CurrentUsage": 95,
+        "Remaining": 5,
+        "RequiredVcpu": 16,
+        "RequiredVcpuAllocatedOnly": 12,
+        "PostMigrationUsage": 111,
+        "MinimumIncrease": 11,
+        "RecommendedIncrease": 15,
+        "RecommendedNewLimit": 115,
+        "Status": "Quota Increase Required",
+        "DataQuality": "Verified",
+        "Scope": "Retirement"
+      },
+      {
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "Region": "eastus2",
+        "QuotaName": "standardbsv2family",
+        "QuotaDisplayName": null,
+        "VmCount": 1,
+        "TargetSkus": "Standard_B2s_v2",
+        "Limit": null,
+        "CurrentUsage": null,
+        "Remaining": null,
+        "RequiredVcpu": 2,
+        "RequiredVcpuAllocatedOnly": 2,
+        "PostMigrationUsage": null,
+        "MinimumIncrease": null,
+        "RecommendedIncrease": null,
+        "RecommendedNewLimit": null,
+        "Status": "Manual Validation Required",
+        "DataQuality": "Partially Verified",
+        "Scope": "Retirement+Modernization"
+      },
+      {
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "Region": "eastus2",
+        "QuotaName": "standardddsv5family",
+        "QuotaDisplayName": "Standard DDSv5 Family vCPUs",
+        "VmCount": 4,
+        "TargetSkus": "Standard_D4ds_v5",
+        "Limit": 100,
+        "CurrentUsage": 95,
+        "Remaining": 5,
+        "RequiredVcpu": 16,
+        "RequiredVcpuAllocatedOnly": 12,
+        "PostMigrationUsage": 111,
+        "MinimumIncrease": 11,
+        "RecommendedIncrease": 15,
+        "RecommendedNewLimit": 115,
+        "Status": "Quota Increase Required",
+        "DataQuality": "Verified",
+        "Scope": "Retirement+Modernization"
+      }
+    ],
+    "regional": [
+      {
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "Region": "eastus2",
+        "QuotaName": "cores",
+        "QuotaDisplayName": "Total Regional vCPUs",
+        "VmCount": 5,
+        "TargetSkus": "",
+        "Limit": 350,
+        "CurrentUsage": 40,
+        "Remaining": 310,
+        "RequiredVcpu": 4,
+        "RequiredVcpuAllocatedOnly": null,
+        "PostMigrationUsage": 44,
+        "MinimumIncrease": 0,
+        "RecommendedIncrease": 0,
+        "RecommendedNewLimit": 350,
+        "Status": "Quota OK",
+        "DataQuality": "Verified",
+        "Scope": "Retirement"
+      },
+      {
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "Region": "eastus2",
+        "QuotaName": "cores",
+        "QuotaDisplayName": "Total Regional vCPUs",
+        "VmCount": 5,
+        "TargetSkus": "",
+        "Limit": 350,
+        "CurrentUsage": 40,
+        "Remaining": 310,
+        "RequiredVcpu": 4,
+        "RequiredVcpuAllocatedOnly": null,
+        "PostMigrationUsage": 44,
+        "MinimumIncrease": 0,
+        "RecommendedIncrease": 0,
+        "RecommendedNewLimit": 350,
+        "Status": "Quota OK",
+        "DataQuality": "Verified",
+        "Scope": "Retirement+Modernization"
+      }
+    ]
+  },
+  "vms": [
+    {
+      "row": {
+        "Subscription": "contoso-prod",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "VM": "vm-ds3v2",
+        "VmResourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-ds3v2",
+        "Region": "eastus2",
+        "Zone": null,
+        "PowerState": "Running",
+        "OsType": "Windows",
+        "HyperVGeneration": "V1",
+        "CurrentSku": "Standard_DS3_v2",
+        "CurrentSkuGeneration": 2,
+        "VmFamily": "standardDSv2Family",
+        "CpuVendor": "Intel",
+        "CpuArchitecture": "x64",
+        "vCPU": 4,
+        "MemoryGB": 14.0,
+        "AffectedByRetirement": "Yes",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "RetirementDate": "2028-05-01",
+        "TimeRemaining": "18 months",
+        "Urgency": "12-24 Months",
+        "RecommendedSku": "Standard_D4ds_v5",
+        "RecommendedSkuGeneration": 5,
+        "TargetCpuVendor": "Intel",
+        "TargetCpuArchitecture": "x64",
+        "TargetvCPU": 4,
+        "TargetMemoryGB": 16.0,
+        "CompatibilityScore": 93,
+        "ScoreBand": "Excellent Match",
+        "CpuVendorPreserved": true,
+        "CpuVendorChangeRequired": false,
+        "RegionAvailable": "Available",
+        "CurrentVcpu": 4,
+        "CurrentMemoryGB": 14.0,
+        "RecommendedVcpu": 4,
+        "RecommendedMemoryGB": 16.0,
+        "SkuRegionalAvailability": "Available",
+        "QuotaStatus": "Quota Increase Required",
+        "ModernizationStatus": "Not Evaluated",
+        "RecommendationReason": null,
+        "QuotaFamily": "Standard DDSv5 Family vCPUs",
+        "QuotaMinIncreaseFamily": 11,
+        "QuotaMinIncreaseRegional": 0,
+        "DeploymentReadiness": "Quota Increase Required",
+        "Confidence": "LOW",
+        "Action": "Migration Required Within 24 Months",
+        "NextStep": "Request Quota Increase",
+        "Wave": "Wave 2 - Near Term",
+        "AlternativeSku": "Standard_D4s_v5",
+        "AlternativeScore": 90,
+        "AlternativeReason": "Quota: standardDSv5Family has headroom while the primary family needs an increase; Feature: no temp disk (lower cost where local scratch is unused)",
+        "ThirdCandidateSku": "Standard_D8s_v5",
+        "NewerGenerationIfConverted": "Standard_D4s_v6 (requires: VM Generation, Disk Controller)",
+        "NoCandidateReason": null,
+        "VendorChangeReason": null,
+        "MaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids); Memory (GB): 14 -> 16; Temp / Local Disk: 28 GB -> 150 GB; Uncached Disk IOPS: 12800 -> 6400; Uncached Disk MBps: 192 -> 144; Max Data Disks: 16 -> 8; Max NICs: 4 -> 2",
+        "ValidationItems": "Capability reduced (Uncached Disk IOPS 12800 -> 6400, Uncached Disk MBps 192 -> 144); validate against observed disk throughput or use the capability-preserving alternative | Lifecycle evidence partially verified | Quota increase required",
+        "RightsizingStatus": null,
+        "RightsizingSuggestedSku": null,
+        "CurrentMonthlyUSD": 341.64,
+        "TargetMonthlyUSD": 299.3,
+        "MicrosoftSource": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "DQ_RetirementDate": "Partially Verified",
+        "DQ_CpuVendor": "Verified",
+        "DQ_RegionalAvailability": "Verified",
+        "DQ_Quota": "Verified",
+        "DQ_PhysicalCapacity": "Unable to Verify",
+        "LifecycleNotes": "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+      },
+      "vm": {
+        "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-ds3v2",
+        "Name": "vm-ds3v2",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "Region": "eastus2",
+        "Zone": null,
+        "AvailabilitySetId": "",
+        "ProximityPlacementGroup": "",
+        "DedicatedHostId": "",
+        "DedicatedHostGroupId": "",
+        "VmssId": "",
+        "CapacityReservationGroup": "",
+        "SkuName": "Standard_DS3_v2",
+        "PowerState": "Running",
+        "IsAllocated": true,
+        "OsType": "Windows",
+        "OsName": "Windows Server 2022",
+        "OsVersion": "10.0",
+        "HyperVGeneration": "V1",
+        "HyperVGenerationSource": "InstanceView",
+        "DiskControllerType": "SCSI",
+        "DiskControllerReported": false,
+        "NicCount": 1,
+        "AcceleratedNetworking": true,
+        "AcceleratedNicCount": 1,
+        "DataDiskCount": 0,
+        "DiskSkus": [
+          "Premium_LRS"
+        ],
+        "UsesPremiumStorage": true,
+        "UsesUltraDisk": false,
+        "UsesPremiumV2": false,
+        "WriteAcceleratorDisks": 0,
+        "EphemeralOsDisk": false,
+        "EphemeralPlacement": null,
+        "SecurityType": "Standard",
+        "EncryptionAtHost": false,
+        "CustomerManagedKeys": false,
+        "AzureDiskEncryption": false,
+        "Hibernation": false,
+        "Priority": "Regular",
+        "IsSpot": false,
+        "LicenseType": "",
+        "ImageReference": "MicrosoftWindowsServer/WindowsServer/2022-datacenter",
+        "GalleryImageId": null,
+        "NestedVirtualization": "Unknown",
+        "TempDiskRequirement": "Unknown",
+        "AdvisorRetirement": []
+      },
+      "lifecycle": {
+        "SkuName": "Standard_DS3_v2",
+        "SeriesKey": "dsv2",
+        "LearnSeriesName": "Dsv2-series / Dv2 and Dsv2-series / Dsv2",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "AnnouncementDate": "2025-03-31",
+        "RetirementDate": "2028-05-01",
+        "MonthsRemaining": 18,
+        "Urgency": "12-24 Months",
+        "SourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "PreviousGenStatus": "End of Life",
+        "RecommendedTargets": [
+          "dsv5",
+          "ddsv5",
+          "dasv5",
+          "dadsv5",
+          "dasv6",
+          "dadsv6",
+          "dsv6",
+          "ddsv6",
+          "dasv7",
+          "dadsv7",
+          "esv6",
+          "edsv6",
+          "easv6",
+          "eadsv6",
+          "easv7",
+          "eadsv7"
+        ],
+        "GuideDifferences": [
+          "D/Ev5 disk controller type: SCSI",
+          "D/Ev6, D/Ev7 disk controller type: NVMe",
+          "Local Storage Throughput: 9000 IOPS / 125 MBps",
+          "Remote Storage Throughput: 3750 IOPS / 82 MBps"
+        ],
+        "SizeTargets": [],
+        "Notes": [
+          "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+        ],
+        "CatalogSource": "Cached (2026-10-06 00:44 UTC)",
+        "DataQuality": "Partially Verified"
+      },
+      "current": {
+        "sku": "Standard_DS3_v2",
+        "quotaFamily": "standardDSv2Family",
+        "seriesKey": "dsv2",
+        "generation": 2,
+        "cpuVendor": "Intel",
+        "cpuArchitecture": "x64",
+        "processors": [
+          "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Intel Xeon 8171M (Skylake)",
+          "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Intel Xeon E5-2673 v3 (Haswell)",
+          "Intel Xeon Platinum 8573C (Emerald Rapids)"
+        ],
+        "vCpu": 4,
+        "memoryGB": 14.0,
+        "memoryPerVcpu": 3.5,
+        "tempDiskGB": 28.0,
+        "premiumIO": true,
+        "acceleratedNetworking": true,
+        "maxNics": 4.0,
+        "maxDataDisks": 16.0,
+        "uncachedDiskIops": 12800.0,
+        "uncachedDiskMBps": 192.0,
+        "hyperVGenerations": [
+          "V1",
+          "V2"
+        ],
+        "diskControllerTypes": [
+          "SCSI"
+        ],
+        "zones": [
+          "1",
+          "2",
+          "3"
+        ],
+        "capabilitiesSource": "Azure Resource SKUs API"
+      },
+      "recommendation": {
+        "permittedSeries": "Microsoft migration guide: dsv5, ddsv5, dasv5, dadsv5, dasv6, dadsv6, dsv6, ddsv6, dasv7, dadsv7, esv6, edsv6, easv6, eadsv6, easv7, eadsv7",
+        "candidatesEvaluated": 5,
+        "vendorChangeRequired": false,
+        "vendorChangeReason": null,
+        "noCandidateReason": null,
+        "primary": {
+          "role": "Primary",
+          "variant": "Closest size",
+          "sku": "Standard_D4ds_v5",
+          "quotaFamily": "standardDDSv5Family",
+          "seriesKey": "ddsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Ice Lake",
+          "processors": [
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 150.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 93,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 3.0,
+            "storageCapability": 10.0,
+            "diskThroughput": 1.0,
+            "network": 4.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Pass",
+              "Detail": "Temp disk 28 GB -> 150 GB"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 4,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 14.0,
+              "Target": 16.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "28 GB",
+              "Target": "150 GB",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 12800.0,
+              "Target": 6400.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 192.0,
+              "Target": 144.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 16.0,
+              "Target": 8.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 4.0,
+              "Target": 2.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "secondary": {
+          "role": "Secondary",
+          "variant": "Closest size",
+          "sku": "Standard_D4s_v5",
+          "quotaFamily": "standardDSv5Family",
+          "seriesKey": "dsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Sapphire Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 90,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 3.0,
+            "storageCapability": 7.0,
+            "diskThroughput": 1.0,
+            "network": 4.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 28 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 4,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 14.0,
+              "Target": 16.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "28 GB",
+              "Target": "None",
+              "Assessment": "Changed",
+              "Note": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 12800.0,
+              "Target": 6400.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 192.0,
+              "Target": 144.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 16.0,
+              "Target": 8.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 4.0,
+              "Target": 2.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "third": {
+          "role": "Third",
+          "variant": "Capability-preserving",
+          "sku": "Standard_D8s_v5",
+          "quotaFamily": "standardDSv5Family",
+          "seriesKey": "dsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Sapphire Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 8,
+          "memoryGB": 32.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 84,
+          "scoreBand": "Good Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 6.0,
+            "memory": 3.0,
+            "memoryPerVcpu": 3.0,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 100.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 28 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 4"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 16"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 8,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 14.0,
+              "Target": 32.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "28 GB",
+              "Target": "None",
+              "Assessment": "Changed",
+              "Note": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 12800.0,
+              "Target": 12800.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 192.0,
+              "Target": 288.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 16.0,
+              "Target": 16.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 4.0,
+              "Target": 4.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "secondaryReason": "Quota: standardDSv5Family has headroom while the primary family needs an increase; Feature: no temp disk (lower cost where local scratch is unused)",
+        "newerGenerationIfConverted": {
+          "role": "Candidate",
+          "variant": "Closest size",
+          "sku": "Standard_D4s_v6",
+          "quotaFamily": "standardDSv6Family",
+          "seriesKey": "dsv6",
+          "generation": 6,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Emerald Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 91,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 3.0,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 4.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 2.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": true,
+          "rejectionReason": "VM Generation: VM is V1; target supports V2 only - in-place resize not possible (Gen1->Gen2 conversion or rebuild required) | Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Fail",
+              "Detail": "VM is V1; target supports V2 only - in-place resize not possible (Gen1->Gen2 conversion or rebuild required)"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Fail",
+              "Detail": "VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 28 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 12"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": []
+        }
+      },
+      "modernization": null,
+      "quota": {
+        "Status": "Quota Increase Required",
+        "Family": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "standardddsv5family",
+          "QuotaDisplayName": "Standard DDSv5 Family vCPUs",
+          "VmCount": 4,
+          "TargetSkus": "Standard_D4ds_v5",
+          "Limit": 100,
+          "CurrentUsage": 95,
+          "Remaining": 5,
+          "RequiredVcpu": 16,
+          "RequiredVcpuAllocatedOnly": 12,
+          "PostMigrationUsage": 111,
+          "MinimumIncrease": 11,
+          "RecommendedIncrease": 15,
+          "RecommendedNewLimit": 115,
+          "Status": "Quota Increase Required",
+          "DataQuality": "Verified"
+        },
+        "Regional": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "cores",
+          "QuotaDisplayName": "Total Regional vCPUs",
+          "VmCount": 5,
+          "TargetSkus": "",
+          "Limit": 350,
+          "CurrentUsage": 40,
+          "Remaining": 310,
+          "RequiredVcpu": 4,
+          "RequiredVcpuAllocatedOnly": null,
+          "PostMigrationUsage": 44,
+          "MinimumIncrease": 0,
+          "RecommendedIncrease": 0,
+          "RecommendedNewLimit": 350,
+          "Status": "Quota OK",
+          "DataQuality": "Verified"
+        },
+        "DataQuality": "Verified"
+      },
+      "readiness": "Quota Increase Required",
+      "confidence": {
+        "Level": "LOW",
+        "LowReasons": [],
+        "ValidationItems": [
+          "Capability reduced (Uncached Disk IOPS 12800 -> 6400, Uncached Disk MBps 192 -> 144); validate against observed disk throughput or use the capability-preserving alternative",
+          "Lifecycle evidence partially verified",
+          "Quota increase required"
+        ]
+      },
+      "action": "Migration Required Within 24 Months",
+      "nextStep": "Request Quota Increase",
+      "wave": "Wave 2 - Near Term",
+      "dataQuality": {
+        "RetirementDate": "Partially Verified",
+        "CpuVendor": "Verified",
+        "CpuArchitecture": "Verified",
+        "CurrentSkuCapabilities": "Verified",
+        "RegionalAvailability": "Verified",
+        "Quota": "Verified",
+        "PhysicalCapacity": "Unable to Verify",
+        "NestedVirtualization": "Unable to Verify",
+        "TempDiskUsage": "Unable to Verify"
+      },
+      "rightsizing": null,
+      "pricing": {
+        "Os": "Windows",
+        "CurrentMonthly": 341.64,
+        "TargetMonthly": 299.3,
+        "Basis": "Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit"
+      }
+    },
+    {
+      "row": {
+        "Subscription": "contoso-prod",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "VM": "vm-dealloc",
+        "VmResourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-dealloc",
+        "Region": "eastus2",
+        "Zone": null,
+        "PowerState": "Deallocated",
+        "OsType": "Windows",
+        "HyperVGeneration": "V1",
+        "CurrentSku": "Standard_DS3_v2",
+        "CurrentSkuGeneration": 2,
+        "VmFamily": "standardDSv2Family",
+        "CpuVendor": "Intel",
+        "CpuArchitecture": "x64",
+        "vCPU": 4,
+        "MemoryGB": 14.0,
+        "AffectedByRetirement": "Yes",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "RetirementDate": "2028-05-01",
+        "TimeRemaining": "18 months",
+        "Urgency": "12-24 Months",
+        "RecommendedSku": "Standard_D4ds_v5",
+        "RecommendedSkuGeneration": 5,
+        "TargetCpuVendor": "Intel",
+        "TargetCpuArchitecture": "x64",
+        "TargetvCPU": 4,
+        "TargetMemoryGB": 16.0,
+        "CompatibilityScore": 93,
+        "ScoreBand": "Excellent Match",
+        "CpuVendorPreserved": true,
+        "CpuVendorChangeRequired": false,
+        "RegionAvailable": "Available",
+        "CurrentVcpu": 4,
+        "CurrentMemoryGB": 14.0,
+        "RecommendedVcpu": 4,
+        "RecommendedMemoryGB": 16.0,
+        "SkuRegionalAvailability": "Available",
+        "QuotaStatus": "Quota Increase Required",
+        "ModernizationStatus": "Not Evaluated",
+        "RecommendationReason": null,
+        "QuotaFamily": "Standard DDSv5 Family vCPUs",
+        "QuotaMinIncreaseFamily": 11,
+        "QuotaMinIncreaseRegional": 0,
+        "DeploymentReadiness": "Quota Increase Required",
+        "Confidence": "LOW",
+        "Action": "Migration Required Within 24 Months",
+        "NextStep": "Request Quota Increase",
+        "Wave": "Wave 2 - Near Term",
+        "AlternativeSku": "Standard_D4s_v5",
+        "AlternativeScore": 90,
+        "AlternativeReason": "Quota: standardDSv5Family has headroom while the primary family needs an increase; Feature: no temp disk (lower cost where local scratch is unused)",
+        "ThirdCandidateSku": "Standard_D8s_v5",
+        "NewerGenerationIfConverted": "Standard_D4s_v6 (requires: VM Generation, Disk Controller)",
+        "NoCandidateReason": null,
+        "VendorChangeReason": null,
+        "MaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids); Memory (GB): 14 -> 16; Temp / Local Disk: 28 GB -> 150 GB; Uncached Disk IOPS: 12800 -> 6400; Uncached Disk MBps: 192 -> 144; Max Data Disks: 16 -> 8; Max NICs: 4 -> 2",
+        "ValidationItems": "Capability reduced (Uncached Disk IOPS 12800 -> 6400, Uncached Disk MBps 192 -> 144); validate against observed disk throughput or use the capability-preserving alternative | Lifecycle evidence partially verified | Quota increase required",
+        "RightsizingStatus": null,
+        "RightsizingSuggestedSku": null,
+        "CurrentMonthlyUSD": 341.64,
+        "TargetMonthlyUSD": 299.3,
+        "MicrosoftSource": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "DQ_RetirementDate": "Partially Verified",
+        "DQ_CpuVendor": "Verified",
+        "DQ_RegionalAvailability": "Verified",
+        "DQ_Quota": "Verified",
+        "DQ_PhysicalCapacity": "Unable to Verify",
+        "LifecycleNotes": "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+      },
+      "vm": {
+        "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-dealloc",
+        "Name": "vm-dealloc",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "Region": "eastus2",
+        "Zone": null,
+        "AvailabilitySetId": "",
+        "ProximityPlacementGroup": "",
+        "DedicatedHostId": "",
+        "DedicatedHostGroupId": "",
+        "VmssId": "",
+        "CapacityReservationGroup": "",
+        "SkuName": "Standard_DS3_v2",
+        "PowerState": "Deallocated",
+        "IsAllocated": false,
+        "OsType": "Windows",
+        "OsName": "Windows Server 2022",
+        "OsVersion": "10.0",
+        "HyperVGeneration": "V1",
+        "HyperVGenerationSource": "InstanceView",
+        "DiskControllerType": "SCSI",
+        "DiskControllerReported": false,
+        "NicCount": 1,
+        "AcceleratedNetworking": true,
+        "AcceleratedNicCount": 1,
+        "DataDiskCount": 0,
+        "DiskSkus": [
+          "Premium_LRS"
+        ],
+        "UsesPremiumStorage": true,
+        "UsesUltraDisk": false,
+        "UsesPremiumV2": false,
+        "WriteAcceleratorDisks": 0,
+        "EphemeralOsDisk": false,
+        "EphemeralPlacement": null,
+        "SecurityType": "Standard",
+        "EncryptionAtHost": false,
+        "CustomerManagedKeys": false,
+        "AzureDiskEncryption": false,
+        "Hibernation": false,
+        "Priority": "Regular",
+        "IsSpot": false,
+        "LicenseType": "",
+        "ImageReference": "MicrosoftWindowsServer/WindowsServer/2022-datacenter",
+        "GalleryImageId": null,
+        "NestedVirtualization": "Unknown",
+        "TempDiskRequirement": "Unknown",
+        "AdvisorRetirement": []
+      },
+      "lifecycle": {
+        "SkuName": "Standard_DS3_v2",
+        "SeriesKey": "dsv2",
+        "LearnSeriesName": "Dsv2-series / Dv2 and Dsv2-series / Dsv2",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "AnnouncementDate": "2025-03-31",
+        "RetirementDate": "2028-05-01",
+        "MonthsRemaining": 18,
+        "Urgency": "12-24 Months",
+        "SourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "PreviousGenStatus": "End of Life",
+        "RecommendedTargets": [
+          "dsv5",
+          "ddsv5",
+          "dasv5",
+          "dadsv5",
+          "dasv6",
+          "dadsv6",
+          "dsv6",
+          "ddsv6",
+          "dasv7",
+          "dadsv7",
+          "esv6",
+          "edsv6",
+          "easv6",
+          "eadsv6",
+          "easv7",
+          "eadsv7"
+        ],
+        "GuideDifferences": [
+          "D/Ev5 disk controller type: SCSI",
+          "D/Ev6, D/Ev7 disk controller type: NVMe",
+          "Local Storage Throughput: 9000 IOPS / 125 MBps",
+          "Remote Storage Throughput: 3750 IOPS / 82 MBps"
+        ],
+        "SizeTargets": [],
+        "Notes": [
+          "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+        ],
+        "CatalogSource": "Cached (2026-10-06 00:44 UTC)",
+        "DataQuality": "Partially Verified"
+      },
+      "current": {
+        "sku": "Standard_DS3_v2",
+        "quotaFamily": "standardDSv2Family",
+        "seriesKey": "dsv2",
+        "generation": 2,
+        "cpuVendor": "Intel",
+        "cpuArchitecture": "x64",
+        "processors": [
+          "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Intel Xeon 8171M (Skylake)",
+          "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Intel Xeon E5-2673 v3 (Haswell)",
+          "Intel Xeon Platinum 8573C (Emerald Rapids)"
+        ],
+        "vCpu": 4,
+        "memoryGB": 14.0,
+        "memoryPerVcpu": 3.5,
+        "tempDiskGB": 28.0,
+        "premiumIO": true,
+        "acceleratedNetworking": true,
+        "maxNics": 4.0,
+        "maxDataDisks": 16.0,
+        "uncachedDiskIops": 12800.0,
+        "uncachedDiskMBps": 192.0,
+        "hyperVGenerations": [
+          "V1",
+          "V2"
+        ],
+        "diskControllerTypes": [
+          "SCSI"
+        ],
+        "zones": [
+          "1",
+          "2",
+          "3"
+        ],
+        "capabilitiesSource": "Azure Resource SKUs API"
+      },
+      "recommendation": {
+        "permittedSeries": "Microsoft migration guide: dsv5, ddsv5, dasv5, dadsv5, dasv6, dadsv6, dsv6, ddsv6, dasv7, dadsv7, esv6, edsv6, easv6, eadsv6, easv7, eadsv7",
+        "candidatesEvaluated": 5,
+        "vendorChangeRequired": false,
+        "vendorChangeReason": null,
+        "noCandidateReason": null,
+        "primary": {
+          "role": "Primary",
+          "variant": "Closest size",
+          "sku": "Standard_D4ds_v5",
+          "quotaFamily": "standardDDSv5Family",
+          "seriesKey": "ddsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Ice Lake",
+          "processors": [
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 150.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 93,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 3.0,
+            "storageCapability": 10.0,
+            "diskThroughput": 1.0,
+            "network": 4.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Pass",
+              "Detail": "Temp disk 28 GB -> 150 GB"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 4,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 14.0,
+              "Target": 16.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "28 GB",
+              "Target": "150 GB",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 12800.0,
+              "Target": 6400.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 192.0,
+              "Target": 144.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 16.0,
+              "Target": 8.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 4.0,
+              "Target": 2.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "secondary": {
+          "role": "Secondary",
+          "variant": "Closest size",
+          "sku": "Standard_D4s_v5",
+          "quotaFamily": "standardDSv5Family",
+          "seriesKey": "dsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Sapphire Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 90,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 3.0,
+            "storageCapability": 7.0,
+            "diskThroughput": 1.0,
+            "network": 4.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 28 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 4,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 14.0,
+              "Target": 16.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "28 GB",
+              "Target": "None",
+              "Assessment": "Changed",
+              "Note": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 12800.0,
+              "Target": 6400.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 192.0,
+              "Target": 144.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 16.0,
+              "Target": 8.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 4.0,
+              "Target": 2.0,
+              "Assessment": "Reduced",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "third": {
+          "role": "Third",
+          "variant": "Capability-preserving",
+          "sku": "Standard_D8s_v5",
+          "quotaFamily": "standardDSv5Family",
+          "seriesKey": "dsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Sapphire Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 8,
+          "memoryGB": 32.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 84,
+          "scoreBand": "Good Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 6.0,
+            "memory": 3.0,
+            "memoryPerVcpu": 3.0,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 100.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 28 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 4"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 16"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 8,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 14.0,
+              "Target": 32.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "28 GB",
+              "Target": "None",
+              "Assessment": "Changed",
+              "Note": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 12800.0,
+              "Target": 12800.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 192.0,
+              "Target": 288.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 16.0,
+              "Target": 16.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 4.0,
+              "Target": 4.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "secondaryReason": "Quota: standardDSv5Family has headroom while the primary family needs an increase; Feature: no temp disk (lower cost where local scratch is unused)",
+        "newerGenerationIfConverted": {
+          "role": "Candidate",
+          "variant": "Closest size",
+          "sku": "Standard_D4s_v6",
+          "quotaFamily": "standardDSv6Family",
+          "seriesKey": "dsv6",
+          "generation": 6,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Emerald Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 91,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 3.0,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 4.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 2.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": true,
+          "rejectionReason": "VM Generation: VM is V1; target supports V2 only - in-place resize not possible (Gen1->Gen2 conversion or rebuild required) | Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Fail",
+              "Detail": "VM is V1; target supports V2 only - in-place resize not possible (Gen1->Gen2 conversion or rebuild required)"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Fail",
+              "Detail": "VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 28 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 12"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": []
+        }
+      },
+      "modernization": null,
+      "quota": {
+        "Status": "Quota Increase Required",
+        "Family": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "standardddsv5family",
+          "QuotaDisplayName": "Standard DDSv5 Family vCPUs",
+          "VmCount": 4,
+          "TargetSkus": "Standard_D4ds_v5",
+          "Limit": 100,
+          "CurrentUsage": 95,
+          "Remaining": 5,
+          "RequiredVcpu": 16,
+          "RequiredVcpuAllocatedOnly": 12,
+          "PostMigrationUsage": 111,
+          "MinimumIncrease": 11,
+          "RecommendedIncrease": 15,
+          "RecommendedNewLimit": 115,
+          "Status": "Quota Increase Required",
+          "DataQuality": "Verified"
+        },
+        "Regional": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "cores",
+          "QuotaDisplayName": "Total Regional vCPUs",
+          "VmCount": 5,
+          "TargetSkus": "",
+          "Limit": 350,
+          "CurrentUsage": 40,
+          "Remaining": 310,
+          "RequiredVcpu": 4,
+          "RequiredVcpuAllocatedOnly": null,
+          "PostMigrationUsage": 44,
+          "MinimumIncrease": 0,
+          "RecommendedIncrease": 0,
+          "RecommendedNewLimit": 350,
+          "Status": "Quota OK",
+          "DataQuality": "Verified"
+        },
+        "DataQuality": "Verified"
+      },
+      "readiness": "Quota Increase Required",
+      "confidence": {
+        "Level": "LOW",
+        "LowReasons": [],
+        "ValidationItems": [
+          "Capability reduced (Uncached Disk IOPS 12800 -> 6400, Uncached Disk MBps 192 -> 144); validate against observed disk throughput or use the capability-preserving alternative",
+          "Lifecycle evidence partially verified",
+          "Quota increase required"
+        ]
+      },
+      "action": "Migration Required Within 24 Months",
+      "nextStep": "Request Quota Increase",
+      "wave": "Wave 2 - Near Term",
+      "dataQuality": {
+        "RetirementDate": "Partially Verified",
+        "CpuVendor": "Verified",
+        "CpuArchitecture": "Verified",
+        "CurrentSkuCapabilities": "Verified",
+        "RegionalAvailability": "Verified",
+        "Quota": "Verified",
+        "PhysicalCapacity": "Unable to Verify",
+        "NestedVirtualization": "Unable to Verify",
+        "TempDiskUsage": "Unable to Verify"
+      },
+      "rightsizing": null,
+      "pricing": {
+        "Os": "Windows",
+        "CurrentMonthly": 341.64,
+        "TargetMonthly": 299.3,
+        "Basis": "Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit"
+      }
+    },
+    {
+      "row": {
+        "Subscription": "contoso-prod",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "VM": "vm-d4sv3",
+        "VmResourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-d4sv3",
+        "Region": "eastus2",
+        "Zone": null,
+        "PowerState": "Running",
+        "OsType": "Windows",
+        "HyperVGeneration": "V2",
+        "CurrentSku": "Standard_D4s_v3",
+        "CurrentSkuGeneration": 3,
+        "VmFamily": "standardDSv3Family",
+        "CpuVendor": "Intel",
+        "CpuArchitecture": "x64",
+        "vCPU": 4,
+        "MemoryGB": 16.0,
+        "AffectedByRetirement": "Yes",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "RetirementDate": "2029-11-15",
+        "TimeRemaining": "37 months",
+        "Urgency": "More than 36 Months",
+        "RecommendedSku": "Standard_D4ds_v5",
+        "RecommendedSkuGeneration": 5,
+        "TargetCpuVendor": "Intel",
+        "TargetCpuArchitecture": "x64",
+        "TargetvCPU": 4,
+        "TargetMemoryGB": 16.0,
+        "CompatibilityScore": 100,
+        "ScoreBand": "Excellent Match",
+        "CpuVendorPreserved": true,
+        "CpuVendorChangeRequired": false,
+        "RegionAvailable": "Available",
+        "CurrentVcpu": 4,
+        "CurrentMemoryGB": 16.0,
+        "RecommendedVcpu": 4,
+        "RecommendedMemoryGB": 16.0,
+        "SkuRegionalAvailability": "Available",
+        "QuotaStatus": "Quota Increase Required",
+        "ModernizationStatus": "Not Evaluated",
+        "RecommendationReason": null,
+        "QuotaFamily": "Standard DDSv5 Family vCPUs",
+        "QuotaMinIncreaseFamily": 11,
+        "QuotaMinIncreaseRegional": 0,
+        "DeploymentReadiness": "Quota Increase Required",
+        "Confidence": "LOW",
+        "Action": "Plan Migration",
+        "NextStep": "Request Quota Increase",
+        "Wave": "Beyond Horizon",
+        "AlternativeSku": "Standard_D4s_v5",
+        "AlternativeScore": 97,
+        "AlternativeReason": "Quota: standardDSv5Family has headroom while the primary family needs an increase; Feature: no temp disk (lower cost where local scratch is unused)",
+        "ThirdCandidateSku": null,
+        "NewerGenerationIfConverted": "Standard_D4s_v6 (requires: Disk Controller)",
+        "NoCandidateReason": null,
+        "VendorChangeReason": null,
+        "MaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids); Temp / Local Disk: 32 GB -> 150 GB; Uncached Disk MBps: 96 -> 144",
+        "ValidationItems": "Lifecycle evidence partially verified | Quota increase required",
+        "RightsizingStatus": null,
+        "RightsizingSuggestedSku": null,
+        "CurrentMonthlyUSD": 274.48,
+        "TargetMonthlyUSD": 299.3,
+        "MicrosoftSource": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": null,
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "DQ_RetirementDate": "Partially Verified",
+        "DQ_CpuVendor": "Verified",
+        "DQ_RegionalAvailability": "Verified",
+        "DQ_Quota": "Verified",
+        "DQ_PhysicalCapacity": "Unable to Verify",
+        "LifecycleNotes": "Planned retirement date listed on Microsoft Learn without a linked Azure Updates announcement. | Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+      },
+      "vm": {
+        "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-d4sv3",
+        "Name": "vm-d4sv3",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "Region": "eastus2",
+        "Zone": null,
+        "AvailabilitySetId": "",
+        "ProximityPlacementGroup": "",
+        "DedicatedHostId": "",
+        "DedicatedHostGroupId": "",
+        "VmssId": "",
+        "CapacityReservationGroup": "",
+        "SkuName": "Standard_D4s_v3",
+        "PowerState": "Running",
+        "IsAllocated": true,
+        "OsType": "Windows",
+        "OsName": "Windows Server 2022",
+        "OsVersion": "10.0",
+        "HyperVGeneration": "V2",
+        "HyperVGenerationSource": "InstanceView",
+        "DiskControllerType": "SCSI",
+        "DiskControllerReported": false,
+        "NicCount": 1,
+        "AcceleratedNetworking": true,
+        "AcceleratedNicCount": 1,
+        "DataDiskCount": 0,
+        "DiskSkus": [
+          "Premium_LRS"
+        ],
+        "UsesPremiumStorage": true,
+        "UsesUltraDisk": false,
+        "UsesPremiumV2": false,
+        "WriteAcceleratorDisks": 0,
+        "EphemeralOsDisk": false,
+        "EphemeralPlacement": null,
+        "SecurityType": "Standard",
+        "EncryptionAtHost": false,
+        "CustomerManagedKeys": false,
+        "AzureDiskEncryption": false,
+        "Hibernation": false,
+        "Priority": "Regular",
+        "IsSpot": false,
+        "LicenseType": "",
+        "ImageReference": "MicrosoftWindowsServer/WindowsServer/2022-datacenter",
+        "GalleryImageId": null,
+        "NestedVirtualization": "Unknown",
+        "TempDiskRequirement": "Unknown",
+        "AdvisorRetirement": []
+      },
+      "lifecycle": {
+        "SkuName": "Standard_D4s_v3",
+        "SeriesKey": "dsv3",
+        "LearnSeriesName": "Dsv3-series / Dv3 and Dsv3-series / Dsv3",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "AnnouncementDate": null,
+        "RetirementDate": "2029-11-15",
+        "MonthsRemaining": 37,
+        "Urgency": "More than 36 Months",
+        "SourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": null,
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "PreviousGenStatus": "End of Life",
+        "RecommendedTargets": [
+          "dv5",
+          "dsv5",
+          "ddv5",
+          "ddsv5",
+          "dasv5",
+          "dadsv5",
+          "d-family-v6",
+          "d-family-v7"
+        ],
+        "GuideDifferences": [
+          "For the smoothest transition, see Modernize to the v5 VM series. For the latest features and performance, see Modernize to the v6 and v7 VM series."
+        ],
+        "SizeTargets": [],
+        "Notes": [
+          "Planned retirement date listed on Microsoft Learn without a linked Azure Updates announcement.",
+          "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+        ],
+        "CatalogSource": "Cached (2026-10-06 00:44 UTC)",
+        "DataQuality": "Partially Verified"
+      },
+      "current": {
+        "sku": "Standard_D4s_v3",
+        "quotaFamily": "standardDSv3Family",
+        "seriesKey": "dsv3",
+        "generation": 3,
+        "cpuVendor": "Intel",
+        "cpuArchitecture": "x64",
+        "processors": [
+          "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Intel Xeon 8171M (Skylake)",
+          "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Intel Xeon E5-2673 v3 (Haswell)",
+          "Intel Xeon Platinum 8573C (Emerald Rapids)"
+        ],
+        "vCpu": 4,
+        "memoryGB": 16.0,
+        "memoryPerVcpu": 4.0,
+        "tempDiskGB": 32.0,
+        "premiumIO": true,
+        "acceleratedNetworking": true,
+        "maxNics": 2.0,
+        "maxDataDisks": 8.0,
+        "uncachedDiskIops": 6400.0,
+        "uncachedDiskMBps": 96.0,
+        "hyperVGenerations": [
+          "V1",
+          "V2"
+        ],
+        "diskControllerTypes": [
+          "SCSI"
+        ],
+        "zones": [
+          "1",
+          "2",
+          "3"
+        ],
+        "capabilitiesSource": "Azure Resource SKUs API"
+      },
+      "recommendation": {
+        "permittedSeries": "Microsoft migration guide: dv5, dsv5, ddv5, ddsv5, dasv5, dadsv5, d-family-v6, d-family-v7",
+        "candidatesEvaluated": 4,
+        "vendorChangeRequired": false,
+        "vendorChangeReason": null,
+        "noCandidateReason": null,
+        "primary": {
+          "role": "Primary",
+          "variant": "Closest size",
+          "sku": "Standard_D4ds_v5",
+          "quotaFamily": "standardDDSv5Family",
+          "seriesKey": "ddsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Ice Lake",
+          "processors": [
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 150.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 100,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 5,
+            "storageCapability": 10.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V2 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Pass",
+              "Detail": "Temp disk 32 GB -> 150 GB"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 4,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 16.0,
+              "Target": 16.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "32 GB",
+              "Target": "150 GB",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 6400.0,
+              "Target": 6400.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 96.0,
+              "Target": 144.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 8.0,
+              "Target": 8.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 2.0,
+              "Target": 2.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "secondary": {
+          "role": "Secondary",
+          "variant": "Closest size",
+          "sku": "Standard_D4s_v5",
+          "quotaFamily": "standardDSv5Family",
+          "seriesKey": "dsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Sapphire Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 97,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 5,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V2 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 32 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 4,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 16.0,
+              "Target": 16.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "32 GB",
+              "Target": "None",
+              "Assessment": "Changed",
+              "Note": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 6400.0,
+              "Target": 6400.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 96.0,
+              "Target": 144.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 8.0,
+              "Target": 8.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 2.0,
+              "Target": 2.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "third": null,
+        "secondaryReason": "Quota: standardDSv5Family has headroom while the primary family needs an increase; Feature: no temp disk (lower cost where local scratch is unused)",
+        "newerGenerationIfConverted": {
+          "role": "Candidate",
+          "variant": "Closest size",
+          "sku": "Standard_D4s_v6",
+          "quotaFamily": "standardDSv6Family",
+          "seriesKey": "dsv6",
+          "generation": 6,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Emerald Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 96,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 5,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 4.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": true,
+          "rejectionReason": "Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V2 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Fail",
+              "Detail": "VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 32 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 12"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": []
+        }
+      },
+      "modernization": null,
+      "quota": {
+        "Status": "Quota Increase Required",
+        "Family": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "standardddsv5family",
+          "QuotaDisplayName": "Standard DDSv5 Family vCPUs",
+          "VmCount": 4,
+          "TargetSkus": "Standard_D4ds_v5",
+          "Limit": 100,
+          "CurrentUsage": 95,
+          "Remaining": 5,
+          "RequiredVcpu": 16,
+          "RequiredVcpuAllocatedOnly": 12,
+          "PostMigrationUsage": 111,
+          "MinimumIncrease": 11,
+          "RecommendedIncrease": 15,
+          "RecommendedNewLimit": 115,
+          "Status": "Quota Increase Required",
+          "DataQuality": "Verified"
+        },
+        "Regional": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "cores",
+          "QuotaDisplayName": "Total Regional vCPUs",
+          "VmCount": 5,
+          "TargetSkus": "",
+          "Limit": 350,
+          "CurrentUsage": 40,
+          "Remaining": 310,
+          "RequiredVcpu": 4,
+          "RequiredVcpuAllocatedOnly": null,
+          "PostMigrationUsage": 44,
+          "MinimumIncrease": 0,
+          "RecommendedIncrease": 0,
+          "RecommendedNewLimit": 350,
+          "Status": "Quota OK",
+          "DataQuality": "Verified"
+        },
+        "DataQuality": "Verified"
+      },
+      "readiness": "Quota Increase Required",
+      "confidence": {
+        "Level": "LOW",
+        "LowReasons": [],
+        "ValidationItems": [
+          "Lifecycle evidence partially verified",
+          "Quota increase required"
+        ]
+      },
+      "action": "Plan Migration",
+      "nextStep": "Request Quota Increase",
+      "wave": "Beyond Horizon",
+      "dataQuality": {
+        "RetirementDate": "Partially Verified",
+        "CpuVendor": "Verified",
+        "CpuArchitecture": "Verified",
+        "CurrentSkuCapabilities": "Verified",
+        "RegionalAvailability": "Verified",
+        "Quota": "Verified",
+        "PhysicalCapacity": "Unable to Verify",
+        "NestedVirtualization": "Unable to Verify",
+        "TempDiskUsage": "Unable to Verify"
+      },
+      "rightsizing": null,
+      "pricing": {
+        "Os": "Windows",
+        "CurrentMonthly": 274.48,
+        "TargetMonthly": 299.3,
+        "Basis": "Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit"
+      }
+    },
+    {
+      "row": {
+        "Subscription": "contoso-prod",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "VM": "vm-zonal",
+        "VmResourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-zonal",
+        "Region": "eastus2",
+        "Zone": "3",
+        "PowerState": "Running",
+        "OsType": "Windows",
+        "HyperVGeneration": "V1",
+        "CurrentSku": "Standard_D4s_v3",
+        "CurrentSkuGeneration": 3,
+        "VmFamily": "standardDSv3Family",
+        "CpuVendor": "Intel",
+        "CpuArchitecture": "x64",
+        "vCPU": 4,
+        "MemoryGB": 16.0,
+        "AffectedByRetirement": "Yes",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "RetirementDate": "2029-11-15",
+        "TimeRemaining": "37 months",
+        "Urgency": "More than 36 Months",
+        "RecommendedSku": "Standard_D4ds_v5",
+        "RecommendedSkuGeneration": 5,
+        "TargetCpuVendor": "Intel",
+        "TargetCpuArchitecture": "x64",
+        "TargetvCPU": 4,
+        "TargetMemoryGB": 16.0,
+        "CompatibilityScore": 100,
+        "ScoreBand": "Excellent Match",
+        "CpuVendorPreserved": true,
+        "CpuVendorChangeRequired": false,
+        "RegionAvailable": "Available",
+        "CurrentVcpu": 4,
+        "CurrentMemoryGB": 16.0,
+        "RecommendedVcpu": 4,
+        "RecommendedMemoryGB": 16.0,
+        "SkuRegionalAvailability": "Available",
+        "QuotaStatus": "Quota Increase Required",
+        "ModernizationStatus": "Not Evaluated",
+        "RecommendationReason": null,
+        "QuotaFamily": "Standard DDSv5 Family vCPUs",
+        "QuotaMinIncreaseFamily": 11,
+        "QuotaMinIncreaseRegional": 0,
+        "DeploymentReadiness": "Quota Increase Required",
+        "Confidence": "LOW",
+        "Action": "Plan Migration",
+        "NextStep": "Request Quota Increase",
+        "Wave": "Beyond Horizon",
+        "AlternativeSku": "Standard_D4s_v5",
+        "AlternativeScore": 97,
+        "AlternativeReason": "Quota: standardDSv5Family has headroom while the primary family needs an increase; Feature: no temp disk (lower cost where local scratch is unused)",
+        "ThirdCandidateSku": null,
+        "NewerGenerationIfConverted": "Standard_D4s_v6 (requires: VM Generation, Disk Controller)",
+        "NoCandidateReason": null,
+        "VendorChangeReason": null,
+        "MaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids); Temp / Local Disk: 32 GB -> 150 GB; Uncached Disk MBps: 96 -> 144",
+        "ValidationItems": "Lifecycle evidence partially verified | Quota increase required",
+        "RightsizingStatus": null,
+        "RightsizingSuggestedSku": null,
+        "CurrentMonthlyUSD": 274.48,
+        "TargetMonthlyUSD": 299.3,
+        "MicrosoftSource": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": null,
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "DQ_RetirementDate": "Partially Verified",
+        "DQ_CpuVendor": "Verified",
+        "DQ_RegionalAvailability": "Verified",
+        "DQ_Quota": "Verified",
+        "DQ_PhysicalCapacity": "Unable to Verify",
+        "LifecycleNotes": "Planned retirement date listed on Microsoft Learn without a linked Azure Updates announcement. | Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+      },
+      "vm": {
+        "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-zonal",
+        "Name": "vm-zonal",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "Region": "eastus2",
+        "Zone": "3",
+        "AvailabilitySetId": "",
+        "ProximityPlacementGroup": "",
+        "DedicatedHostId": "",
+        "DedicatedHostGroupId": "",
+        "VmssId": "",
+        "CapacityReservationGroup": "",
+        "SkuName": "Standard_D4s_v3",
+        "PowerState": "Running",
+        "IsAllocated": true,
+        "OsType": "Windows",
+        "OsName": "Windows Server 2022",
+        "OsVersion": "10.0",
+        "HyperVGeneration": "V1",
+        "HyperVGenerationSource": "InstanceView",
+        "DiskControllerType": "SCSI",
+        "DiskControllerReported": false,
+        "NicCount": 1,
+        "AcceleratedNetworking": true,
+        "AcceleratedNicCount": 1,
+        "DataDiskCount": 0,
+        "DiskSkus": [
+          "Premium_LRS"
+        ],
+        "UsesPremiumStorage": true,
+        "UsesUltraDisk": false,
+        "UsesPremiumV2": false,
+        "WriteAcceleratorDisks": 0,
+        "EphemeralOsDisk": false,
+        "EphemeralPlacement": null,
+        "SecurityType": "Standard",
+        "EncryptionAtHost": false,
+        "CustomerManagedKeys": false,
+        "AzureDiskEncryption": false,
+        "Hibernation": false,
+        "Priority": "Regular",
+        "IsSpot": false,
+        "LicenseType": "",
+        "ImageReference": "MicrosoftWindowsServer/WindowsServer/2022-datacenter",
+        "GalleryImageId": null,
+        "NestedVirtualization": "Unknown",
+        "TempDiskRequirement": "Unknown",
+        "AdvisorRetirement": []
+      },
+      "lifecycle": {
+        "SkuName": "Standard_D4s_v3",
+        "SeriesKey": "dsv3",
+        "LearnSeriesName": "Dsv3-series / Dv3 and Dsv3-series / Dsv3",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "AnnouncementDate": null,
+        "RetirementDate": "2029-11-15",
+        "MonthsRemaining": 37,
+        "Urgency": "More than 36 Months",
+        "SourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": null,
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "PreviousGenStatus": "End of Life",
+        "RecommendedTargets": [
+          "dv5",
+          "dsv5",
+          "ddv5",
+          "ddsv5",
+          "dasv5",
+          "dadsv5",
+          "d-family-v6",
+          "d-family-v7"
+        ],
+        "GuideDifferences": [
+          "For the smoothest transition, see Modernize to the v5 VM series. For the latest features and performance, see Modernize to the v6 and v7 VM series."
+        ],
+        "SizeTargets": [],
+        "Notes": [
+          "Planned retirement date listed on Microsoft Learn without a linked Azure Updates announcement.",
+          "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+        ],
+        "CatalogSource": "Cached (2026-10-06 00:44 UTC)",
+        "DataQuality": "Partially Verified"
+      },
+      "current": {
+        "sku": "Standard_D4s_v3",
+        "quotaFamily": "standardDSv3Family",
+        "seriesKey": "dsv3",
+        "generation": 3,
+        "cpuVendor": "Intel",
+        "cpuArchitecture": "x64",
+        "processors": [
+          "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Intel Xeon 8171M (Skylake)",
+          "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Intel Xeon E5-2673 v3 (Haswell)",
+          "Intel Xeon Platinum 8573C (Emerald Rapids)"
+        ],
+        "vCpu": 4,
+        "memoryGB": 16.0,
+        "memoryPerVcpu": 4.0,
+        "tempDiskGB": 32.0,
+        "premiumIO": true,
+        "acceleratedNetworking": true,
+        "maxNics": 2.0,
+        "maxDataDisks": 8.0,
+        "uncachedDiskIops": 6400.0,
+        "uncachedDiskMBps": 96.0,
+        "hyperVGenerations": [
+          "V1",
+          "V2"
+        ],
+        "diskControllerTypes": [
+          "SCSI"
+        ],
+        "zones": [
+          "1",
+          "2",
+          "3"
+        ],
+        "capabilitiesSource": "Azure Resource SKUs API"
+      },
+      "recommendation": {
+        "permittedSeries": "Microsoft migration guide: dv5, dsv5, ddv5, ddsv5, dasv5, dadsv5, d-family-v6, d-family-v7",
+        "candidatesEvaluated": 4,
+        "vendorChangeRequired": false,
+        "vendorChangeReason": null,
+        "noCandidateReason": null,
+        "primary": {
+          "role": "Primary",
+          "variant": "Closest size",
+          "sku": "Standard_D4ds_v5",
+          "quotaFamily": "standardDDSv5Family",
+          "seriesKey": "ddsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Ice Lake",
+          "processors": [
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 150.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": true,
+          "compatibilityScore": 100,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 5,
+            "storageCapability": 10.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Pass",
+              "Detail": "Temp disk 32 GB -> 150 GB"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2 zone 3"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 4,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 16.0,
+              "Target": 16.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "32 GB",
+              "Target": "150 GB",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 6400.0,
+              "Target": 6400.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 96.0,
+              "Target": 144.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 8.0,
+              "Target": 8.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 2.0,
+              "Target": 2.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "secondary": {
+          "role": "Secondary",
+          "variant": "Closest size",
+          "sku": "Standard_D4s_v5",
+          "quotaFamily": "standardDSv5Family",
+          "seriesKey": "dsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Sapphire Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": true,
+          "compatibilityScore": 97,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 5,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 32 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2 zone 3"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 4,
+              "Target": 4,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 16.0,
+              "Target": 16.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "32 GB",
+              "Target": "None",
+              "Assessment": "Changed",
+              "Note": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 6400.0,
+              "Target": 6400.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 96.0,
+              "Target": 144.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 8.0,
+              "Target": 8.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 2.0,
+              "Target": 2.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "third": null,
+        "secondaryReason": "Quota: standardDSv5Family has headroom while the primary family needs an increase; Feature: no temp disk (lower cost where local scratch is unused)",
+        "newerGenerationIfConverted": {
+          "role": "Candidate",
+          "variant": "Closest size",
+          "sku": "Standard_D4s_v6",
+          "quotaFamily": "standardDSv6Family",
+          "seriesKey": "dsv6",
+          "generation": 6,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Emerald Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 16.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": true,
+          "compatibilityScore": 94,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 5,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 2.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": true,
+          "rejectionReason": "VM Generation: VM is V1; target supports V2 only - in-place resize not possible (Gen1->Gen2 conversion or rebuild required) | Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Fail",
+              "Detail": "VM is V1; target supports V2 only - in-place resize not possible (Gen1->Gen2 conversion or rebuild required)"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Fail",
+              "Detail": "VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)"
+            },
+            {
+              "Gate": "Premium Storage",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Accelerated Networking",
+              "Result": "Pass",
+              "Detail": "Supported"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 32 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 12"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2 zone 3"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": []
+        }
+      },
+      "modernization": null,
+      "quota": {
+        "Status": "Quota Increase Required",
+        "Family": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "standardddsv5family",
+          "QuotaDisplayName": "Standard DDSv5 Family vCPUs",
+          "VmCount": 4,
+          "TargetSkus": "Standard_D4ds_v5",
+          "Limit": 100,
+          "CurrentUsage": 95,
+          "Remaining": 5,
+          "RequiredVcpu": 16,
+          "RequiredVcpuAllocatedOnly": 12,
+          "PostMigrationUsage": 111,
+          "MinimumIncrease": 11,
+          "RecommendedIncrease": 15,
+          "RecommendedNewLimit": 115,
+          "Status": "Quota Increase Required",
+          "DataQuality": "Verified"
+        },
+        "Regional": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "cores",
+          "QuotaDisplayName": "Total Regional vCPUs",
+          "VmCount": 5,
+          "TargetSkus": "",
+          "Limit": 350,
+          "CurrentUsage": 40,
+          "Remaining": 310,
+          "RequiredVcpu": 4,
+          "RequiredVcpuAllocatedOnly": null,
+          "PostMigrationUsage": 44,
+          "MinimumIncrease": 0,
+          "RecommendedIncrease": 0,
+          "RecommendedNewLimit": 350,
+          "Status": "Quota OK",
+          "DataQuality": "Verified"
+        },
+        "DataQuality": "Verified"
+      },
+      "readiness": "Quota Increase Required",
+      "confidence": {
+        "Level": "LOW",
+        "LowReasons": [],
+        "ValidationItems": [
+          "Lifecycle evidence partially verified",
+          "Quota increase required"
+        ]
+      },
+      "action": "Plan Migration",
+      "nextStep": "Request Quota Increase",
+      "wave": "Beyond Horizon",
+      "dataQuality": {
+        "RetirementDate": "Partially Verified",
+        "CpuVendor": "Verified",
+        "CpuArchitecture": "Verified",
+        "CurrentSkuCapabilities": "Verified",
+        "RegionalAvailability": "Verified",
+        "Quota": "Verified",
+        "PhysicalCapacity": "Unable to Verify",
+        "NestedVirtualization": "Unable to Verify",
+        "TempDiskUsage": "Unable to Verify"
+      },
+      "rightsizing": null,
+      "pricing": {
+        "Os": "Windows",
+        "CurrentMonthly": 274.48,
+        "TargetMonthly": 299.3,
+        "Basis": "Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit"
+      }
+    },
+    {
+      "row": {
+        "Subscription": "contoso-prod",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "VM": "vm-d4sv5",
+        "VmResourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-d4sv5",
+        "Region": "eastus2",
+        "Zone": null,
+        "PowerState": "Running",
+        "OsType": "Windows",
+        "HyperVGeneration": "V2",
+        "CurrentSku": "Standard_D4s_v5",
+        "CurrentSkuGeneration": 5,
+        "VmFamily": "standardDSv5Family",
+        "CpuVendor": "Intel",
+        "CpuArchitecture": "x64",
+        "vCPU": 4,
+        "MemoryGB": 16.0,
+        "AffectedByRetirement": "No",
+        "EvidenceClass": "No Retirement Announced",
+        "RetirementStatus": "No Retirement Announced",
+        "RetirementDate": null,
+        "TimeRemaining": "-",
+        "Urgency": "No Retirement Announced",
+        "RecommendedSku": null,
+        "RecommendedSkuGeneration": null,
+        "TargetCpuVendor": null,
+        "TargetCpuArchitecture": null,
+        "TargetvCPU": null,
+        "TargetMemoryGB": null,
+        "CompatibilityScore": null,
+        "ScoreBand": null,
+        "CpuVendorPreserved": null,
+        "CpuVendorChangeRequired": null,
+        "RegionAvailable": null,
+        "CurrentVcpu": 4,
+        "CurrentMemoryGB": 16.0,
+        "RecommendedVcpu": null,
+        "RecommendedMemoryGB": null,
+        "SkuRegionalAvailability": null,
+        "QuotaStatus": null,
+        "ModernizationStatus": "Not Evaluated",
+        "RecommendationReason": null,
+        "QuotaFamily": null,
+        "QuotaMinIncreaseFamily": null,
+        "QuotaMinIncreaseRegional": null,
+        "DeploymentReadiness": "Not Applicable",
+        "Confidence": "N/A",
+        "Action": "No Action Required",
+        "NextStep": "None",
+        "Wave": "None",
+        "AlternativeSku": null,
+        "AlternativeScore": null,
+        "AlternativeReason": null,
+        "ThirdCandidateSku": null,
+        "NewerGenerationIfConverted": null,
+        "NoCandidateReason": null,
+        "VendorChangeReason": null,
+        "MaterialDifferences": "",
+        "ValidationItems": "",
+        "RightsizingStatus": null,
+        "RightsizingSuggestedSku": null,
+        "CurrentMonthlyUSD": 274.48,
+        "TargetMonthlyUSD": null,
+        "MicrosoftSource": null,
+        "AnnouncementUrl": null,
+        "MigrationGuideUrl": null,
+        "DQ_RetirementDate": "Verified (no date)",
+        "DQ_CpuVendor": "Verified",
+        "DQ_RegionalAvailability": "Not Evaluated",
+        "DQ_Quota": "Not Evaluated",
+        "DQ_PhysicalCapacity": "Unable to Verify",
+        "LifecycleNotes": ""
+      },
+      "vm": {
+        "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-d4sv5",
+        "Name": "vm-d4sv5",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "Region": "eastus2",
+        "Zone": null,
+        "AvailabilitySetId": "",
+        "ProximityPlacementGroup": "",
+        "DedicatedHostId": "",
+        "DedicatedHostGroupId": "",
+        "VmssId": "",
+        "CapacityReservationGroup": "",
+        "SkuName": "Standard_D4s_v5",
+        "PowerState": "Running",
+        "IsAllocated": true,
+        "OsType": "Windows",
+        "OsName": "Windows Server 2022",
+        "OsVersion": "10.0",
+        "HyperVGeneration": "V2",
+        "HyperVGenerationSource": "InstanceView",
+        "DiskControllerType": "SCSI",
+        "DiskControllerReported": false,
+        "NicCount": 1,
+        "AcceleratedNetworking": true,
+        "AcceleratedNicCount": 1,
+        "DataDiskCount": 0,
+        "DiskSkus": [
+          "Premium_LRS"
+        ],
+        "UsesPremiumStorage": true,
+        "UsesUltraDisk": false,
+        "UsesPremiumV2": false,
+        "WriteAcceleratorDisks": 0,
+        "EphemeralOsDisk": false,
+        "EphemeralPlacement": null,
+        "SecurityType": "Standard",
+        "EncryptionAtHost": false,
+        "CustomerManagedKeys": false,
+        "AzureDiskEncryption": false,
+        "Hibernation": false,
+        "Priority": "Regular",
+        "IsSpot": false,
+        "LicenseType": "",
+        "ImageReference": "MicrosoftWindowsServer/WindowsServer/2022-datacenter",
+        "GalleryImageId": null,
+        "NestedVirtualization": "Unknown",
+        "TempDiskRequirement": "Unknown",
+        "AdvisorRetirement": []
+      },
+      "lifecycle": {
+        "SkuName": "Standard_D4s_v5",
+        "SeriesKey": "dsv5",
+        "LearnSeriesName": null,
+        "EvidenceClass": "No Retirement Announced",
+        "RetirementStatus": "No Retirement Announced",
+        "AnnouncementDate": null,
+        "RetirementDate": null,
+        "MonthsRemaining": null,
+        "Urgency": "No Retirement Announced",
+        "SourceUrl": null,
+        "AnnouncementUrl": null,
+        "MigrationGuideUrl": null,
+        "PreviousGenStatus": null,
+        "RecommendedTargets": [],
+        "GuideDifferences": [],
+        "SizeTargets": [],
+        "Notes": [],
+        "CatalogSource": "Cached (2026-10-06 00:44 UTC)",
+        "DataQuality": "Verified"
+      },
+      "current": {
+        "sku": "Standard_D4s_v5",
+        "quotaFamily": "standardDSv5Family",
+        "seriesKey": "dsv5",
+        "generation": 5,
+        "cpuVendor": "Intel",
+        "cpuArchitecture": "x64",
+        "processors": [
+          "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Intel Xeon Platinum 8573C (Emerald Rapids)"
+        ],
+        "vCpu": 4,
+        "memoryGB": 16.0,
+        "memoryPerVcpu": 4.0,
+        "tempDiskGB": 0.0,
+        "premiumIO": true,
+        "acceleratedNetworking": true,
+        "maxNics": 2.0,
+        "maxDataDisks": 8.0,
+        "uncachedDiskIops": 6400.0,
+        "uncachedDiskMBps": 144.0,
+        "hyperVGenerations": [
+          "V1",
+          "V2"
+        ],
+        "diskControllerTypes": [
+          "SCSI"
+        ],
+        "zones": [
+          "1",
+          "2",
+          "3"
+        ],
+        "capabilitiesSource": "Azure Resource SKUs API"
+      },
+      "recommendation": null,
+      "modernization": null,
+      "quota": null,
+      "readiness": "Not Applicable",
+      "confidence": {
+        "Level": "N/A",
+        "LowReasons": [],
+        "ValidationItems": []
+      },
+      "action": "No Action Required",
+      "nextStep": "None",
+      "wave": "None",
+      "dataQuality": {
+        "RetirementDate": "Verified (no date)",
+        "CpuVendor": "Verified",
+        "CpuArchitecture": "Verified",
+        "CurrentSkuCapabilities": "Verified",
+        "RegionalAvailability": "Not Evaluated",
+        "Quota": "Not Evaluated",
+        "PhysicalCapacity": "Unable to Verify",
+        "NestedVirtualization": "Unable to Verify",
+        "TempDiskUsage": "Unable to Verify"
+      },
+      "rightsizing": null,
+      "pricing": {
+        "Os": "Windows",
+        "CurrentMonthly": 274.48,
+        "TargetMonthly": null,
+        "Basis": "Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit"
+      }
+    },
+    {
+      "row": {
+        "Subscription": "contoso-prod",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "VM": "vm-nc6",
+        "VmResourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-nc6",
+        "Region": "eastus2",
+        "Zone": null,
+        "PowerState": "Running",
+        "OsType": "Windows",
+        "HyperVGeneration": "V1",
+        "CurrentSku": "Standard_NC6s_v3",
+        "CurrentSkuGeneration": 3,
+        "VmFamily": null,
+        "CpuVendor": "Intel",
+        "CpuArchitecture": "x64",
+        "vCPU": 6,
+        "MemoryGB": null,
+        "AffectedByRetirement": "Yes",
+        "EvidenceClass": "Already Retired",
+        "RetirementStatus": "Retired",
+        "RetirementDate": "2025-09-30",
+        "TimeRemaining": "Retired",
+        "Urgency": "Already Retired",
+        "RecommendedSku": null,
+        "RecommendedSkuGeneration": null,
+        "TargetCpuVendor": null,
+        "TargetCpuArchitecture": null,
+        "TargetvCPU": null,
+        "TargetMemoryGB": null,
+        "CompatibilityScore": null,
+        "ScoreBand": null,
+        "CpuVendorPreserved": null,
+        "CpuVendorChangeRequired": false,
+        "RegionAvailable": "Not Available",
+        "CurrentVcpu": 6,
+        "CurrentMemoryGB": null,
+        "RecommendedVcpu": null,
+        "RecommendedMemoryGB": null,
+        "SkuRegionalAvailability": null,
+        "QuotaStatus": "Manual Validation Required",
+        "ModernizationStatus": "Not Evaluated",
+        "RecommendationReason": "No current-generation size with >= 6 vCPU / unknown GB (current size not in Resource SKUs API) in the permitted series (NC-series) is offered in eastus2 for this subscription",
+        "QuotaFamily": null,
+        "QuotaMinIncreaseFamily": null,
+        "QuotaMinIncreaseRegional": null,
+        "DeploymentReadiness": "Manual Review Required",
+        "Confidence": "LOW",
+        "Action": "Immediate Migration Required",
+        "NextStep": "Manual Review Required",
+        "Wave": "Wave 1 - Urgent",
+        "AlternativeSku": null,
+        "AlternativeScore": null,
+        "AlternativeReason": null,
+        "ThirdCandidateSku": null,
+        "NewerGenerationIfConverted": null,
+        "NoCandidateReason": "No current-generation size with >= 6 vCPU / unknown GB (current size not in Resource SKUs API) in the permitted series (NC-series) is offered in eastus2 for this subscription",
+        "VendorChangeReason": null,
+        "MaterialDifferences": "",
+        "ValidationItems": "Current size capabilities not available from Resource SKUs API | Lifecycle evidence partially verified",
+        "RightsizingStatus": null,
+        "RightsizingSuggestedSku": null,
+        "CurrentMonthlyUSD": null,
+        "TargetMonthlyUSD": null,
+        "MicrosoftSource": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": null,
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/ncv3-retirement",
+        "DQ_RetirementDate": "Partially Verified",
+        "DQ_CpuVendor": "Verified",
+        "DQ_RegionalAvailability": "Partially Verified",
+        "DQ_Quota": "Unable to Verify",
+        "DQ_PhysicalCapacity": "Unable to Verify",
+        "LifecycleNotes": "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+      },
+      "vm": {
+        "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-nc6",
+        "Name": "vm-nc6",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "Region": "eastus2",
+        "Zone": null,
+        "AvailabilitySetId": "",
+        "ProximityPlacementGroup": "",
+        "DedicatedHostId": "",
+        "DedicatedHostGroupId": "",
+        "VmssId": "",
+        "CapacityReservationGroup": "",
+        "SkuName": "Standard_NC6s_v3",
+        "PowerState": "Running",
+        "IsAllocated": true,
+        "OsType": "Windows",
+        "OsName": "Windows Server 2022",
+        "OsVersion": "10.0",
+        "HyperVGeneration": "V1",
+        "HyperVGenerationSource": "InstanceView",
+        "DiskControllerType": "SCSI",
+        "DiskControllerReported": false,
+        "NicCount": 1,
+        "AcceleratedNetworking": true,
+        "AcceleratedNicCount": 1,
+        "DataDiskCount": 0,
+        "DiskSkus": [
+          "Premium_LRS"
+        ],
+        "UsesPremiumStorage": true,
+        "UsesUltraDisk": false,
+        "UsesPremiumV2": false,
+        "WriteAcceleratorDisks": 0,
+        "EphemeralOsDisk": false,
+        "EphemeralPlacement": null,
+        "SecurityType": "Standard",
+        "EncryptionAtHost": false,
+        "CustomerManagedKeys": false,
+        "AzureDiskEncryption": false,
+        "Hibernation": false,
+        "Priority": "Regular",
+        "IsSpot": false,
+        "LicenseType": "",
+        "ImageReference": "MicrosoftWindowsServer/WindowsServer/2022-datacenter",
+        "GalleryImageId": null,
+        "NestedVirtualization": "Unknown",
+        "TempDiskRequirement": "Unknown",
+        "AdvisorRetirement": []
+      },
+      "lifecycle": {
+        "SkuName": "Standard_NC6s_v3",
+        "SeriesKey": "ncsv3",
+        "LearnSeriesName": "NCv3-Series",
+        "EvidenceClass": "Already Retired",
+        "RetirementStatus": "Retired",
+        "AnnouncementDate": null,
+        "RetirementDate": "2025-09-30",
+        "MonthsRemaining": 0,
+        "Urgency": "Already Retired",
+        "SourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": null,
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/ncv3-retirement",
+        "PreviousGenStatus": null,
+        "RecommendedTargets": [],
+        "GuideDifferences": [],
+        "SizeTargets": [],
+        "Notes": [
+          "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+        ],
+        "CatalogSource": "Cached (2026-10-06 00:44 UTC)",
+        "DataQuality": "Partially Verified"
+      },
+      "current": {
+        "sku": "Standard_NC6s_v3",
+        "quotaFamily": null,
+        "seriesKey": "ncsv3",
+        "generation": 3,
+        "cpuVendor": "Intel",
+        "cpuArchitecture": "x64",
+        "processors": [
+          "Intel Xeon E5-2690 v4 (Broadwell)"
+        ],
+        "vCpu": 6,
+        "memoryGB": null,
+        "memoryPerVcpu": null,
+        "tempDiskGB": null,
+        "premiumIO": null,
+        "acceleratedNetworking": null,
+        "maxNics": null,
+        "maxDataDisks": null,
+        "uncachedDiskIops": null,
+        "uncachedDiskMBps": null,
+        "hyperVGenerations": [],
+        "diskControllerTypes": [],
+        "zones": [],
+        "capabilitiesSource": "SKU name only (size not offered in region / retired)"
+      },
+      "recommendation": {
+        "permittedSeries": "Same workload family (NC-series)",
+        "candidatesEvaluated": 0,
+        "vendorChangeRequired": false,
+        "vendorChangeReason": null,
+        "noCandidateReason": "No current-generation size with >= 6 vCPU / unknown GB (current size not in Resource SKUs API) in the permitted series (NC-series) is offered in eastus2 for this subscription",
+        "primary": null,
+        "secondary": null,
+        "third": null,
+        "secondaryReason": null,
+        "newerGenerationIfConverted": null
+      },
+      "modernization": null,
+      "quota": null,
+      "readiness": "Manual Review Required",
+      "confidence": {
+        "Level": "LOW",
+        "LowReasons": [
+          "No valid replacement candidate",
+          "Current SKU characteristics incomplete",
+          "Quota could not be validated"
+        ],
+        "ValidationItems": [
+          "Current size capabilities not available from Resource SKUs API",
+          "Lifecycle evidence partially verified"
+        ]
+      },
+      "action": "Immediate Migration Required",
+      "nextStep": "Manual Review Required",
+      "wave": "Wave 1 - Urgent",
+      "dataQuality": {
+        "RetirementDate": "Partially Verified",
+        "CpuVendor": "Verified",
+        "CpuArchitecture": "Verified",
+        "CurrentSkuCapabilities": "Unable to Verify",
+        "RegionalAvailability": "Partially Verified",
+        "Quota": "Unable to Verify",
+        "PhysicalCapacity": "Unable to Verify",
+        "NestedVirtualization": "Unable to Verify",
+        "TempDiskUsage": "Unable to Verify"
+      },
+      "rightsizing": null,
+      "pricing": {
+        "Os": "Windows",
+        "CurrentMonthly": null,
+        "TargetMonthly": null,
+        "Basis": "Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit"
+      }
+    },
+    {
+      "row": {
+        "Subscription": "contoso-prod",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "VM": "vm-b2ms",
+        "VmResourceId": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-b2ms",
+        "Region": "eastus2",
+        "Zone": null,
+        "PowerState": "Running",
+        "OsType": "Windows",
+        "HyperVGeneration": "V1",
+        "CurrentSku": "Standard_B2ms",
+        "CurrentSkuGeneration": 1,
+        "VmFamily": "standardBSFamily",
+        "CpuVendor": "Intel",
+        "CpuArchitecture": "x64",
+        "vCPU": 2,
+        "MemoryGB": 8.0,
+        "AffectedByRetirement": "Yes",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "RetirementDate": "2028-11-15",
+        "TimeRemaining": "25 months",
+        "Urgency": "24-36 Months",
+        "RecommendedSku": "Standard_B2s_v2",
+        "RecommendedSkuGeneration": 2,
+        "TargetCpuVendor": "Intel",
+        "TargetCpuArchitecture": "x64",
+        "TargetvCPU": 2,
+        "TargetMemoryGB": 8.0,
+        "CompatibilityScore": 97,
+        "ScoreBand": "Excellent Match",
+        "CpuVendorPreserved": true,
+        "CpuVendorChangeRequired": false,
+        "RegionAvailable": "Available",
+        "CurrentVcpu": 2,
+        "CurrentMemoryGB": 8.0,
+        "RecommendedVcpu": 2,
+        "RecommendedMemoryGB": 8.0,
+        "SkuRegionalAvailability": "Available",
+        "QuotaStatus": "Manual Validation Required",
+        "ModernizationStatus": "Not Evaluated",
+        "RecommendationReason": null,
+        "QuotaFamily": null,
+        "QuotaMinIncreaseFamily": null,
+        "QuotaMinIncreaseRegional": 0,
+        "DeploymentReadiness": "Manual Review Required",
+        "Confidence": "LOW",
+        "Action": "Migration Required Within 36 Months",
+        "NextStep": "Manual Review Required",
+        "Wave": "Wave 3 - Planned",
+        "AlternativeSku": "Standard_D4ls_v5",
+        "AlternativeScore": 84,
+        "AlternativeReason": "Different quota family (standardDLSv5Family) - fallback if primary quota, capacity or regional availability is constrained",
+        "ThirdCandidateSku": null,
+        "NewerGenerationIfConverted": null,
+        "NoCandidateReason": null,
+        "VendorChangeReason": null,
+        "MaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake); Temp / Local Disk: 16 GB -> None; Uncached Disk IOPS: 1920 -> 3750; Uncached Disk MBps: 22 -> 85; Accelerated Networking: False -> True",
+        "ValidationItems": "Temp / Local Disk: Current size has a 16 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive | Lifecycle evidence partially verified",
+        "RightsizingStatus": null,
+        "RightsizingSuggestedSku": null,
+        "CurrentMonthlyUSD": 66.58,
+        "TargetMonthlyUSD": 67.45,
+        "MicrosoftSource": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "DQ_RetirementDate": "Partially Verified",
+        "DQ_CpuVendor": "Verified",
+        "DQ_RegionalAvailability": "Verified",
+        "DQ_Quota": "Partially Verified",
+        "DQ_PhysicalCapacity": "Unable to Verify",
+        "LifecycleNotes": "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+      },
+      "vm": {
+        "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-b2ms",
+        "Name": "vm-b2ms",
+        "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+        "ResourceGroup": "rg-app",
+        "Region": "eastus2",
+        "Zone": null,
+        "AvailabilitySetId": "",
+        "ProximityPlacementGroup": "",
+        "DedicatedHostId": "",
+        "DedicatedHostGroupId": "",
+        "VmssId": "",
+        "CapacityReservationGroup": "",
+        "SkuName": "Standard_B2ms",
+        "PowerState": "Running",
+        "IsAllocated": true,
+        "OsType": "Windows",
+        "OsName": "Windows Server 2022",
+        "OsVersion": "10.0",
+        "HyperVGeneration": "V1",
+        "HyperVGenerationSource": "InstanceView",
+        "DiskControllerType": "SCSI",
+        "DiskControllerReported": false,
+        "NicCount": 1,
+        "AcceleratedNetworking": false,
+        "AcceleratedNicCount": 0,
+        "DataDiskCount": 0,
+        "DiskSkus": [
+          "StandardSSD_LRS"
+        ],
+        "UsesPremiumStorage": false,
+        "UsesUltraDisk": false,
+        "UsesPremiumV2": false,
+        "WriteAcceleratorDisks": 0,
+        "EphemeralOsDisk": false,
+        "EphemeralPlacement": null,
+        "SecurityType": "Standard",
+        "EncryptionAtHost": false,
+        "CustomerManagedKeys": false,
+        "AzureDiskEncryption": false,
+        "Hibernation": false,
+        "Priority": "Regular",
+        "IsSpot": false,
+        "LicenseType": "",
+        "ImageReference": "MicrosoftWindowsServer/WindowsServer/2022-datacenter",
+        "GalleryImageId": null,
+        "NestedVirtualization": "Unknown",
+        "TempDiskRequirement": "Unknown",
+        "AdvisorRetirement": []
+      },
+      "lifecycle": {
+        "SkuName": "Standard_B2ms",
+        "SeriesKey": "bms",
+        "LearnSeriesName": "B-series (V1) / Bv1",
+        "EvidenceClass": "Confirmed Retirement",
+        "RetirementStatus": "Announced",
+        "AnnouncementDate": "2025-10-15",
+        "RetirementDate": "2028-11-15",
+        "MonthsRemaining": 25,
+        "Urgency": "24-36 Months",
+        "SourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+        "AnnouncementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "PreviousGenStatus": "End of Life",
+        "RecommendedTargets": [
+          "bsv2",
+          "basv2",
+          "dlsv5",
+          "dldsv5",
+          "dalsv5",
+          "daldsv5",
+          "dlsv6",
+          "dldsv6",
+          "dalsv6",
+          "daldsv6"
+        ],
+        "GuideDifferences": [
+          "B/Bav2, D/Ev5 disk controller type: SCSI",
+          "D/Ev6 disk controller type: NVMe",
+          "Remote Storage Throughput: 3750 IOPS / 85 MBps",
+          "Disk Controller Type: SCSI"
+        ],
+        "SizeTargets": [],
+        "Notes": [
+          "Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC)."
+        ],
+        "CatalogSource": "Cached (2026-10-06 00:44 UTC)",
+        "DataQuality": "Partially Verified"
+      },
+      "current": {
+        "sku": "Standard_B2ms",
+        "quotaFamily": "standardBSFamily",
+        "seriesKey": "bms",
+        "generation": 1,
+        "cpuVendor": "Intel",
+        "cpuArchitecture": "x64",
+        "processors": [
+          "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Intel Xeon 8171M (Skylake)",
+          "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Intel Xeon E5-2673 v3 (Haswell)"
+        ],
+        "vCpu": 2,
+        "memoryGB": 8.0,
+        "memoryPerVcpu": 4.0,
+        "tempDiskGB": 16.0,
+        "premiumIO": true,
+        "acceleratedNetworking": false,
+        "maxNics": 2.0,
+        "maxDataDisks": 4.0,
+        "uncachedDiskIops": 1920.0,
+        "uncachedDiskMBps": 22.0,
+        "hyperVGenerations": [
+          "V1",
+          "V2"
+        ],
+        "diskControllerTypes": [
+          "SCSI"
+        ],
+        "zones": [
+          "1",
+          "2",
+          "3"
+        ],
+        "capabilitiesSource": "Azure Resource SKUs API"
+      },
+      "recommendation": {
+        "permittedSeries": "Microsoft migration guide: bsv2, basv2, dlsv5, dldsv5, dalsv5, daldsv5, dlsv6, dldsv6, dalsv6, daldsv6",
+        "candidatesEvaluated": 2,
+        "vendorChangeRequired": false,
+        "vendorChangeReason": null,
+        "noCandidateReason": null,
+        "primary": {
+          "role": "Primary",
+          "variant": "Closest size",
+          "sku": "Standard_B2s_v2",
+          "quotaFamily": "standardBsv2Family",
+          "seriesKey": "bsv2",
+          "generation": 2,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Sapphire Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 2,
+          "memoryGB": 8.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 97,
+          "scoreBand": "Excellent Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 10,
+            "vCpu": 10,
+            "memory": 10,
+            "memoryPerVcpu": 5,
+            "storageCapability": 7.0,
+            "diskThroughput": 5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Same",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 16 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 4"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 2,
+              "Target": 2,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 8.0,
+              "Target": 8.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "16 GB",
+              "Target": "None",
+              "Assessment": "Changed",
+              "Note": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 1920.0,
+              "Target": 3750.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 22.0,
+              "Target": 85.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 4.0,
+              "Target": 4.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 2.0,
+              "Target": 2.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": false,
+              "Target": true,
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "secondary": {
+          "role": "Secondary",
+          "variant": "Closest size",
+          "sku": "Standard_D4ls_v5",
+          "quotaFamily": "standardDLSv5Family",
+          "seriesKey": "dlsv5",
+          "generation": 5,
+          "cpuVendor": "Intel",
+          "cpuArchitecture": "x64",
+          "cpuGeneration": "Sapphire Rapids",
+          "processors": [
+            "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+            "Intel Xeon Platinum 8370C (Ice Lake)",
+            "Intel Xeon Platinum 8573C (Emerald Rapids)"
+          ],
+          "vendorDataQuality": "Verified",
+          "vCpu": 4,
+          "memoryGB": 8.0,
+          "tempDiskGB": 0.0,
+          "regionAvailability": "Available",
+          "zoneAvailable": null,
+          "compatibilityScore": 84,
+          "scoreBand": "Good Match",
+          "scoreBreakdown": {
+            "cpuVendor": 20,
+            "cpuArchitecture": 10,
+            "workloadFamily": 8.0,
+            "vCpu": 6.0,
+            "memory": 10,
+            "memoryPerVcpu": 1.0,
+            "storageCapability": 7.0,
+            "diskThroughput": 2.5,
+            "network": 5.0,
+            "nicDiskLimits": 5.0,
+            "zoneRegion": 5.0,
+            "otherFeatures": 5.0
+          },
+          "capacityHeadroomPct": 0.0,
+          "vendorPreserved": true,
+          "familyMatch": "Recommended",
+          "rejected": false,
+          "rejectionReason": "",
+          "gates": [
+            {
+              "Gate": "CPU Architecture",
+              "Result": "Pass",
+              "Detail": "x64"
+            },
+            {
+              "Gate": "CPU Vendor",
+              "Result": "Pass",
+              "Detail": "Intel"
+            },
+            {
+              "Gate": "VM Generation",
+              "Result": "Pass",
+              "Detail": "V1 supported"
+            },
+            {
+              "Gate": "Disk Controller",
+              "Result": "Pass",
+              "Detail": "SCSI supported (VM controller not reported; Azure default SCSI assumed)"
+            },
+            {
+              "Gate": "Temp / Local Disk",
+              "Result": "Review",
+              "Detail": "Current size has a 16 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive"
+            },
+            {
+              "Gate": "NIC Count",
+              "Result": "Pass",
+              "Detail": "1 <= 2"
+            },
+            {
+              "Gate": "Data Disk Count",
+              "Result": "Pass",
+              "Detail": "0 <= 8"
+            },
+            {
+              "Gate": "Region / Zone",
+              "Result": "Pass",
+              "Detail": "Available in eastus2"
+            },
+            {
+              "Gate": "Nested Virtualization",
+              "Result": "Unknown",
+              "Detail": "Not detectable from Azure control plane; confirm with workload owner if Hyper-V/containers-in-VM are used"
+            }
+          ],
+          "materialDifferences": [
+            {
+              "Attribute": "CPU Vendor",
+              "Current": "Intel",
+              "Target": "Intel",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "CPU Architecture",
+              "Current": "x64",
+              "Target": "x64",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Processor",
+              "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+              "Target": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "vCPU",
+              "Current": 2,
+              "Target": 4,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Memory (GB)",
+              "Current": 8.0,
+              "Target": 8.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Temp / Local Disk",
+              "Current": "16 GB",
+              "Target": "None",
+              "Assessment": "Changed",
+              "Note": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+            },
+            {
+              "Attribute": "Disk Controller",
+              "Current": "SCSI",
+              "Target": "SCSI",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Hyper-V Generation",
+              "Current": "V1,V2",
+              "Target": "V1,V2",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk IOPS",
+              "Current": 1920.0,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": ""
+            },
+            {
+              "Attribute": "Uncached Disk MBps",
+              "Current": 22.0,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max Data Disks",
+              "Current": 4.0,
+              "Target": 8.0,
+              "Assessment": "Improved",
+              "Note": ""
+            },
+            {
+              "Attribute": "Max NICs",
+              "Current": 2.0,
+              "Target": 2.0,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Accelerated Networking",
+              "Current": false,
+              "Target": true,
+              "Assessment": "Changed",
+              "Note": ""
+            },
+            {
+              "Attribute": "Premium Storage",
+              "Current": true,
+              "Target": true,
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Availability Zones",
+              "Current": "1,2,3",
+              "Target": "1,2,3",
+              "Assessment": "Same",
+              "Note": ""
+            },
+            {
+              "Attribute": "Network Bandwidth",
+              "Current": null,
+              "Target": null,
+              "Assessment": "Unknown",
+              "Note": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+            }
+          ]
+        },
+        "third": null,
+        "secondaryReason": "Different quota family (standardDLSv5Family) - fallback if primary quota, capacity or regional availability is constrained",
+        "newerGenerationIfConverted": null
+      },
+      "modernization": null,
+      "quota": {
+        "Status": "Manual Validation Required",
+        "Family": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "standardbsv2family",
+          "QuotaDisplayName": null,
+          "VmCount": 1,
+          "TargetSkus": "Standard_B2s_v2",
+          "Limit": null,
+          "CurrentUsage": null,
+          "Remaining": null,
+          "RequiredVcpu": 2,
+          "RequiredVcpuAllocatedOnly": 2,
+          "PostMigrationUsage": null,
+          "MinimumIncrease": null,
+          "RecommendedIncrease": null,
+          "RecommendedNewLimit": null,
+          "Status": "Manual Validation Required",
+          "DataQuality": "Partially Verified"
+        },
+        "Regional": {
+          "SubscriptionId": "11111111-1111-1111-1111-111111111111",
+          "Region": "eastus2",
+          "QuotaName": "cores",
+          "QuotaDisplayName": "Total Regional vCPUs",
+          "VmCount": 5,
+          "TargetSkus": "",
+          "Limit": 350,
+          "CurrentUsage": 40,
+          "Remaining": 310,
+          "RequiredVcpu": 4,
+          "RequiredVcpuAllocatedOnly": null,
+          "PostMigrationUsage": 44,
+          "MinimumIncrease": 0,
+          "RecommendedIncrease": 0,
+          "RecommendedNewLimit": 350,
+          "Status": "Quota OK",
+          "DataQuality": "Verified"
+        },
+        "DataQuality": "Partially Verified"
+      },
+      "readiness": "Manual Review Required",
+      "confidence": {
+        "Level": "LOW",
+        "LowReasons": [
+          "Quota could not be validated"
+        ],
+        "ValidationItems": [
+          "Temp / Local Disk: Current size has a 16 GB temp disk; target has none - validate pagefile, tempdb, caches or scripts using the temp drive",
+          "Lifecycle evidence partially verified"
+        ]
+      },
+      "action": "Migration Required Within 36 Months",
+      "nextStep": "Manual Review Required",
+      "wave": "Wave 3 - Planned",
+      "dataQuality": {
+        "RetirementDate": "Partially Verified",
+        "CpuVendor": "Verified",
+        "CpuArchitecture": "Verified",
+        "CurrentSkuCapabilities": "Verified",
+        "RegionalAvailability": "Verified",
+        "Quota": "Partially Verified",
+        "PhysicalCapacity": "Unable to Verify",
+        "NestedVirtualization": "Unable to Verify",
+        "TempDiskUsage": "Unable to Verify"
+      },
+      "rightsizing": null,
+      "pricing": {
+        "Os": "Windows",
+        "CurrentMonthly": 66.58,
+        "TargetMonthly": 67.45,
+        "Basis": "Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit"
+      }
+    }
+  ]
+}

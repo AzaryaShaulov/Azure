@@ -1,0 +1,47 @@
+name: VMSKURetirementReport bug report
+description: Something in the assessment or report is wrong or broken.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste tenant IDs, subscription IDs, VM names or report files.** Replace them with placeholders.
+        Security issues: follow SECURITY.md instead of opening an issue.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the VM size(s) and region if the issue is about a classification or recommendation.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: For retirement classifications, link the Microsoft Learn page that supports the expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Command and relevant (sanitized) output
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Skill version
+      description: Shown in the report footer and in assessment.json (toolVersion).
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: OS, PowerShell version (pwsh -v), Azure CLI version (az version)
+  - type: dropdown
+    id: agent
+    attributes:
+      label: How was it run?
+      options:
+        - Directly with pwsh
+        - Through an AI agent (GitHub Copilot, Claude Code, etc.)

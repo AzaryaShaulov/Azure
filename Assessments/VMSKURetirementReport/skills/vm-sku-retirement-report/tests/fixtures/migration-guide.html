@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html><head><title>Retired VM Sizes Migration Guide (test fixture)</title>
+<meta name="updated_at" content="2026-07-16T22:03:00Z" />
+<meta name="git_commit_id" content="fixture0000000000000000000000000000000003" />
+</head><body>
+<h2 id="recommended-replacement-vm-series">Recommended Replacement VM Series</h2>
+<table><thead><tr><th>Current VM Series</th><th>Target VM Series</th><th>Differences in Specification in Target VM*</th></tr></thead>
+<tbody>
+<tr><td>D<br>Ds<br>Dv2<br>Dsv2</td><td>Dsv5/Ddsv5/Dasv5/Dadsv5<br>Dasv6/Dadsv6/Dsv6/Ddsv6</td><td>D/Ev5 disk controller type: SCSI<br>D/Ev6 disk controller type: NVMe</td></tr>
+<tr><td>Av2<br>Amv2</td><td>Bsv2/Basv2<br>Dsv5/Ddv5/Dasv5</td><td>B/Bav2 disk controller type: SCSI</td></tr>
+<tr><td>NP-series<br>(Standard_NP10s<br>Standard_NP20s)</td><td><a href="/en-us/ndv2">NDv2</a><br><a href="/en-us/nc">NCads_H100_v5</a></td><td>FPGA to GPU port required</td></tr>
+</tbody></table>
+<h2 id="recommended-replacement-isolated-vm-sizes">Recommended Replacement Isolated VM Sizes</h2>
+<table><thead><tr><th>Current VM Size</th><th>Target VM Sizes</th><th>Differences in Specification in Target VM*</th></tr></thead>
+<tbody>
+<tr><td>Standard_E64i_v3<br>Standard_E64is_v3</td><td>Standard_E104i_v5<br>Standard_E104is_v5</td><td>Disk Controller Type: NVMe</td></tr>
+</tbody></table>
+<h2 id="faq">FAQ</h2>
+<h4 id="q-which-sizes-are-being-retired">Q: Which sizes are being retired?</h4>
+<table><thead><tr><th>VM Series</th><th>3 YR RI expiration date</th><th>1 YR RI expiration date</th><th>Retirement Date</th></tr></thead>
+<tbody>
+<tr><td>Dsv2</td><td>05/01/2025</td><td>07/01/2026</td><td>05/01/2028</td></tr>
+<tr><td>Dv3</td><td>07/01/2026</td><td>07/01/2026</td><td>Product active</td></tr>
+<tr><td>Dsv3</td><td>07/01/2026</td><td>07/01/2026</td><td>Product active</td></tr>
+<tr><td>Esv3</td><td>07/01/2026</td><td>07/01/2026</td><td>Product active</td></tr>
+<tr><td>HBv2</td><td>04/02/2026</td><td>04/02/2026</td><td>05/31/2027</td></tr>
+</tbody></table>
+</body></html>

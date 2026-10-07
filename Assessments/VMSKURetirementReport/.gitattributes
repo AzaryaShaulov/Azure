@@ -1,0 +1,21 @@
+# Normalize line endings in the repository; check out with native endings.
+* text=auto
+
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.md   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.sh   text eol=lf
+
+*.png  binary
+*.jpg  binary
+*.zip  binary
+
+# Keep generated sample output out of language statistics and diffs.
+examples/sample-report/** linguist-generated=true -diff
+skills/**/data/*.json    linguist-generated=true

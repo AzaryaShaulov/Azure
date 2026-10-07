@@ -1,0 +1,19 @@
+name: VMSKURetirementReport feature request
+description: Suggest an improvement to the assessment, report or skill.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Supporting Microsoft documentation
+      description: New retirement data or rules must be backed by an official Microsoft source.

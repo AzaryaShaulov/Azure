@@ -1,0 +1,84 @@
+name: VMSKURetirementReport CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Assessments/VMSKURetirementReport/**
+      - .github/workflows/vm-sku-retirement-report-ci.yml
+  pull_request:
+    paths:
+      - Assessments/VMSKURetirementReport/**
+      - .github/workflows/vm-sku-retirement-report-ci.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vm-sku-retirement-report-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  powershell-72:
+    name: PowerShell 7.2 runtime compatibility
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/powershell:7.2.24-ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run offline assessment smoke test
+        shell: pwsh
+        run: |
+          $root = Resolve-Path ./Assessments/VMSKURetirementReport/skills/vm-sku-retirement-report
+          $out = Join-Path $env:RUNNER_TEMP 'pwsh72-smoke'
+          $env:PATH = "$(Join-Path $root 'tests/mock')$([IO.Path]::PathSeparator)$env:PATH"
+          & (Join-Path $root 'scripts/Invoke-VMSKURetirementReport.ps1') -OutputPath $out -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2
+          if ($LASTEXITCODE -ne 0) { throw "Assessment failed with exit code $LASTEXITCODE" }
+          $report = Get-Content (Join-Path $out 'assessment.json') -Raw | ConvertFrom-Json
+          if ($report.summary.TotalVmsScanned -ne 7) { throw 'PowerShell 7.2 smoke test returned an unexpected VM count.' }
+
+  test:
+    name: Lint and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: PowerShell version
+        shell: pwsh
+        run: $PSVersionTable | Format-Table -AutoSize
+
+      - name: Bootstrap, lint, version check, tests
+        shell: pwsh
+        working-directory: Assessments/VMSKURetirementReport
+        run: ./build.ps1 -Task Bootstrap, Lint, Version, Test -CI
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: pester-${{ matrix.os }}
+          path: Assessments/VMSKURetirementReport/TestResults/pester.xml
+          if-no-files-found: ignore
+
+  package:
+    name: Package skill
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Package
+        shell: pwsh
+        working-directory: Assessments/VMSKURetirementReport
+        run: ./build.ps1 -Task Package
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: skill-package
+          path: |
+            Assessments/VMSKURetirementReport/dist/*.zip
+            Assessments/VMSKURetirementReport/dist/*.zip.sha256

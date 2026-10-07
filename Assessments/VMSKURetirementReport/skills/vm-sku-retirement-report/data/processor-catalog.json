@@ -1,0 +1,3062 @@
+{
+  "schemaVersion": "1.0",
+  "generatedUtc": "2026-09-24T18:55:52.8147262Z",
+  "source": "https://github.com/MicrosoftDocs/azure-compute-docs (Microsoft Learn size-series spec pages)",
+  "note": "CPU vendor per series from the Processor row of each Microsoft Learn size-series spec table. Series absent here fall back to the Azure VM naming convention (Partially Verified).",
+  "series": {
+    "av2": {
+      "docSeries": "av2",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M 2.1 GHz (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 2.3 GHz (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 2.4 GHz (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/av2-series"
+    },
+    "amv2": {
+      "docSeries": "av2",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M 2.1 GHz (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 2.3 GHz (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 2.4 GHz (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/av2-series"
+    },
+    "basv2": {
+      "docSeries": "basv2",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7763v (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/basv2-series"
+    },
+    "bpsv2": {
+      "docSeries": "bpsv2",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Ampere Altra",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/bpsv2-series"
+    },
+    "bsv2": {
+      "docSeries": "bsv2",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/bsv2-series"
+    },
+    "bs": {
+      "docSeries": "bv1",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/bv1-series"
+    },
+    "bms": {
+      "docSeries": "bv1",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/bv1-series"
+    },
+    "bls": {
+      "docSeries": "bv1",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/bv1-series"
+    },
+    "dadsv5": {
+      "docSeries": "dadsv5",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7763v (Milan), AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dadsv5-series"
+    },
+    "dadsv6": {
+      "docSeries": "dadsv6",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dadsv6-series"
+    },
+    "dadsv7": {
+      "docSeries": "dadsv7",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dadsv7-series"
+    },
+    "daldsv6": {
+      "docSeries": "daldsv6",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/daldsv6-series"
+    },
+    "daldsv7": {
+      "docSeries": "daldsv7",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/daldsv7-series"
+    },
+    "dalsv6": {
+      "docSeries": "dalsv6",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dalsv6-series"
+    },
+    "dalsv7": {
+      "docSeries": "dalsv7",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dalsv7-series"
+    },
+    "dasv4": {
+      "docSeries": "dasv4",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7452 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        },
+        {
+          "Model": "AMD EPYC 7763v (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dasv4-series"
+    },
+    "dasv5": {
+      "docSeries": "dasv5",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7763v (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        },
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dasv5-series"
+    },
+    "dasv6": {
+      "docSeries": "dasv6",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dasv6-series"
+    },
+    "dasv7": {
+      "docSeries": "dasv7",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dasv7-series"
+    },
+    "dav4": {
+      "docSeries": "dav4",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7452 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        },
+        {
+          "Model": "AMD EPYC 7763v (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dav4-series"
+    },
+    "dcadsccv5": {
+      "docSeries": "dcadsccv5",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcadsccv5-series"
+    },
+    "dcadsv5": {
+      "docSeries": "dcadsv5",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcadsv5-series"
+    },
+    "dcadsv6": {
+      "docSeries": "dcadsv6",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC™ 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcadsv6-series"
+    },
+    "dcasccv5": {
+      "docSeries": "dcasccv5",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcasccv5-series"
+    },
+    "dcasv5": {
+      "docSeries": "dcasv5",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcasv5-series"
+    },
+    "dcasv6": {
+      "docSeries": "dcasv6",
+      "category": "general-purpose",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcasv6-series"
+    },
+    "dcdsv3": {
+      "docSeries": "dcdsv3",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcdsv3-series"
+    },
+    "dcedsv6": {
+      "docSeries": "dcedsv6",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcedsv6-series"
+    },
+    "dcesv6": {
+      "docSeries": "dcesv6",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcesv6-series"
+    },
+    "dcsv2": {
+      "docSeries": "dcsv2",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon E-2288G (Coffee Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Coffee Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcsv2-series"
+    },
+    "dcsv3": {
+      "docSeries": "dcsv3",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dcsv3-series"
+    },
+    "ddsv4": {
+      "docSeries": "ddsv4",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/ddsv4-series"
+    },
+    "ddsv5": {
+      "docSeries": "ddsv5",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/ddsv5-series"
+    },
+    "ddsv6": {
+      "docSeries": "ddsv6",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/ddsv6-series"
+    },
+    "ddsv7": {
+      "docSeries": "ddsv7",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 6 6973PC (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/ddsv7-series"
+    },
+    "ddv4": {
+      "docSeries": "ddv4",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/ddv4-series"
+    },
+    "ddv5": {
+      "docSeries": "ddv5",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/ddv5-series"
+    },
+    "dldsv5": {
+      "docSeries": "dldsv5",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dldsv5-series"
+    },
+    "dldsv6": {
+      "docSeries": "dldsv6",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dldsv6-series"
+    },
+    "dldsv7": {
+      "docSeries": "dldsv7",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 6 6973PC (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dldsv7-series"
+    },
+    "dlsv5": {
+      "docSeries": "dlsv5",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dlsv5-series"
+    },
+    "dlsv6": {
+      "docSeries": "dlsv6",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dlsv6-series"
+    },
+    "dlsv7": {
+      "docSeries": "dlsv7",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 6 6973PC (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dlsv7-series"
+    },
+    "dndsv6": {
+      "docSeries": "dndsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/dndsv6-series"
+    },
+    "dnldsv6": {
+      "docSeries": "dnldsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/dnldsv6-series"
+    },
+    "dnlsv6": {
+      "docSeries": "dnlsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/dnlsv6-series"
+    },
+    "dnsv6": {
+      "docSeries": "dnsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/dnsv6-series"
+    },
+    "dpdsv5": {
+      "docSeries": "dpdsv5",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Ampere Altra",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dpdsv5-series"
+    },
+    "dpdsv6": {
+      "docSeries": "dpdsv6",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Azure Cobalt 100",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dpdsv6-series"
+    },
+    "dpldsv5": {
+      "docSeries": "dpldsv5",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Ampere Altra",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dpldsv5-series"
+    },
+    "dpldsv6": {
+      "docSeries": "dpldsv6",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Azure Cobalt 100",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dpldsv6-series"
+    },
+    "dplsv5": {
+      "docSeries": "dplsv5",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Ampere Altra",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dplsv5-series"
+    },
+    "dplsv6": {
+      "docSeries": "dplsv6",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Azure Cobalt 100",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dplsv6-series"
+    },
+    "dpsv5": {
+      "docSeries": "dpsv5",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Ampere Altra",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dpsv5-series"
+    },
+    "dpsv6": {
+      "docSeries": "dpsv6",
+      "category": "general-purpose",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Azure Cobalt 100",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dpsv6-series"
+    },
+    "dsv2": {
+      "docSeries": "dsv2",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dsv2-series"
+    },
+    "dsv3": {
+      "docSeries": "dsv3",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dsv3-series"
+    },
+    "dsv4": {
+      "docSeries": "dsv4",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dsv4-series"
+    },
+    "dsv5": {
+      "docSeries": "dsv5",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dsv5-series"
+    },
+    "dsv6": {
+      "docSeries": "dsv6",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dsv6-series"
+    },
+    "dsv7": {
+      "docSeries": "dsv7",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 6 6973PC (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dsv7-series"
+    },
+    "dv2": {
+      "docSeries": "dv2",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dv2-series"
+    },
+    "dv3": {
+      "docSeries": "dv3",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon 8171M (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        },
+        {
+          "Model": "Intel Xeon E5-2673 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dv3-series"
+    },
+    "dv4": {
+      "docSeries": "dv4",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dv4-series"
+    },
+    "dv5": {
+      "docSeries": "dv5",
+      "category": "general-purpose",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/general-purpose/dv5-series"
+    },
+    "eadsv5": {
+      "docSeries": "eadsv5",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7763v (Milan),  AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/eadsv5-series"
+    },
+    "eadsv6": {
+      "docSeries": "eadsv6",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/eadsv6-series"
+    },
+    "eadsv7": {
+      "docSeries": "eadsv7",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/eadsv7-series"
+    },
+    "easv4": {
+      "docSeries": "easv4",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7452 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        },
+        {
+          "Model": "AMD EPYC 7763v (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/easv4-series"
+    },
+    "easv5": {
+      "docSeries": "easv5",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7763v (Milan), AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/easv5-series"
+    },
+    "easv6": {
+      "docSeries": "easv6",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/easv6-series"
+    },
+    "easv7": {
+      "docSeries": "easv7",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/easv7-series"
+    },
+    "eav4": {
+      "docSeries": "eav4",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7452 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        },
+        {
+          "Model": "AMD EPYC 7763v (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/eav4-series"
+    },
+    "ebdsv6": {
+      "docSeries": "ebdsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ebdsv6-series"
+    },
+    "ebsv6": {
+      "docSeries": "ebsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ebsv6-series"
+    },
+    "ecadsv6": {
+      "docSeries": "ecadsv6",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC™ 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ecadsv6-series"
+    },
+    "ecasv6": {
+      "docSeries": "ecasv6",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC™ 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ecasv6-series"
+    },
+    "edsv4": {
+      "docSeries": "edsv4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/edsv4-series"
+    },
+    "edsv5": {
+      "docSeries": "edsv5",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/edsv5-series"
+    },
+    "edsv6": {
+      "docSeries": "edsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/edsv6-series"
+    },
+    "edsv7": {
+      "docSeries": "edsv7",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel@ Xeon® 6 6973P-C (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/edsv7-series"
+    },
+    "edv4": {
+      "docSeries": "edv4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/edv4-series"
+    },
+    "edv5": {
+      "docSeries": "edv5",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/edv5-series"
+    },
+    "endsv6": {
+      "docSeries": "endsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/endsv6-series"
+    },
+    "ensv6": {
+      "docSeries": "ensv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ensv6-series"
+    },
+    "epdsv5": {
+      "docSeries": "epdsv5",
+      "category": "memory-optimized",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Ampere Altra",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/epdsv5-series"
+    },
+    "epdsv6": {
+      "docSeries": "epdsv6",
+      "category": "memory-optimized",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Azure Cobalt 100",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/epdsv6-series"
+    },
+    "epsv5": {
+      "docSeries": "epsv5",
+      "category": "memory-optimized",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Ampere Altra",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/epsv5-series"
+    },
+    "epsv6": {
+      "docSeries": "epsv6",
+      "category": "memory-optimized",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Azure Cobalt 100",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/epsv6-series"
+    },
+    "esv4": {
+      "docSeries": "esv4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/esv4-series"
+    },
+    "eisv4": {
+      "docSeries": "esv4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/esv4-series"
+    },
+    "esv5": {
+      "docSeries": "esv5",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/esv5-series"
+    },
+    "esv6": {
+      "docSeries": "esv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/esv6-series"
+    },
+    "esv7": {
+      "docSeries": "esv7",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel@ Xeon® 6 processor 6973P-C(Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/esv7-series"
+    },
+    "ev3": {
+      "docSeries": "ev3-esv3",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "3rd Generation Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ev3-esv3-series"
+    },
+    "esv3": {
+      "docSeries": "ev3-esv3",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "3rd Generation Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ev3-esv3-series"
+    },
+    "eiv3": {
+      "docSeries": "ev3-esv3",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "3rd Generation Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ev3-esv3-series"
+    },
+    "eisv3": {
+      "docSeries": "ev3-esv3",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "3rd Generation Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ev3-esv3-series"
+    },
+    "ev4": {
+      "docSeries": "ev4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ev4-series"
+    },
+    "eiv4": {
+      "docSeries": "ev4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ev4-series"
+    },
+    "ev5": {
+      "docSeries": "ev5",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8473C (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ev5-series"
+    },
+    "fadsv7": {
+      "docSeries": "fadsv7",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/fadsv7-series"
+    },
+    "faldsv7": {
+      "docSeries": "faldsv7",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/faldsv7-series"
+    },
+    "falsv6": {
+      "docSeries": "falsv6",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/falsv6-series"
+    },
+    "falsv7": {
+      "docSeries": "falsv7",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/falsv7-series"
+    },
+    "famdsv7": {
+      "docSeries": "famdsv7",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/famdsv7-series"
+    },
+    "famsv6": {
+      "docSeries": "famsv6",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/famsv6-series"
+    },
+    "famsv7": {
+      "docSeries": "famsv7",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/famsv7-series"
+    },
+    "fasv6": {
+      "docSeries": "fasv6",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/fasv6-series"
+    },
+    "fasv7": {
+      "docSeries": "fasv7",
+      "category": "compute-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/fasv7-series"
+    },
+    "fsv2": {
+      "docSeries": "fsv2",
+      "category": "compute-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8168 (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/fsv2-series"
+    },
+    "fx": {
+      "docSeries": "fx",
+      "category": "compute-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Gold 6246R (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/fx-series"
+    },
+    "fxmdsv2": {
+      "docSeries": "fxmdsv2",
+      "category": "compute-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/fxmdsv2-series"
+    },
+    "fxmsv2": {
+      "docSeries": "fxmsv2",
+      "category": "compute-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/compute-optimized/fxmsv2-series"
+    },
+    "hbv2": {
+      "docSeries": "hbv2",
+      "category": "high-performance-compute",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7V12 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hbv2-series"
+    },
+    "hbv3": {
+      "docSeries": "hbv3",
+      "category": "high-performance-compute",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7V73X (Milan-X)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan-X"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hbv3-series"
+    },
+    "hbv4": {
+      "docSeries": "hbv4",
+      "category": "high-performance-compute",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9V33X (Genoa-X)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa-X"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hbv4-series"
+    },
+    "hbv5": {
+      "docSeries": "hbv5",
+      "category": "high-performance-compute",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "4th Generation AMD EPYC",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hbv5-series"
+    },
+    "hc": {
+      "docSeries": "hc",
+      "category": "high-performance-compute",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8168 (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hc-series"
+    },
+    "hx": {
+      "docSeries": "hx",
+      "category": "high-performance-compute",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9V33X (Genoa-X)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa-X"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/high-performance-compute/hx-series"
+    },
+    "laosv4": {
+      "docSeries": "laosv4",
+      "category": "storage-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/laosv4-series"
+    },
+    "lasv3": {
+      "docSeries": "lasv3",
+      "category": "storage-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7763v (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/lasv3-series"
+    },
+    "lasv4": {
+      "docSeries": "lasv4",
+      "category": "storage-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9004 (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/lasv4-series"
+    },
+    "lsv2": {
+      "docSeries": "lsv2",
+      "category": "storage-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7551 (Naples)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Naples"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/lsv2-series"
+    },
+    "lsv3": {
+      "docSeries": "lsv3",
+      "category": "storage-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/lsv3-series"
+    },
+    "lsv4": {
+      "docSeries": "lsv4",
+      "category": "storage-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Emerald Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/lsv4-series"
+    },
+    "m": {
+      "docSeries": "m",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon E7-8890 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8280M (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/m-series"
+    },
+    "mbdsv3": {
+      "docSeries": "mbdsv3",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 4th gen Scalable (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mbdsv3-series"
+    },
+    "mbdsv4": {
+      "docSeries": "mbdsv4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "6th generation Intel® Xeon® Scalable processors (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mbdsv4-series"
+    },
+    "mbsv3": {
+      "docSeries": "mbsv3",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 4th gen Scalable (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mbsv3-series"
+    },
+    "mbsv4": {
+      "docSeries": "mbsv4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "6th generation Intel® Xeon® Scalable processors (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mbsv4-series"
+    },
+    "mdsv2mm": {
+      "docSeries": "mdsv2-mm",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8280 (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mdsv2-mm-series"
+    },
+    "mdsv3hm": {
+      "docSeries": "mdsv3-hm",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 4th Gen Scalable (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mdsv3-hm-series"
+    },
+    "mdsv3mm": {
+      "docSeries": "mdsv3-mm",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 4th Gen Scalable (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mdsv3-mm-series"
+    },
+    "mdsv3vhm": {
+      "docSeries": "mdsv3-vhm",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8490H (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mdsv3-vhm-series"
+    },
+    "mdsv4": {
+      "docSeries": "mdsv4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 6th gen Scalable (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mdsv4-series"
+    },
+    "msv2mm": {
+      "docSeries": "msv2-mm",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8280 (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/msv2-mm-series"
+    },
+    "msv3hm": {
+      "docSeries": "msv3-hm",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 4th Gen Scalable (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/msv3-hm-series"
+    },
+    "msv3mm": {
+      "docSeries": "msv3-mm",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 4th Gen Scalable (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/msv3-mm-series"
+    },
+    "msv4": {
+      "docSeries": "msv4",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 6th gen Scalable (Granite Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Granite Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/msv4-series"
+    },
+    "mv2": {
+      "docSeries": "mv2",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8180M (Skylake)and Intel Xeon 4th Gen Scalable (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/mv2-series"
+    },
+    "ncrtxpro6000bsev6": {
+      "docSeries": "nc-rtxpro6000-bse-v6",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Granite Rapids-AP",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nc-rtxpro6000-bse-v6-series"
+    },
+    "nca100v4": {
+      "docSeries": "nca100v4",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7V13 (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nca100v4-series"
+    },
+    "ncadsh100v5": {
+      "docSeries": "ncadsh100v5",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ncadsh100v5-series"
+    },
+    "ncast4v3": {
+      "docSeries": "ncast4v3",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7V12 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ncast4v3-series"
+    },
+    "nccadsh100v5": {
+      "docSeries": "nccadsh100v5",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nccadsh100v5-series"
+    },
+    "ncsv3": {
+      "docSeries": "ncv3",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon E5-2690 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ncv3-series"
+    },
+    "ncrsv3": {
+      "docSeries": "ncv3",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon E5-2690 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ncv3-series"
+    },
+    "nd": {
+      "docSeries": "nd",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon E5-2690 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nd-series"
+    },
+    "ndgb200v6": {
+      "docSeries": "nd-gb200-v6",
+      "category": "gpu-accelerated",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Nvidia Grace CPU",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nd-gb200-v6-series"
+    },
+    "ndgb300v6": {
+      "docSeries": "nd-gb300-v6",
+      "category": "gpu-accelerated",
+      "vendor": "ARM",
+      "architecture": "Arm64",
+      "processors": [
+        {
+          "Model": "Nvidia Grace CPU",
+          "Vendor": "ARM",
+          "Architecture": "Arm64",
+          "Generation": null
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nd-gb300-v6-series"
+    },
+    "ndh200v5": {
+      "docSeries": "nd-h200-v5",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nd-h200-v5-series"
+    },
+    "ndasra100v4": {
+      "docSeries": "ndasra100v4",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7V12 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndasra100v4-series"
+    },
+    "ndh100v5": {
+      "docSeries": "ndh100v5",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndh100v5-series"
+    },
+    "ndma100v4": {
+      "docSeries": "ndma100v4",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7V12 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndma100v4-series"
+    },
+    "ndmi300xv5": {
+      "docSeries": "ndmi300xv5",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon (Sapphire Rapids)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Sapphire Rapids"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndmi300xv5-series"
+    },
+    "ndv2": {
+      "docSeries": "ndv2",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8168 (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndv2-series"
+    },
+    "ngadsv620": {
+      "docSeries": "ngadsv620",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7763 (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ngadsv620-series"
+    },
+    "np": {
+      "docSeries": "np",
+      "category": "fpga-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon 8171M (Skylake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Skylake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/fpga-accelerated/np-series"
+    },
+    "nv": {
+      "docSeries": "nv",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon E5-2690 v3 (Haswell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Haswell"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nv-series"
+    },
+    "nvadsa10v5": {
+      "docSeries": "nvadsa10v5",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 74F3v (Milan)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Milan"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nvadsa10v5-series"
+    },
+    "nvadsv710v5": {
+      "docSeries": "nvadsv710-v5",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9V64 F (Genoa)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Genoa"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nvadsv710-v5-series"
+    },
+    "nvsv3": {
+      "docSeries": "nvv3",
+      "category": "gpu-accelerated",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon E5-2690 v4 (Broadwell)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Broadwell"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nvv3-series"
+    },
+    "nvasv4": {
+      "docSeries": "nvv4",
+      "category": "gpu-accelerated",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 7V12 (Rome)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Rome"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/nvv4-series"
+    }
+  }
+}

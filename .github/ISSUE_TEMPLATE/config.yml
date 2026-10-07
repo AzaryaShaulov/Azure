@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/AzaryaShaulov/Azure/security/advisories/new
+    about: Report security issues privately (see SECURITY.md).
+  - name: Microsoft VM size retirement announcements
+    url: https://learn.microsoft.com/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions
+    about: The authoritative source for Azure VM size retirement dates.

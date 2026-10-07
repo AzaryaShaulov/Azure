@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "description": "Compatibility score weights (0-100). Mandatory-requirement failures reject a candidate regardless of score.",
+  "weights": {
+    "cpuVendor": 20,
+    "cpuArchitecture": 10,
+    "workloadFamily": 10,
+    "vCpu": 10,
+    "memory": 10,
+    "memoryPerVcpu": 5,
+    "storageCapability": 10,
+    "diskThroughput": 5,
+    "network": 5,
+    "nicDiskLimits": 5,
+    "zoneRegion": 5,
+    "otherFeatures": 5
+  },
+  "bands": [
+    { "min": 90, "label": "Excellent Match" },
+    { "min": 80, "label": "Good Match" },
+    { "min": 70, "label": "Acceptable with Review" },
+    { "min": 0,  "label": "Manual Review Required" }
+  ],
+  "primarySelection": {
+    "preferNewestGenerationAtOrAboveScore": 80
+  }
+}

@@ -1,0 +1,330 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VMSKURetirementReport - Contoso (Sample)</title><style>/* VMSKURetirementReport theme: readable, modern, print-friendly */
+:root {
+  --bg: #f0f0f0;
+  --surface: #ffffff;
+  --surface-2: #f8f8f8;
+  --text: #333333;
+  --text-2: #555555;
+  --muted: #737373;
+  --border: #dddddd;
+  --accent: #0078d4;
+  --accent-2: #005a9e;
+  --accent-soft: #deecf9;
+  --radius: 6px;
+  --shadow: 0 1px 6px rgba(0, 0, 0, .12);
+  --font: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Code", "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+  --green-bg: #e6f4ea; --green-fg: #146c2e;
+  --blue-bg: #e7f0fb;  --blue-fg: #0b4f8a;
+  --yellow-bg: #fff4ce; --yellow-fg: #7a5b00;
+  --orange-bg: #fde7d9; --orange-fg: #9a3d0a;
+  --red-bg: #fde2e1;   --red-fg: #a4262c;
+  --purple-bg: #efe7fb; --purple-fg: #5b2a9a;
+  --grey-bg: #eef1f5;  --grey-fg: #374151;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1419; --surface: #171d24; --surface-2: #1d252e; --text: #e8edf2; --text-2: #c2cad4; --muted: #94a0ad;
+    --border: #2a343f; --accent: #4ea1ff; --accent-2: #7cb8ff; --accent-soft: #15283d;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 20px rgba(0, 0, 0, .35);
+    --green-bg: #133a22; --green-fg: #8ee0a6; --blue-bg: #13304f; --blue-fg: #9ccbff; --yellow-bg: #3b3210; --yellow-fg: #f5d77a;
+    --orange-bg: #43240f; --orange-fg: #ffb98a; --red-bg: #45191b; --red-fg: #ffaaa8; --purple-bg: #2e1f4a; --purple-fg: #cfb4ff;
+    --grey-bg: #252e38; --grey-fg: #d0d7df;
+  }
+}
+
+* { box-sizing: border-box; }
+html { font-size: 16px; scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 1rem; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1480px; margin: 0 auto; padding: 0 28px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: var(--mono); font-size: .9em; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: .08em .4em; white-space: nowrap; }
+mark { background: #ffe58f; color: #1a1d23; border-radius: 3px; padding: 0 .1em; }
+h2 { font-size: 1.45rem; line-height: 1.3; margin: 0 0 .5rem; font-weight: 650; letter-spacing: -.01em; }
+h3 { font-size: 1.05rem; margin: 1.4rem 0 .6rem; font-weight: 650; }
+.lead { color: var(--text-2); margin: 0 0 1.1rem; max-width: 80ch; }
+.note { color: var(--muted); font-size: .9rem; margin: .75rem 0 0; }
+.muted { color: var(--muted); }
+.strong { font-weight: 600; }
+.sub { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+.nowrap { white-space: nowrap; }
+
+/* Header */
+.hero { background: linear-gradient(90deg, #005ba1 0%, #0078d4 42%, #2b88d8 100%); color: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .24); }
+.app-bar { min-height: 58px; display: flex; align-items: center; gap: 14px; padding: 10px 0; }
+.brand-lockup { display: flex; align-items: center; gap: 11px; white-space: nowrap; }
+.brand-lockup > span:last-child { display: grid; line-height: 1.15; }
+.brand-lockup strong { font-size: 1.08rem; }
+.brand-lockup small { color: #b3d7f2; font-size: .7rem; margin-top: 3px; }
+.brand-mark { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 6px; background: #fff; color: var(--accent); font-size: 1.25rem; box-shadow: 0 1px 3px rgba(0, 0, 0, .16); }
+.brand-divider { width: 1px; height: 32px; background: rgba(0, 69, 120, .7); }
+.report-context { color: #c7e0f4; font-size: .82rem; }
+.mode-pill { margin-left: auto; border: 1px solid rgba(255, 255, 255, .6); border-radius: 3px; padding: 5px 11px; color: #fff; font-size: .78rem; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; }
+.hero-content { border-top: 1px solid rgba(255, 255, 255, .16); padding: 22px 0 26px; }
+.hero h1 { font-size: 2rem; line-height: 1.2; margin: .1rem 0 .35rem; font-weight: 700; letter-spacing: -.02em; }
+.hero .subtitle { margin: 0 0 1rem; opacity: .85; font-size: .95rem; }
+.hero .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: .9rem; }
+.chip { background: rgba(0, 69, 120, .28); border: 1px solid rgba(255, 255, 255, .3); border-radius: 3px; padding: 5px 11px; font-size: .86rem; }
+.back { display: inline-block; color: #fff; opacity: .9; font-weight: 600; margin-bottom: .8rem; }
+.back:hover { opacity: 1; }
+
+/* Section navigation */
+.toc { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: 0 1px 4px rgba(16, 24, 40, .04); }
+.toc .wrap { display: flex; gap: 4px; overflow-x: auto; padding-top: 8px; padding-bottom: 8px; }
+.toc a { color: var(--text-2); font-weight: 600; font-size: .92rem; padding: 7px 14px; border-radius: 3px; white-space: nowrap; }
+.toc a:hover { background: var(--accent-soft); color: var(--accent); text-decoration: none; }
+
+main.wrap { padding-top: 24px; padding-bottom: 40px; }
+
+/* Cards and sections */
+.card { background: var(--surface); border: 1px solid #e5e5e5; border-radius: var(--radius); box-shadow: var(--shadow); padding: 26px 28px; margin: 0 0 20px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }
+.collapsible-section { padding: 0; overflow: hidden; }
+.collapsible-section > summary { cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 18px; align-items: baseline; padding: 20px 24px; list-style: none; }
+.collapsible-section > summary::-webkit-details-marker { display: none; }
+.collapsible-section > summary::before { content: "\25B8"; color: var(--accent); font-size: 1.15rem; transition: transform .15s; }
+.collapsible-section[open] > summary::before { transform: rotate(90deg); }
+.collapsible-section[open] > summary { border-bottom: 1px solid var(--border); }
+.collapsible-section > summary:hover { background: var(--surface-2); }
+.section-heading { color: var(--text); font-size: 1.35rem; font-weight: 650; line-height: 1.3; }
+.section-intro { grid-column: 2; color: var(--text-2); font-size: .92rem; }
+.section-body { padding: 22px 24px 24px; }
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin: .6rem 0 1.4rem; }
+.kpi { background: var(--surface); border: 1px solid #e5e5e5; border-top: 4px solid var(--border); border-radius: 4px; box-shadow: var(--shadow); padding: 15px 17px; }
+.kpi-value { font-size: 2.1rem; font-weight: 700; line-height: 1.1; letter-spacing: -.02em; }
+.kpi-label { font-size: .72rem; font-weight: 650; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .045em; }
+.kpi-value { color: var(--accent); }
+.kpi-hint { font-size: .85rem; color: var(--muted); }
+.kpi-green { border-top-color: #107c10; } .kpi-green .kpi-value { color: #107c10; }
+.kpi-orange { border-top-color: #d83b01; } .kpi-orange .kpi-value { color: #d83b01; }
+.kpi-red { border-top-color: #e81123; } .kpi-red .kpi-value { color: #e81123; }
+.kpi-purple { border-top-color: #8764b8; } .kpi-purple .kpi-value { color: #8764b8; }
+.kpi-neutral { border-top-color: var(--accent); }
+
+.bottom-line { background: var(--accent-soft); border-radius: 12px; padding: 16px 22px; }
+.bottom-line h3 { margin: 0 0 .4rem; color: var(--accent-2); }
+.bottom-line ul { margin: 0; padding-left: 1.2rem; }
+.bottom-line li { margin: .3rem 0; font-size: 1.02rem; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+thead th { background: var(--accent); color: #fff; text-align: left; font-weight: 650; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; padding: 11px 13px; border-right: 1px solid var(--accent-2); border-bottom: 1px solid var(--accent-2); white-space: nowrap; }
+thead th:last-child { border-right: 0; }
+tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:nth-child(even) { background: #fafafa; }
+tbody tr:hover { background: var(--accent-soft); }
+th.num, td.num { text-align: right; }
+table.ref td.fam { font-size: 1.3rem; font-weight: 700; color: var(--accent); width: 72px; text-align: center; }
+.vm-table td:first-child { min-width: 170px; }
+.vm-table { font-size: .88rem; }
+.vm-table thead th { padding: 10px; white-space: normal; }
+.vm-table tbody td { padding: 10px; }
+.quota-table .quota-usage { min-width: 112px; }
+.capability-summary { display: grid; gap: 4px; min-width: 170px; }
+.capability-summary > div { display: grid; grid-template-columns: 66px minmax(0, 1fr); gap: 6px; align-items: baseline; }
+.cap-label { color: var(--muted); font-size: .8rem; font-weight: 600; }
+@media (min-width: 1201px) {
+  .vm-table th:nth-child(2), .vm-table td:nth-child(2) { min-width: 172px; }
+  .vm-table th:nth-child(4), .vm-table td:nth-child(4) { min-width: 150px; }
+  .vm-table th:nth-child(5), .vm-table td:nth-child(5) { min-width: 195px; }
+}
+@media (max-width: 1200px) {
+  .wrap { padding-left: 14px; padding-right: 14px; }
+  .card { padding-left: 16px; padding-right: 16px; }
+  .vm-table { table-layout: fixed; width: 100%; font-size: .8rem; }
+  .vm-table th:nth-child(2) { width: 15.7%; }
+  .vm-table td:first-child { min-width: 0; }
+  .vm-table th, .vm-table td { overflow-wrap: anywhere; }
+  .vm-table code, .vm-table .badge, .vm-table .nowrap { white-space: normal; }
+  .vm-table .capability-summary { min-width: 0; }
+  .quota-table .quota-usage { min-width: 0; }
+  .quota-table th, .quota-table td { padding: 10px; overflow-wrap: anywhere; }
+  .quota-table .badge { white-space: normal; }
+}
+
+/* Badges */
+.badge { display: inline-block; font-size: .8rem; font-weight: 650; line-height: 1.5; padding: 2px 10px; border-radius: 999px; white-space: nowrap; vertical-align: middle; }
+.b-green { background: var(--green-bg); color: var(--green-fg); } .b-blue { background: var(--blue-bg); color: var(--blue-fg); }
+.b-yellow { background: var(--yellow-bg); color: var(--yellow-fg); } .b-orange { background: var(--orange-bg); color: var(--orange-fg); }
+.b-red { background: var(--red-bg); color: var(--red-fg); } .b-purple { background: var(--purple-bg); color: var(--purple-fg); }
+.b-grey { background: var(--grey-bg); color: var(--grey-fg); }
+
+/* Callouts */
+.callout { border-radius: 12px; padding: 16px 20px; margin: 0 0 16px; border: 1px solid var(--border); border-left-width: 5px; background: var(--surface-2); }
+.callout h3 { margin: 0 0 .5rem; font-size: 1rem; }
+.callout ul { margin: .2rem 0 0; padding-left: 1.2rem; }
+.callout li { margin: .35rem 0; }
+.callout.info { border-left-color: var(--accent); background: var(--accent-soft); }
+.callout.warn { border-left-color: #e0a100; background: var(--yellow-bg); }
+.callout.ok { border-left-color: #2e9e5b; background: var(--green-bg); }
+.callout.danger { border-left-color: #d13438; background: var(--red-bg); }
+.callout.disclaimer { font-size: .92rem; color: var(--text-2); border-left-color: #8a8886; }
+
+/* Legend */
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.legend > div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; }
+.legend h3 { margin: 0 0 .3rem; font-size: .95rem; }
+.legend p { margin: 0; font-size: .92rem; color: var(--text-2); line-height: 1.9; }
+
+/* VM detail cards */
+details.vm { border: 1px solid var(--border); border-radius: 12px; margin: 0 0 12px; background: var(--surface); overflow: hidden; }
+details.vm > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 16px 20px; background: var(--surface-2); }
+details.vm > summary::-webkit-details-marker { display: none; }
+details.vm > summary::before { content: "\25B8"; color: var(--accent); font-size: 1.1rem; transition: transform .15s; }
+details.vm[open] > summary::before { transform: rotate(90deg); }
+details.vm[open] > summary { border-bottom: 1px solid var(--border); }
+.vm-name { font-weight: 700; font-size: 1.08rem; }
+.vm-move { color: var(--text-2); }
+.vm-badges { margin-left: auto; display: flex; gap: 6px; }
+.vm-body { padding: 18px 22px 22px; }
+dl.facts { display: grid; grid-template-columns: 190px 1fr; gap: 10px 20px; margin: 0 0 18px; }
+dl.facts dt { font-weight: 650; color: var(--text-2); }
+dl.facts dd { margin: 0; }
+
+ul.links { margin: 0; padding-left: 1.2rem; }
+ul.links li { margin: .45rem 0; }
+
+footer { color: var(--muted); font-size: .82rem; background: #f8f8f8; border-top: 1px solid var(--border); padding: 9px 0; }
+footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
+.footer-status { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); }
+.footer-status > span { width: 8px; height: 8px; border-radius: 50%; background: #107c10; box-shadow: 0 0 0 3px rgba(16, 124, 16, .12); }
+
+@media (max-width: 760px) {
+  .wrap { padding: 0 16px; }
+  .app-bar { flex-wrap: wrap; gap: 9px; }
+  .brand-divider, .report-context { display: none; }
+  .mode-pill { font-size: .7rem; padding: 4px 8px; }
+  .hero h1 { font-size: 1.7rem; }
+  .card { padding: 20px 18px; }
+  .collapsible-section { padding: 0; }
+  .collapsible-section > summary { padding: 17px 16px; gap: 8px 12px; }
+  .section-heading { font-size: 1.15rem; }
+  .section-body { padding: 18px 16px; }
+  .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  dl.facts { grid-template-columns: 1fr; gap: 2px 0; }
+  dl.facts dd { margin-bottom: 10px; }
+  .vm-badges { margin-left: 0; }
+  footer .wrap { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
+
+@media print {
+  html { font-size: 11pt; }
+  body { background: #fff; }
+  .toc, .back { display: none; }
+  .hero { background: #fff; color: #000; border-bottom: 2px solid #000; box-shadow: none; }
+  .app-bar { min-height: 0; padding: 6px 0; }
+  .brand-mark, .brand-divider, .mode-pill { display: none; }
+  .brand-lockup small, .report-context { color: #444; }
+  .hero-content { padding: 10px 0; border-top-color: #999; }
+  .chip { border-color: #999; background: #fff; }
+  .card { box-shadow: none; }
+  .collapsible-section > .section-body { display: block !important; }
+  details.vm { break-inside: avoid; }
+  a { color: #000; }
+}
+
+.legend-list { list-style: none; margin: 0; padding: 0; }
+.legend-list li { margin: 0 0 8px; font-size: .92rem; color: var(--text-2); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vm-table td:nth-child(5) .sub { max-width: 260px; }
+
+/* Let long size names and status badges wrap inside tables instead of forcing horizontal scroll */
+tbody td .badge { white-space: normal; text-align: center; }
+tbody td code { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
+thead th { white-space: normal; }</style></head><body>
+<header class="hero"><div class="wrap">
+<div class="app-bar">
+<div class="brand-lockup"><span class="brand-mark" aria-hidden="true">&#9729;</span><span><strong>VMSKURetirementReport</strong><small>Assessment report v1.0.0</small></span></div>
+<span class="brand-divider" aria-hidden="true"></span>
+<span class="report-context">VMSKURetirementReport</span>
+<span class="mode-pill">Read-only</span>
+</div>
+<div class="hero-content">
+
+<h1>Contoso (Sample)</h1>
+<p class='subtitle'>Tenant 22222222-2222-2222-2222-222222222222</p>
+<div class="chips"><span class='chip'>Tenant <strong>Contoso (Sample)</strong></span><span class='chip'>As of <strong>2026-10-05</strong></span><span class='chip'>Evidence <strong>Cached (2026-10-06 00:44 UTC)</strong></span><span class='chip'>Read-only</span></div>
+</div>
+</div></header>
+<nav class='toc'><div class='wrap'><a href='#summary'>Summary</a><a href='#waves'>Waves</a><a href='#quota'>Quota</a><a href='#subscriptions'>Subscriptions</a><a href='#evidence'>Evidence</a><a href='#cross-vendor'>Cross-vendor</a><a href='#sku-families'>SKU families</a><a href='#cpu-vendor'>CPU from name</a><a href='#limitations'>Limitations</a></div></nav>
+<main class="wrap">
+<div class="callout disclaimer"><strong>Unofficial planning report.</strong> Built from read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.</div>
+<section id='summary' class='card'><h2>Summary</h2><div class='kpis'><div class='kpi kpi-neutral'><div class='kpi-label'>VMs assessed</div><div class='kpi-value'>7</div><div class='kpi-hint'>1 subscription(s)</div></div><div class='kpi kpi-orange'><div class='kpi-label'>On retiring sizes</div><div class='kpi-value'>6</div><div class='kpi-hint'>Microsoft-confirmed</div></div><div class='kpi kpi-red'><div class='kpi-label'>Already retired</div><div class='kpi-value'>1</div></div><div class='kpi kpi-neutral'><div class='kpi-label'>Retire &lt; 12 months</div><div class='kpi-value'>0</div></div><div class='kpi kpi-orange'><div class='kpi-label'>Retire in 1-3 years</div><div class='kpi-value'>3</div></div><div class='kpi kpi-purple'><div class='kpi-label'>Optional modernization</div><div class='kpi-value'>0</div><div class='kpi-hint'>Older, not retiring</div></div><div class='kpi kpi-orange'><div class='kpi-label'>Need quota increase</div><div class='kpi-value'>4</div></div><div class='kpi kpi-green'><div class='kpi-label'>High-confidence moves</div><div class='kpi-value'>0</div></div></div><div class='bottom-line'><h3>Bottom line</h3><ul><li><strong>6 of 7 VMs</strong> run on VM sizes that Microsoft has retired or scheduled for retirement. The earliest retirement date is <strong>2025-09-30</strong> (Standard_NC6s_v3).</li><li><strong>1 VM(s)</strong> are on sizes that are already retired and need immediate attention.</li><li>4 recommended move(s) need a vCPU quota increase first (see Quota actions).</li></ul></div></section>
+<div class='callout warn'><strong>Evidence warning:</strong> Offline mode requested.</div><div class='callout info'><strong>Microsoft lifecycle entries that are not VM sizes:</strong> Dsv3-Type1, Dsv3-Type2, Esv3-Type1, Esv3-Type2 (ADH, Retired 2023-06-30). They are not matched to VMs; validate them separately (for example, Dedicated Host SKUs).</div>
+<section id='waves' class='card'><h2>Migration Waves</h2><p class='lead'>Waves 1&ndash;3 contain only VMs with a Microsoft retirement date. Wave 4 is optional modernization of older generations and is never mixed with required migrations.</p><div class='table-wrap'><table><thead><tr><th>Wave</th><th>Current size</th><th>Microsoft status</th><th>Retirement date</th><th class='num'>VMs</th><th>Recommended size</th></tr></thead><tbody><tr><td><span class='badge b-red'>Wave 1 - Urgent</span></td><td><code>Standard_<wbr>NC6s_v3</code></td><td><span class='badge b-red'>Already Retired</span></td><td class='nowrap'>2025-09-30</td><td class='num'>1</td><td>No recommendation</td></tr>
+<tr><td><span class='badge b-orange'>Wave 2 - Near Term</span></td><td><code>Standard_<wbr>DS3_v2</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2028-05-01</td><td class='num'>2</td><td>Standard_D4ds_v5 &times;2</td></tr>
+<tr><td><span class='badge b-yellow'>Wave 3 - Planned</span></td><td><code>Standard_<wbr>B2ms</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2028-11-15</td><td class='num'>1</td><td>Standard_B2s_v2</td></tr>
+<tr><td><span class='badge b-grey'>Beyond Horizon</span></td><td><code>Standard_<wbr>D4s_v3</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2029-11-15</td><td class='num'>2</td><td>Standard_D4ds_v5 &times;2</td></tr></tbody></table></div></section>
+<section id='quota' class='card'><h2>Quota Actions</h2><p class='lead'>Demand is added up for all VMs moving into the same subscription, region and VM family. Minimum increase = current usage + needed &minus; limit; the recommended request adds a safety margin.</p><div class='table-wrap'><table class='quota-table'><thead><tr><th>Scope</th><th>Subscription</th><th>Region</th><th>Quota</th><th class='num quota-usage'>Used / limit</th><th class='num'>Needed</th><th class='num'>Min. increase</th><th class='num'>Recommended request</th><th>Status</th></tr></thead><tbody><tr><td>Retirement</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>standardbsv2family</td><td class='num quota-usage'><span class='muted'>&ndash;</span></td><td class='num'>2</td><td class='num'><strong></strong></td><td class='num'></td><td><span class='badge b-grey'>Manual Validation Required</span></td></tr>
+<tr><td>Retirement</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>Standard DDSv5 Family vCPUs</td><td class='num quota-usage'>95 / 100</td><td class='num'>16</td><td class='num'><strong>11</strong></td><td class='num'>15</td><td><span class='badge b-orange'>Quota Increase Required</span></td></tr>
+<tr><td>Retirement+Modernization</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>standardbsv2family</td><td class='num quota-usage'><span class='muted'>&ndash;</span></td><td class='num'>2</td><td class='num'><strong></strong></td><td class='num'></td><td><span class='badge b-grey'>Manual Validation Required</span></td></tr>
+<tr><td>Retirement+Modernization</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>Standard DDSv5 Family vCPUs</td><td class='num quota-usage'>95 / 100</td><td class='num'>16</td><td class='num'><strong>11</strong></td><td class='num'>15</td><td><span class='badge b-orange'>Quota Increase Required</span></td></tr></tbody></table></div><p class='note'><em>Retirement</em> scope covers required migrations only; <em>Retirement+Modernization</em> also includes optional Wave 4 moves.</p></section>
+<section id='subscriptions' class='card'><h2>Subscriptions</h2><div class='table-wrap'><table><thead><tr><th>Subscription</th><th class='num'>VMs</th><th class='num'>On retiring sizes</th><th class='num'>Wave 1</th><th class='num'>Modernization</th><th class='num'>Quota increase</th></tr></thead><tbody><tr><td><a class='strong' href='contoso-prod-11111111.html'>contoso-prod</a><div class='sub'>11111111-1111-1111-1111-111111111111</div></td><td class='num'>7</td><td class='num'><span class='badge b-orange'>6</span></td><td class='num'><span class='badge b-red'>1</span></td><td class='num'>0</td><td class='num'><span class='badge b-orange'>4</span></td></tr></tbody></table></div><p class='note'>Only subscriptions that contain VMs are listed. Select a subscription for per-VM details.</p></section>
+<section id='evidence' class='card'><h2>Microsoft Retirement Evidence</h2><p class='lead'>Retirement status comes only from these Microsoft sources. Older sizes without an announced retirement are reported as optional modernization, never as retired.</p><ul class='links'><li><a href='https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions' target='_blank'>VM size series retirements, capacity growth restrictions, and modernization guidance</a> <span class='muted'>&middot; updated 09/27/2026 11:03:00 &middot; retrieved 10/06/2026 00:44:07</span></li><li><a href='https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list' target='_blank'>End of Life Azure VM size series</a> <span class='muted'>&middot; updated 09/26/2026 06:04:00 &middot; retrieved 10/06/2026 00:44:07</span></li><li><a href='https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide' target='_blank'>Retired VM sizes modernization guide</a> <span class='muted'>&middot; updated 09/26/2026 06:04:00 &middot; retrieved 10/06/2026 00:44:07</span></li></ul></section>
+<section id='cross-vendor' class='card'><h2>Cross-Vendor Migration Warnings</h2><p class='lead'>Moving between Intel and AMD is usually transparent to the operating system, but some workloads need validation first.</p><div class="grid-2">
+<div class="callout warn"><h3>Sensitive to a CPU vendor change (Intel &harr; AMD)</h3><ul>
+<li><strong>Licensing:</strong> per-core or per-socket licensed software (for example Oracle, some SAP components) may be priced or certified per processor family.</li>
+<li><strong>Instruction sets:</strong> applications compiled for specific extensions (AVX-512, AMX, or vendor-optimised math libraries) must be confirmed on the target processor.</li>
+<li><strong>Latency-sensitive workloads:</strong> real-time, trading or tuned HPC workloads can behave differently with different cache and clock profiles.</li>
+<li><strong>Infrastructure roles:</strong> domain controllers, clustered or appliance VMs: follow the vendor's support statement before changing CPU vendor.</li>
+</ul></div>
+<div class="callout ok"><h3>Usually safe to move across vendors</h3><ul>
+<li>Stateless web and API tiers, Linux application servers</li>
+<li>CI/CD build agents and dev/test environments</li>
+<li>General Windows workloads and AVD session hosts running productivity apps</li>
+</ul></div>
+</div>
+<div class="grid-2">
+<div class="callout info"><h3>How this assessment handles vendors</h3><ul>
+<li>The same CPU vendor is always preferred: Intel &rarr; Intel, AMD &rarr; AMD, ARM &rarr; ARM.</li>
+<li>A different vendor is proposed only when no same-vendor size passes the mandatory checks. It is flagged <em>CPU Vendor Change Required</em>, loses 20 score points and lowers confidence.</li>
+</ul></div>
+<div class="callout danger"><h3>Never cross architecture</h3><ul>
+<li>x64 &rarr; Arm64 (Azure Cobalt / Ampere) requires recompiled applications and ARM-compatible OS images. It is never recommended automatically.</li>
+<li><strong>Test after any resize:</strong> run the workload for 24&ndash;48 hours and watch CPU patterns and application performance.</li>
+</ul></div>
+</div></section>
+<details id='sku-families' class='card collapsible-section'><summary><span class='section-heading' role='heading' aria-level='2'>SKU Family Quick Reference</span><span class='section-intro'>The first letter of a VM size is its family. Replacements stay in the same family unless Microsoft's migration guide names another one.</span></summary><div class='section-body'><div class="table-wrap"><table class="ref"><thead><tr><th>Family</th><th>Workload fit</th><th>Memory ratio</th><th>Latest generation by CPU vendor</th></tr></thead><tbody>
+<tr><td class='fam'>B</td><td>Burstable: dev/test, small web servers, low average CPU</td><td class='nowrap'>Varies</td><td><strong>Intel</strong> Bsv2 &middot; <strong>AMD</strong> Basv2 &middot; <strong>ARM</strong> Bpsv2</td></tr>
+<tr><td class='fam'>D</td><td>General purpose: balanced CPU and memory, most business apps</td><td class='nowrap'>~4 GiB / vCPU</td><td><strong>Intel</strong> Dsv7, Ddsv7, Dlsv7 &middot; <strong>AMD</strong> Dasv7, Dadsv7, Dalsv7 &middot; <strong>ARM</strong> Dpsv6, Dpdsv6, Dplsv6</td></tr>
+<tr><td class='fam'>E</td><td>Memory optimised: databases, caching, analytics</td><td class='nowrap'>~8 GiB / vCPU</td><td><strong>Intel</strong> Esv7, Edsv7 &middot; <strong>AMD</strong> Easv7, Eadsv7 &middot; <strong>ARM</strong> Epsv6, Epdsv6</td></tr>
+<tr><td class='fam'>F</td><td>Compute optimised: batch, web front ends, gaming, analytics</td><td class='nowrap'>~2 GiB / vCPU</td><td><strong>Intel</strong> Fsv2 &middot; <strong>AMD</strong> Fasv7, Fadsv7, Falsv7</td></tr>
+<tr><td class='fam'>L</td><td>Storage optimised: high-throughput local NVMe (NoSQL, data warehousing)</td><td class='nowrap'>~8 GiB / vCPU</td><td><strong>Intel</strong> Lsv4 &middot; <strong>AMD</strong> Lasv4, Laosv4</td></tr>
+<tr><td class='fam'>M</td><td>Memory intensive: SAP HANA, very large in-memory databases</td><td class='nowrap'>Up to ~30 GiB / vCPU</td><td>Intel</td></tr>
+<tr><td class='fam'>N</td><td>GPU accelerated: AI/ML training and inference, visualisation, rendering</td><td class='nowrap'>Varies</td><td>Intel or AMD host + NVIDIA / AMD GPU</td></tr>
+</tbody></table></div>
+<p class="note">"Latest generation" is taken from the Microsoft Learn size-series processor tables used by this assessment. Confidential (DC/EC), isolated and network-optimised variants are omitted.</p></div></details>
+<details id='cpu-vendor' class='card collapsible-section'><summary><span class='section-heading' role='heading' aria-level='2'>CPU Vendor from SKU Name</span><span class='section-intro'>How to read a VM size name such as <code>Standard_<wbr>D4ads_v6</code>.</span></summary><div class='section-body'><div class="table-wrap"><table class="ref"><thead><tr><th>Letter in the size name</th><th>Meaning</th><th>Example</th></tr></thead><tbody>
+<tr><td><code>a</code></td><td><span class='badge b-blue'>AMD</span> AMD EPYC processor</td><td><code>Standard_<wbr>D4<mark>a</mark>s_v5</code></td></tr>
+<tr><td><code>p</code></td><td><span class='badge b-blue'>ARM</span> Arm64 processor (Ampere Altra on v5, Azure Cobalt 100 on v6)</td><td><code>Standard_<wbr>D4<mark>p</mark>s_v6</code></td></tr>
+<tr><td>neither <code>a</code> nor <code>p</code></td><td><span class='badge b-blue'>Intel</span> Intel Xeon processor</td><td><code>Standard_<wbr>D4s_v5</code></td></tr>
+<tr><td><code>d</code></td><td>Local temp disk included</td><td><code>Standard_<wbr>D4a<mark>d</mark>s_v6</code></td></tr>
+<tr><td><code>s</code></td><td>Premium Storage capable</td><td><code>Standard_<wbr>E8<mark>s</mark>_v5</code></td></tr>
+<tr><td><code>l</code></td><td>Low memory per vCPU</td><td><code>Standard_<wbr>D4a<mark>l</mark>s_v6</code></td></tr>
+<tr><td><code>m</code></td><td>Memory intensive (highest memory per vCPU in the family)</td><td><code>Standard_<wbr>F4a<mark>m</mark>s_v6</code></td></tr>
+<tr><td><code>b</code></td><td>Higher remote-storage (block) performance</td><td><code>Standard_<wbr>E8<mark>b</mark>ds_v5</code></td></tr>
+<tr><td><code>i</code></td><td>Isolated size (dedicated to one customer)</td><td><code>Standard_<wbr>E104<mark>i</mark>s_v5</code></td></tr>
+<tr><td><code>_v5</code>, <code>_v6</code>&hellip;</td><td>Hardware generation: higher is newer</td><td><code>Standard_<wbr>D4s<mark>_v6</mark></code></td></tr>
+</tbody></table></div>
+<div class="callout info"><strong>The name is only a hint.</strong> Exceptions exist: for example, <code>Standard_<wbr>L8s_v2</code> runs on AMD EPYC 7551 even though it has no <code>a</code>. This assessment reads the CPU vendor from the Microsoft Learn size-series processor tables first (<em>Verified</em>). It falls back to the naming convention only when a series is missing (<em>Partially Verified</em>). Source: <a href="https://learn.microsoft.com/azure/virtual-machines/vm-naming-conventions" target="_blank">Azure VM naming conventions</a>.</div></div></details>
+<details id='limitations' class='card collapsible-section'><summary><span class='section-heading' role='heading' aria-level='2'>Known Limitations</span><span class='section-intro'>What this assessment could and could not verify. Anything not verifiable is labelled rather than assumed.</span></summary><div class='section-body'><div class='table-wrap'><table class='ref'><thead><tr><th>Check</th><th>Status</th><th>Notes</th></tr></thead><tbody><tr><td><strong>VM inventory (Azure Resource Graph)</strong></td><td><span class='badge b-green'>Done</span></td><td>7 VMs across 1 subscription(s), joined to NICs, disks and extensions.</td></tr>
+<tr><td><strong>Retirement evidence (Microsoft Learn)</strong></td><td><span class='badge b-yellow'>Partial</span></td><td>Retired-sizes list, previous-gen list and migration guide (Cached (2026-10-06 00:44 UTC)). No date is inferred from VM age.</td></tr>
+<tr><td><strong>CPU vendor and processor</strong></td><td><span class='badge b-green'>Done</span></td><td>Microsoft Learn size-series processor tables; naming convention used only as a fallback.</td></tr>
+<tr><td><strong>Size capabilities and restrictions</strong></td><td><span class='badge b-green'>Done</span></td><td>Subscription-scoped Resource SKUs API: temp disk, controller, Hyper-V generation, zones, restrictions.</td></tr>
+<tr><td><strong>vCPU quota</strong></td><td><span class='badge b-green'>Done</span></td><td>Family and regional quota per subscription/region; demand aggregated across VMs moving to the same family.</td></tr>
+<tr><td><strong>Azure Advisor / Service Health</strong></td><td><span class='badge b-green'>Done</span></td><td>Best-effort corroboration: 0 Advisor and 0 Service Health retirement signals.</td></tr>
+<tr><td><strong>Retail pricing</strong></td><td><span class='badge b-green'>Done</span></td><td>Pay-as-you-go list price x 730 h (prices.azure.com). Excludes EA/MCA discounts, reservations, savings plans and Azure Hybrid Benefit.</td></tr>
+<tr><td><strong>Rightsizing telemetry</strong></td><td><span class='badge b-yellow'>Skipped</span></td><td>Azure Monitor CPU / memory for running VMs with an action. Deallocated VMs have no recent data. Never changes the recommendation.</td></tr>
+<tr><td><strong>Physical regional capacity</strong></td><td><span class='badge b-yellow'>Not verifiable</span></td><td>Quota and SKU restrictions do not guarantee allocatable hardware; confirm with a resize or Capacity Reservation.</td></tr>
+<tr><td><strong>Nested virtualization / temp-disk usage</strong></td><td><span class='badge b-yellow'>Not verifiable</span></td><td>Not visible from the Azure control plane; confirm with the workload owner.</td></tr>
+<tr><td><strong>Network bandwidth caps</strong></td><td><span class='badge b-yellow'>Not verifiable</span></td><td>Not exposed by the Resource SKUs API; see the Microsoft Learn size page.</td></tr>
+<tr><td><strong>VM Scale Sets (Uniform)</strong></td><td><span class='badge b-yellow'>Excluded</span></td><td>Only VM resources are inventoried; scale-set models share quota but are assessed separately.</td></tr>
+<tr><td><strong>Reserved Instances / Savings Plans</strong></td><td><span class='badge b-yellow'>Not assessed</span></td><td>Requires billing access; check RI exchange options before resizing reserved VMs.</td></tr></tbody></table></div></div></details>
+</main>
+<footer><div class="wrap"><span class="footer-status"><span aria-hidden="true"></span>Report generated successfully</span><span>VMSKURetirementReport v1.0.0 &middot; read-only assessment &middot; VMSKURetirementReport - Contoso (Sample)</span></div></footer>
+</body></html>

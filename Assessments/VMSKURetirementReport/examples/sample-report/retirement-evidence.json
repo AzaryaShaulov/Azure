@@ -1,0 +1,1492 @@
+{
+  "schemaVersion": "1.0",
+  "generatedUtc": "2026-10-07T15:56:10.1336922Z",
+  "catalogSource": "Cached (2026-10-06 00:44 UTC)",
+  "catalogWarning": "Offline mode requested.",
+  "microsoftSources": [
+    {
+      "Name": "RetiredList",
+      "Url": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions",
+      "Title": "VM size series retirements, capacity growth restrictions, and modernization guidance - Azure Virtual Machines | Microsoft Learn",
+      "UpdatedAt": "2026-09-27T11:03:00Z",
+      "GitCommitId": "2f92a16c6bec69e97a67d7846657d58e8d9d2467",
+      "MsDate": "2026-09-25T00:00:00Z",
+      "RetrievedUtc": "2026-10-06T00:44:07.4433999Z"
+    },
+    {
+      "Name": "PreviousGen",
+      "Url": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list",
+      "Title": "End of Life Azure VM size series - Azure Virtual Machines | Microsoft Learn",
+      "UpdatedAt": "2026-09-26T06:04:00Z",
+      "GitCommitId": "9ed072b872e388c785f750f825050cc26912b715",
+      "MsDate": "2026-09-25T00:00:00Z",
+      "RetrievedUtc": "2026-10-06T00:44:07.5801659Z"
+    },
+    {
+      "Name": "MigrationGuide",
+      "Url": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+      "Title": "Retired VM sizes modernization guide - Azure Virtual Machines | Microsoft Learn",
+      "UpdatedAt": "2026-09-26T06:04:00Z",
+      "GitCommitId": "9ed072b872e388c785f750f825050cc26912b715",
+      "MsDate": "2026-09-25T00:00:00Z",
+      "RetrievedUtc": "2026-10-06T00:44:07.7620674Z"
+    }
+  ],
+  "unmappedSeries": [],
+  "nonVmSizeEntries": [
+    {
+      "Category": "ADH",
+      "Name": "Dsv3-Type1, Dsv3-Type2, Esv3-Type1, Esv3-Type2",
+      "Status": "Retired",
+      "PlannedRetirementDate": "2023-06-30",
+      "GuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/dedicated-hosts/sku-lifecycle",
+      "SourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+    }
+  ],
+  "seriesEvidence": [
+    {
+      "key": "d",
+      "learnNames": [
+        "D-series",
+        "Standard D-series",
+        "Dv1 and Dsv1-series",
+        "Memory-optimized D-series",
+        "D"
+      ],
+      "patterns": [
+        "^Standard_D(1|2|3|4|11|12|13|14)$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": "2025-03-31",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "plannedRetirementDate": "2028-05-01",
+        "plannedRetirementText": "05/01/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "05/01/2028",
+        "retirementDate": "2028-05-01",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-05-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dsv5",
+        "ddsv5",
+        "dasv5",
+        "dadsv5",
+        "dasv6",
+        "dadsv6",
+        "dsv6",
+        "ddsv6",
+        "dasv7",
+        "dadsv7",
+        "esv6",
+        "edsv6",
+        "easv6",
+        "eadsv6",
+        "easv7",
+        "eadsv7"
+      ],
+      "guideDifferences": [
+        "D/Ev5 disk controller type: SCSI",
+        "D/Ev6, D/Ev7 disk controller type: NVMe",
+        "Local Storage Throughput: 9000 IOPS / 125 MBps",
+        "Remote Storage Throughput: 3750 IOPS / 82 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "ds",
+      "learnNames": [
+        "Ds-series",
+        "DS-series",
+        "Dv1 and Dsv1-series",
+        "Memory-optimized DS-series",
+        "Ds"
+      ],
+      "patterns": [
+        "^Standard_DS(1|2|3|4|11|12|13|14)$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": "2025-03-31",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "plannedRetirementDate": "2028-05-01",
+        "plannedRetirementText": "05/01/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "05/01/2028",
+        "retirementDate": "2028-05-01",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-05-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dsv5",
+        "ddsv5",
+        "dasv5",
+        "dadsv5",
+        "dasv6",
+        "dadsv6",
+        "dsv6",
+        "ddsv6",
+        "dasv7",
+        "dadsv7",
+        "esv6",
+        "edsv6",
+        "easv6",
+        "eadsv6",
+        "easv7",
+        "eadsv7"
+      ],
+      "guideDifferences": [
+        "D/Ev5 disk controller type: SCSI",
+        "D/Ev6, D/Ev7 disk controller type: NVMe",
+        "Local Storage Throughput: 9000 IOPS / 125 MBps",
+        "Remote Storage Throughput: 3750 IOPS / 82 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "dv2",
+      "learnNames": [
+        "Dv2-series",
+        "Dv2 and Dsv2-series",
+        "Dv2"
+      ],
+      "patterns": [
+        "^Standard_D(1|2|3|4|5|11|12|13|14|15)_v2(_Promo)?$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": "2025-03-31",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "plannedRetirementDate": "2028-05-01",
+        "plannedRetirementText": "05/01/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "General purpose",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "05/01/2028",
+        "retirementDate": "2028-05-01",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-05-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dsv5",
+        "ddsv5",
+        "dasv5",
+        "dadsv5",
+        "dasv6",
+        "dadsv6",
+        "dsv6",
+        "ddsv6",
+        "dasv7",
+        "dadsv7",
+        "esv6",
+        "edsv6",
+        "easv6",
+        "eadsv6",
+        "easv7",
+        "eadsv7"
+      ],
+      "guideDifferences": [
+        "D/Ev5 disk controller type: SCSI",
+        "D/Ev6, D/Ev7 disk controller type: NVMe",
+        "Local Storage Throughput: 9000 IOPS / 125 MBps",
+        "Remote Storage Throughput: 3750 IOPS / 82 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "dsv2",
+      "learnNames": [
+        "Dsv2-series",
+        "Dv2 and Dsv2-series",
+        "Dsv2"
+      ],
+      "patterns": [
+        "^Standard_DS(1|2|3|4|5|11|12|13|14|15)(-\\d+)?_v2(_Promo)?$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": "2025-03-31",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "plannedRetirementDate": "2028-05-01",
+        "plannedRetirementText": "05/01/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "General purpose",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "05/01/2028",
+        "retirementDate": "2028-05-01",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-05-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dsv5",
+        "ddsv5",
+        "dasv5",
+        "dadsv5",
+        "dasv6",
+        "dadsv6",
+        "dsv6",
+        "ddsv6",
+        "dasv7",
+        "dadsv7",
+        "esv6",
+        "edsv6",
+        "easv6",
+        "eadsv6",
+        "easv7",
+        "eadsv7"
+      ],
+      "guideDifferences": [
+        "D/Ev5 disk controller type: SCSI",
+        "D/Ev6, D/Ev7 disk controller type: NVMe",
+        "Local Storage Throughput: 9000 IOPS / 125 MBps",
+        "Remote Storage Throughput: 3750 IOPS / 82 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "av2",
+      "learnNames": [
+        "Av2/Amv2-series",
+        "Av2 and Amv2-series",
+        "Av2",
+        "Amv2"
+      ],
+      "patterns": [
+        "^Standard_A(1|2|4|8)m?_v2$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": "2025-10-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "plannedRetirementDate": "2028-11-15",
+        "plannedRetirementText": "11/15/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "General purpose",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2028",
+        "retirementDate": "2028-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-11-15",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "bsv2",
+        "basv2",
+        "dsv5",
+        "ddv5",
+        "dasv5",
+        "esv5",
+        "edv5",
+        "easv5",
+        "dsv6",
+        "ddsv6",
+        "dasv6",
+        "esv6",
+        "edsv6",
+        "easv6"
+      ],
+      "guideDifferences": [
+        "B/Bav2, D/Ev5 disk controller type: SCSI",
+        "D/Ev6 disk controller type: NVMe",
+        "Remote Storage Throughput: 3750 IOPS / 85 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "b v1",
+      "learnNames": [
+        "B-series (V1)",
+        "Bv1"
+      ],
+      "patterns": [
+        "^Standard_B\\d+(ls|s|ms)$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": "2025-10-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "plannedRetirementDate": "2028-11-15",
+        "plannedRetirementText": "11/15/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "General purpose",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2028",
+        "retirementDate": "2028-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-11-15",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "bsv2",
+        "basv2",
+        "dlsv5",
+        "dldsv5",
+        "dalsv5",
+        "daldsv5",
+        "dlsv6",
+        "dldsv6",
+        "dalsv6",
+        "daldsv6"
+      ],
+      "guideDifferences": [
+        "B/Bav2, D/Ev5 disk controller type: SCSI",
+        "D/Ev6 disk controller type: NVMe",
+        "Remote Storage Throughput: 3750 IOPS / 85 MBps",
+        "Disk Controller Type: SCSI"
+      ],
+      "notes": []
+    },
+    {
+      "key": "dv3",
+      "learnNames": [
+        "Dv3-series",
+        "Dv3 and Dsv3-series",
+        "Dv3"
+      ],
+      "patterns": [
+        "^Standard_D(2|4|8|16|32|48|64)_v3$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2029-11-15",
+        "plannedRetirementText": "11/15/29",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "General purpose",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2029",
+        "retirementDate": "2029-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2026-07-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dv5",
+        "dsv5",
+        "ddv5",
+        "ddsv5",
+        "dasv5",
+        "dadsv5",
+        "d-family-v6",
+        "d-family-v7"
+      ],
+      "guideDifferences": [
+        "For the smoothest transition, see Modernize to the v5 VM series. For the latest features and performance, see Modernize to the v6 and v7 VM series."
+      ],
+      "notes": []
+    },
+    {
+      "key": "dsv3",
+      "learnNames": [
+        "Dsv3-series",
+        "Dv3 and Dsv3-series",
+        "Dsv3"
+      ],
+      "patterns": [
+        "^Standard_D(2|4|8|16|32|48|64)s_v3$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2029-11-15",
+        "plannedRetirementText": "11/15/29",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "General purpose",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2029",
+        "retirementDate": "2029-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2026-07-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dv5",
+        "dsv5",
+        "ddv5",
+        "ddsv5",
+        "dasv5",
+        "dadsv5",
+        "d-family-v6",
+        "d-family-v7"
+      ],
+      "guideDifferences": [
+        "For the smoothest transition, see Modernize to the v5 VM series. For the latest features and performance, see Modernize to the v6 and v7 VM series."
+      ],
+      "notes": []
+    },
+    {
+      "key": "dcsv2",
+      "learnNames": [
+        "DCsv2-series"
+      ],
+      "patterns": [
+        "^Standard_DC(1|2|4)s_v2$",
+        "^Standard_DC8_v2$"
+      ],
+      "retiredList": {
+        "status": "Retired",
+        "category": "General purpose",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2026-06-30",
+        "plannedRetirementText": "06/30/26",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/dcsv2-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": null,
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "dcasccv5",
+      "learnNames": [
+        "DCas_cc_v5/DCads_cc_v5-series"
+      ],
+      "patterns": [
+        "^Standard_DC(4|8|16|32|48|64|96)as_cc_v5$"
+      ],
+      "retiredList": {
+        "status": "Retired",
+        "category": "General purpose",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2026-09-01",
+        "plannedRetirementText": "09/01/26",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/dcccv5-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": null,
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "dcadsccv5",
+      "learnNames": [
+        "DCas_cc_v5/DCads_cc_v5-series"
+      ],
+      "patterns": [
+        "^Standard_DC(4|8|16|32|48|64|96)ads_cc_v5$"
+      ],
+      "retiredList": {
+        "status": "Retired",
+        "category": "General purpose",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2026-09-01",
+        "plannedRetirementText": "09/01/26",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/dcccv5-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": null,
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "dcsv3",
+      "learnNames": [
+        "DCsv3/DCdsv3-series",
+        "DCsv3 and DCdsv3-series"
+      ],
+      "patterns": [
+        "^Standard_DC(1|2|4|8|16|24|32|48)s_v3$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2029-10-31",
+        "plannedRetirementText": "10/31/29",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/retirement/dcsv3-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "General purpose",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/retirement/dcsv3-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "dcdsv3",
+      "learnNames": [
+        "DCsv3/DCdsv3-series",
+        "DCsv3 and DCdsv3-series"
+      ],
+      "patterns": [
+        "^Standard_DC(1|2|4|8|16|24|32|48)ds_v3$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "General purpose",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2029-10-31",
+        "plannedRetirementText": "10/31/29",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/retirement/dcsv3-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "General purpose",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/retirement/dcsv3-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "f",
+      "learnNames": [
+        "F-series",
+        "F"
+      ],
+      "patterns": [
+        "^Standard_F(1|2|4|8|16)$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Compute optimized",
+        "announcementDate": "2025-10-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "plannedRetirementDate": "2028-11-15",
+        "plannedRetirementText": "11/15/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Compute optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2028",
+        "retirementDate": "2028-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-11-15",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dlsv6",
+        "dldsv6",
+        "dalsv6",
+        "daldsv6",
+        "falsv6",
+        "dldsv5",
+        "dlsv5",
+        "dsv5",
+        "ddsv5"
+      ],
+      "guideDifferences": [
+        "D/Ev5 disk controller type: SCSI",
+        "D/Ev6 disk controller type: NVMe",
+        "Remote Storage Throughput: 4167 IOPS / 124 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "fs",
+      "learnNames": [
+        "Fs-series",
+        "Fs"
+      ],
+      "patterns": [
+        "^Standard_F(1|2|4|8|16)s$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Compute optimized",
+        "announcementDate": "2025-10-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "plannedRetirementDate": "2028-11-15",
+        "plannedRetirementText": "11/15/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Compute optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2028",
+        "retirementDate": "2028-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-11-15",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dlsv6",
+        "dldsv6",
+        "dalsv6",
+        "daldsv6",
+        "falsv6",
+        "dldsv5",
+        "dlsv5",
+        "dsv5",
+        "ddsv5"
+      ],
+      "guideDifferences": [
+        "D/Ev5 disk controller type: SCSI",
+        "D/Ev6 disk controller type: NVMe",
+        "Remote Storage Throughput: 4167 IOPS / 124 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "fsv2",
+      "learnNames": [
+        "Fsv2-series",
+        "Fsv2"
+      ],
+      "patterns": [
+        "^Standard_F(2|4|8|16|32|48|64|72)s_v2$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Compute optimized",
+        "announcementDate": "2025-10-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "plannedRetirementDate": "2028-11-15",
+        "plannedRetirementText": "11/15/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Compute optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2028",
+        "retirementDate": "2028-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-11-15",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "dlsv6",
+        "dldsv6",
+        "dalsv6",
+        "daldsv6",
+        "falsv6",
+        "dldsv5",
+        "dlsv5",
+        "dsv5",
+        "ddsv5"
+      ],
+      "guideDifferences": [
+        "D/Ev5 disk controller type: SCSI",
+        "D/Ev6 disk controller type: NVMe",
+        "Remote Storage Throughput: 4167 IOPS / 124 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "g",
+      "learnNames": [
+        "G-series",
+        "G"
+      ],
+      "patterns": [
+        "^Standard_G[1-5]$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Memory optimized",
+        "announcementDate": "2025-10-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "plannedRetirementDate": "2028-11-15",
+        "plannedRetirementText": "11/15/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2028",
+        "retirementDate": "2028-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-11-15",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "lsv3",
+        "lasv3",
+        "lsv4",
+        "lasv4"
+      ],
+      "guideDifferences": [
+        "Lv3/Lv4 controller type: SCSI and NVMe",
+        "Remote Storage Throughput: 12800 IOPS / 200 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "gs",
+      "learnNames": [
+        "Gs-series",
+        "GS-series",
+        "Gs"
+      ],
+      "patterns": [
+        "^Standard_GS[1-5](-\\d+)?$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Memory optimized",
+        "announcementDate": "2025-10-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "plannedRetirementDate": "2028-11-15",
+        "plannedRetirementText": "11/15/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2028",
+        "retirementDate": "2028-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-11-15",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "lsv3",
+        "lasv3",
+        "lsv4",
+        "lasv4"
+      ],
+      "guideDifferences": [
+        "Lv3/Lv4 controller type: SCSI and NVMe",
+        "Remote Storage Throughput: 12800 IOPS / 200 MBps"
+      ],
+      "notes": []
+    },
+    {
+      "key": "ev3",
+      "learnNames": [
+        "Ev3-series",
+        "Ev3 and Esv3-series",
+        "Ev3"
+      ],
+      "patterns": [
+        "^Standard_E\\d+i?_v3$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Memory optimized",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2029-11-15",
+        "plannedRetirementText": "11/15/29",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2029",
+        "retirementDate": "2029-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2026-07-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "ev5",
+        "esv5",
+        "edv5",
+        "edsv5",
+        "easv5",
+        "eadsv5",
+        "e-family-v6",
+        "e-family-v7"
+      ],
+      "guideDifferences": [
+        "For the smoothest transition, see Modernize to the v5 VM series. For the latest features and performance, see Modernize to the v6 and v7 VM series."
+      ],
+      "notes": []
+    },
+    {
+      "key": "esv3",
+      "learnNames": [
+        "Esv3-series",
+        "Ev3 and Esv3-series",
+        "Esv3"
+      ],
+      "patterns": [
+        "^Standard_E\\d+(-\\d+)?i?s_v3$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Memory optimized",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2029-11-15",
+        "plannedRetirementText": "11/15/29",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2029",
+        "retirementDate": "2029-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2026-07-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "ev5",
+        "esv5",
+        "edv5",
+        "edsv5",
+        "easv5",
+        "eadsv5",
+        "e-family-v6",
+        "e-family-v7"
+      ],
+      "guideDifferences": [
+        "For the smoothest transition, see Modernize to the v5 VM series. For the latest features and performance, see Modernize to the v6 and v7 VM series."
+      ],
+      "notes": []
+    },
+    {
+      "key": "standard_m192idms_v2",
+      "learnNames": [
+        "Standard_M192idms_v2",
+        "Msv2 and Mdsv2 isolated sizes"
+      ],
+      "patterns": [
+        "^standard_m192idms_v2$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Memory optimized",
+        "announcementDate": "2024-03-22",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=support-for-standardm192idmsv2-will-be-retired-on-31-march-2027",
+        "plannedRetirementDate": "2027-03-31",
+        "plannedRetirementText": "03/31/27",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/msv2-mdsv2-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/msv2-mdsv2-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "standard_m192ids_v2",
+      "learnNames": [
+        "Standard_M192ids_v2",
+        "Msv2 and Mdsv2 isolated sizes"
+      ],
+      "patterns": [
+        "^standard_m192ids_v2$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Memory optimized",
+        "announcementDate": "2024-03-22",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=community-support-for-standardm192idsv2-is-ending-on-31-march-2027",
+        "plannedRetirementDate": "2027-03-31",
+        "plannedRetirementText": "03/31/27",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/msv2-mdsv2-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/msv2-mdsv2-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "standard_m192ims_v2",
+      "learnNames": [
+        "Standard_M192ims_v2",
+        "Msv2 and Mdsv2 isolated sizes"
+      ],
+      "patterns": [
+        "^standard_m192ims_v2$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Memory optimized",
+        "announcementDate": "2024-03-22",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=community-support-for-standardm192imsv2-is-ending-on-31-march-2027",
+        "plannedRetirementDate": "2027-03-31",
+        "plannedRetirementText": "03/31/27",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/msv2-mdsv2-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/msv2-mdsv2-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "standard_m192is_v2",
+      "learnNames": [
+        "Standard_M192is_v2",
+        "Msv2 and Mdsv2 isolated sizes"
+      ],
+      "patterns": [
+        "^standard_m192is_v2$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Memory optimized",
+        "announcementDate": "2024-03-22",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=community-support-for-standardm192isv2-is-ending-on-31-march-2027",
+        "plannedRetirementDate": "2027-03-31",
+        "plannedRetirementText": "03/31/27",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/msv2-mdsv2-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Memory optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/msv2-mdsv2-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "ecasccv5",
+      "learnNames": [
+        "ECas_cc_v5/ECads_cc_v5-series"
+      ],
+      "patterns": [
+        "^Standard_EC(4|8|16|20|32|48|64|96)as_cc_v5$"
+      ],
+      "retiredList": {
+        "status": "Retired",
+        "category": "Memory optimized",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2026-09-01",
+        "plannedRetirementText": "09/01/26",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/ecccv5-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": null,
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "ecadsccv5",
+      "learnNames": [
+        "ECas_cc_v5/ECads_cc_v5-series"
+      ],
+      "patterns": [
+        "^Standard_EC(4|8|16|20|32|48|64|96)ads_cc_v5$"
+      ],
+      "retiredList": {
+        "status": "Retired",
+        "category": "Memory optimized",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2026-09-01",
+        "plannedRetirementText": "09/01/26",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/ecccv5-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": null,
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "ls",
+      "learnNames": [
+        "Ls-series",
+        "Lsv1-series",
+        "Ls"
+      ],
+      "patterns": [
+        "^Standard_L(4|8|16|32)s$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Storage optimized",
+        "announcementDate": "2025-03-31",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=485569",
+        "plannedRetirementDate": "2028-05-01",
+        "plannedRetirementText": "05/01/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Storage optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "05/01/2028",
+        "retirementDate": "2028-05-01",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-05-01",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "lsv3",
+        "lasv3",
+        "lsv4",
+        "lasv4"
+      ],
+      "guideDifferences": [
+        "Local Storage: Supported - NVMe",
+        "Remote Storage Throughput: 12800 IOPS / 200 MBps",
+        "Disk Controller Type: SCSI and NVMe"
+      ],
+      "notes": []
+    },
+    {
+      "key": "lsv2",
+      "learnNames": [
+        "Lsv2-series",
+        "Lsv2"
+      ],
+      "patterns": [
+        "^Standard_L(8|16|32|48|64|80)s_v2$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "Storage optimized",
+        "announcementDate": "2025-10-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=500682",
+        "plannedRetirementDate": "2028-11-15",
+        "plannedRetirementText": "11/15/28",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "Storage optimized",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "11/15/2028",
+        "retirementDate": "2028-11-15",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2025-11-15",
+        "ri1YearPurchaseEnd": "2026-07-01",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "lsv3",
+        "lasv3",
+        "lasv4"
+      ],
+      "guideDifferences": [
+        "Local Storage: NVMe",
+        "Remote Storage Throughput: 12800 IOPS / 200 MBps",
+        "Disk Controller Type: SCSI and NVMe"
+      ],
+      "notes": []
+    },
+    {
+      "key": "ncv3-nc24rs",
+      "learnNames": [
+        "NCv3-NC24rs Series"
+      ],
+      "patterns": [
+        "^Standard_NC24rs_v3$"
+      ],
+      "retiredList": {
+        "status": "Retired",
+        "category": "GPU accelerated",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2025-09-30",
+        "plannedRetirementText": "09/30/25",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/ncv3-nc24rs-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": null,
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "ncv3",
+      "learnNames": [
+        "NCv3-Series"
+      ],
+      "patterns": [
+        "^Standard_NC(6|12|24)s_v3$"
+      ],
+      "retiredList": {
+        "status": "Retired",
+        "category": "GPU accelerated",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2025-09-30",
+        "plannedRetirementText": "09/30/25",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/ncv3-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": null,
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "nvv3",
+      "learnNames": [
+        "NVv3-series"
+      ],
+      "patterns": [
+        "^Standard_NV(12|24|48)s_v3$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "GPU accelerated",
+        "announcementDate": "2025-04-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=516070",
+        "plannedRetirementDate": "2026-09-30",
+        "plannedRetirementText": "09/30/26",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/nvv3-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "GPU accelerated",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/nvv3-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "nvv4",
+      "learnNames": [
+        "NVv4-series"
+      ],
+      "patterns": [
+        "^Standard_NV(4|8|16|32)as_v4$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "GPU accelerated",
+        "announcementDate": "2025-04-15",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=516070",
+        "plannedRetirementDate": "2026-09-30",
+        "plannedRetirementText": "09/30/26",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/nvv4-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "GPU accelerated",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/nvv4-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "np",
+      "learnNames": [
+        "NP-series"
+      ],
+      "patterns": [
+        "^Standard_NP(10|20|40)s$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "FPGA accelerated",
+        "announcementDate": "2026-04-02",
+        "announcementUrl": "https://azure.microsoft.com/updates?id=548497",
+        "plannedRetirementDate": "2027-05-31",
+        "plannedRetirementText": "05/31/27",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/np-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "FPGA accelerated",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/np-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "05/31/2027",
+        "retirementDate": "2027-05-31",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2026-04-02",
+        "ri1YearPurchaseEnd": "2026-04-02",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "ndv2",
+        "ncadsh100v5",
+        "ncast4v3"
+      ],
+      "guideDifferences": [
+        "GPU type: NVIDIA V100 (NDv2), H100 (NCads_H100_v5), or T4 (NCasT4_v3) vs. AMD Xilinx Alveo U250 FPGA",
+        "NVLink interconnect: Available on NDv2; not applicable on FPGA-based NP-series",
+        "Disk controller: NVMe/SCSI (GPU families) vs. SCSI (NP-series)",
+        "Note: Workloads must be ported from FPGA-based acceleration (XRT/Vitis) to CUDA/GPU-based frameworks."
+      ],
+      "notes": []
+    },
+    {
+      "key": "hc",
+      "learnNames": [
+        "HC-series"
+      ],
+      "patterns": [
+        "^Standard_HC44(-(16|32))?rs$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "HPC",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2027-05-31",
+        "plannedRetirementText": "05/31/27",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/hc-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "HPC",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/hc-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": null,
+      "recommendedTargets": [],
+      "guideDifferences": [],
+      "notes": []
+    },
+    {
+      "key": "hbv2",
+      "learnNames": [
+        "HBv2-series",
+        "HBv2"
+      ],
+      "patterns": [
+        "^Standard_HB120(-\\d+)?rs_v2$"
+      ],
+      "retiredList": {
+        "status": "Announced",
+        "category": "HPC",
+        "announcementDate": null,
+        "announcementUrl": null,
+        "plannedRetirementDate": "2027-05-31",
+        "plannedRetirementText": "05/31/27",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/hbv2-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions"
+      },
+      "previousGen": {
+        "status": "End of Life",
+        "category": "HPC",
+        "migrationGuideLabel": "Modernization guide",
+        "migrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/hbv2-series-retirement",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list"
+      },
+      "guideFaq": {
+        "retirementDateText": "05/31/2027",
+        "retirementDate": "2027-05-31",
+        "productActive": false,
+        "ri3YearPurchaseEnd": "2026-04-02",
+        "ri1YearPurchaseEnd": "2026-04-02",
+        "sourceUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide"
+      },
+      "recommendedTargets": [
+        "hbv5",
+        "hx",
+        "hbv4",
+        "hbv3"
+      ],
+      "guideDifferences": [
+        "Transition to newer AMD EPYC generations (Milan/Genoa/Zen4) and newer InfiniBand fabrics (HDR on HBv3 → NDR on HBv4/HBv5). Validate MPI workload performance, memory bandwidth requirements, and RDMA compatibility on the target series."
+      ],
+      "notes": []
+    }
+  ],
+  "corroboration": {
+    "advisorServiceUpgradeAndRetirement": null,
+    "serviceHealthRetirementEvents": null
+  }
+}

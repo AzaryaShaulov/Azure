@@ -1,0 +1,54 @@
+# --- Assessment output: contains tenant / subscription / VM identifiers. Never commit real results. ---
+reports/
+**/reports/
+*-VMSKURetirementReport/
+**/data/vm-inventory.json
+**/data/skus-*.json
+run.log
+*.log
+*.csv
+!skills/**/tests/fixtures/*.csv
+assessment.json
+retirement-evidence.json
+executive-summary.md
+detailed-report.md
+raw/
+**/raw/
+
+# The generated, fully synthetic sample report is the only committed output.
+!examples/sample-report/
+!examples/sample-report/**
+
+# --- Build / test artifacts ---
+TestResults/
+coverage.xml
+*.nupkg
+*.tar
+*.tar.gz
+
+# --- Local tooling ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.code-workspace
+.playwright-mcp/
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Secrets safety net ---
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.env
+.env*
+*.secret
+*.token
+**/.azure/

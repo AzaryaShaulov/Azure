@@ -1,0 +1,7 @@
+"SubscriptionId","Region","QuotaName","QuotaDisplayName","VmCount","TargetSkus","Limit","CurrentUsage","Remaining","RequiredVcpu","RequiredVcpuAllocatedOnly","PostMigrationUsage","MinimumIncrease","RecommendedIncrease","RecommendedNewLimit","Status","DataQuality","Scope"
+"11111111-1111-1111-1111-111111111111","eastus2","standardbsv2family",,"1","Standard_B2s_v2",,,,"2","2",,,,,"Manual Validation Required","Partially Verified","Retirement"
+"11111111-1111-1111-1111-111111111111","eastus2","standardddsv5family","Standard DDSv5 Family vCPUs","4","Standard_D4ds_v5","100","95","5","16","12","111","11","15","115","Quota Increase Required","Verified","Retirement"
+"11111111-1111-1111-1111-111111111111","eastus2","standardbsv2family",,"1","Standard_B2s_v2",,,,"2","2",,,,,"Manual Validation Required","Partially Verified","Retirement+Modernization"
+"11111111-1111-1111-1111-111111111111","eastus2","standardddsv5family","Standard DDSv5 Family vCPUs","4","Standard_D4ds_v5","100","95","5","16","12","111","11","15","115","Quota Increase Required","Verified","Retirement+Modernization"
+"11111111-1111-1111-1111-111111111111","eastus2","cores","Total Regional vCPUs","5","","350","40","310","4",,"44","0","0","350","Quota OK","Verified","Retirement"
+"11111111-1111-1111-1111-111111111111","eastus2","cores","Total Regional vCPUs","5","","350","40","310","4",,"44","0","0","350","Quota OK","Verified","Retirement+Modernization"
