@@ -11,7 +11,7 @@ description: >-
   For quota increase requests afterwards use azure-quotas; for general VM sizing/pricing use azure-compute.
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   requires: "PowerShell 7.2+, Azure CLI 2.60+ with the resource-graph extension, Reader role"
 ---
 
@@ -68,13 +68,17 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
    more go to *Beyond Horizon*), `-QuotaSafetyPct 20`, `-MaxCandidates 3` (1 = primary only, 2 = + alternative,
    3 = + third), `--check-modernization` (opt-in v7 then v6 assessment for every VM), `-OfflineCatalog` (use cached
    Microsoft evidence), `-AsOfDate`, `-SkipHtml`, `-ThrottleLimit 6`,
-   `-IncludeOperatorAccount` (record the full signed-in account; masked by default), `-KeepRawData` (write raw `data/`).
+   `-IncludeOperatorAccount` (record the full signed-in account; masked by default), `-KeepRawData` (write raw `data/`),
+   `-SaveSnapshot` (record the Azure data to `<OutputPath>/snapshot`) and `-FromSnapshot <run folder>` (re-run from a
+   snapshot with different options and no Azure calls; prefer this when the user only wants another view of a recent run).
 4. **Report back** from `executive-summary.md` (counts, waves, quota actions) and point the user to `index.html`.
    Answer drill-down questions from `vm-assessment.csv` / `assessment.json`; quote the Microsoft source URL for any
    retirement claim.
-5. **Follow-ups**: quota increases -> hand the `quota-impact.csv` rows (`Scope = Retirement` first) to the
+5. **Follow-ups**: quota increases -> hand the `quota-impact.csv` rows (`Scope = Retirement` first; `Modernization` rows
+   only for planned v6/v7 work, using the `Peak*` columns for side-by-side paths) to the
    `azure-quotas` skill. Resizes are the customer's change - provide `az vm resize` guidance only when asked and only
-   for `Ready` / `HIGH` rows, with the listed validation items.
+   for `Ready` / `HIGH` rows, with the listed validation items. Never present a v6/v7 target as guest-ready: relay the
+   `ModernizationValidationItems` (NVMe drivers, MANA, temp disk, Gen1 Trusted launch upgrade).
 
 ## Outputs (per run folder)
 
@@ -88,12 +92,13 @@ operator's account is masked (`j****@contoso.com`) unless `-IncludeOperatorAccou
 | `detailed-report.md` | Per affected/unconfirmed VM: current config, retirement evidence, primary + alternative, material differences, considerations, action, data quality |
 | `vm-assessment.csv` | One row per VM - the primary assessment table (Power BI / Excel) |
 | `candidates.csv` | One row per VM x evaluated candidate, with score breakdown and rejection reasons |
-| `quota-impact.csv` | Aggregated demand per subscription/region/family and regional vCPUs, in two scopes |
+| `quota-impact.csv` | Aggregated demand per subscription/region/family and regional vCPUs, in scopes `Retirement`, `Retirement+Modernization` and (with `--check-modernization`) `Modernization` with steady-state and peak demand |
 | `assessment.json` | Versioned structured document (schema in [output-schema.md](references/output-schema.md)) |
 | `retirement-evidence.json` | Exact Microsoft evidence used (URLs, git commit, retrieval time) + Advisor/Service Health signals |
-| `index.html` + `<subscription>-<id>.html` | Browsable report: summary cards and plain-language bottom line, waves, quota, per-VM recommendation cards, Cross-Vendor Migration Warnings, and collapsed reference sections for SKU families, CPU Vendor from SKU Name, and Known Limitations. Styling lives in `templates/report.css` |
+| `index.html` + `<subscription>-<id>.html` | Browsable report: summary cards and plain-language bottom line, waves, quota, *VMs with Retiring SKUs* (table and details, directly under Overview), optional v6/v7 modernization view, Microsoft Learn upgrade-path and SCSI to NVMe guidance, and collapsed reference sections (Cross-Vendor Migration Warnings, SKU families, CPU Vendor from SKU Name, Known Limitations). HTML VM lists include only VMs with an announced retirement date and a required action; CSV/JSON include every VM. Styling lives in `templates/report.css` |
 | `run.log` | Console transcript with a minimal header (no local user or machine name); the account is masked unless `-IncludeOperatorAccount` |
 | `data/` | Only with `-KeepRawData`: raw VM inventory and Resource SKU responses for audit |
+| `snapshot/` | Only with `-SaveSnapshot`: recorded Azure responses and `snapshot.json` manifest for `-FromSnapshot` replay (no tokens, account masked; confidential) |
 
 ## Rules the skill enforces (do not override when explaining results)
 

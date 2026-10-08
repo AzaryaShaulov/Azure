@@ -513,6 +513,192 @@ Describe 'Quota math' {
         )
         (Measure-QuotaImpact -Moves $moves -Usage $usage).FamilyRows[0].RequiredVcpu | Should -Be 16
     }
+    It 'keeps RequiredVcpu as steady-state and calculates peak side-by-side demand' {
+        $usage = @{ 's1|eastus2' = @{ 'standarddsv6family' = [pscustomobject]@{ Name = 'standardDSv6Family'; LocalName = 'DSv6'; Used = 96; Limit = 100 }; 'cores' = [pscustomobject]@{ Name = 'cores'; LocalName = 'Regional'; Used = 96; Limit = 100 } } }
+        $moves = @(
+            [pscustomobject]@{ SubscriptionId = 's1'; Region = 'eastus2'; VmId = 'gen1'; CurrentFamily = 'standardDSv6Family'; CurrentVcpu = 4; TargetSku = 'Standard_D8s_v6'; TargetFamily = 'standardDSv6Family'; TargetVcpu = 8; IsAllocated = $true; MigrationQuotaModel = 'SideBySide' }
+        )
+        $r = Measure-QuotaImpact -Moves $moves -Usage $usage -SafetyPct 20
+        $f = $r.FamilyRows[0]
+        $f.RequiredVcpu | Should -Be 4
+        $f.SteadyStateRequiredVcpu | Should -Be 4
+        $f.PeakMigrationRequiredVcpu | Should -Be 8
+        $f.MinimumIncrease | Should -Be 0
+        $f.PeakMinimumIncrease | Should -Be 4
+        $f.MigrationQuotaModel | Should -Be 'SideBySide'
+        $r.ByVm['gen1'].MigrationQuotaModel | Should -Be 'SideBySide'
+        $r.ByVm['gen1'].PeakStatus | Should -Be 'Quota Increase Required'
+    }
+    It 'reports Mixed when a quota family contains in-place and side-by-side migrations' {
+        $usage = @{ 's1|eastus2' = @{ 'standarddsv6family' = [pscustomobject]@{ Name = 'standardDSv6Family'; LocalName = 'DSv6'; Used = 0; Limit = 100 }; 'cores' = [pscustomobject]@{ Name = 'cores'; LocalName = 'Regional'; Used = 0; Limit = 100 } } }
+        $moves = @(
+            [pscustomobject]@{ SubscriptionId = 's1'; Region = 'eastus2'; VmId = 'a'; CurrentFamily = 'old'; CurrentVcpu = 4; TargetSku = 'Standard_D4s_v6'; TargetFamily = 'standardDSv6Family'; TargetVcpu = 4; IsAllocated = $true; MigrationQuotaModel = 'InPlace' }
+            [pscustomobject]@{ SubscriptionId = 's1'; Region = 'eastus2'; VmId = 'b'; CurrentFamily = 'standardDSv6Family'; CurrentVcpu = 4; TargetSku = 'Standard_D8s_v6'; TargetFamily = 'standardDSv6Family'; TargetVcpu = 8; IsAllocated = $true; MigrationQuotaModel = 'SideBySide' }
+        )
+        $r = Measure-QuotaImpact -Moves $moves -Usage $usage
+        $r.FamilyRows[0].MigrationQuotaModel | Should -Be 'Mixed'
+        $r.FamilyRows[0].SideBySideVmCount | Should -Be 1
+        $r.FamilyRows[0].PeakMigrationRequiredVcpu | Should -BeGreaterThan $r.FamilyRows[0].SteadyStateRequiredVcpu
+    }
+}
+
+Describe 'Quota scopes, shortages and aggregation' {
+    BeforeAll {
+        $script:Move = { param($Vm, $Sub = 's1', $Region = 'eastus2', $Family = 'standardDDSv5Family', $Vcpu = 4, $Model = 'InPlace', $CurrentFamily = 'standardDSv2Family')
+            [pscustomobject]@{ SubscriptionId = $Sub; Region = $Region; VmId = $Vm; CurrentFamily = $CurrentFamily; CurrentVcpu = 4; TargetSku = 'Standard_D4ds_v5'; TargetFamily = $Family; TargetVcpu = $Vcpu; IsAllocated = $true; MigrationQuotaModel = $Model } }
+        $script:Usage = { param($FamilyUsed, $FamilyLimit, $CoresUsed, $CoresLimit)
+            @{ 's1|eastus2' = @{
+                    'standardddsv5family' = [pscustomobject]@{ Name = 'standardDDSv5Family'; LocalName = 'DDSv5'; Used = $FamilyUsed; Limit = $FamilyLimit }
+                    'cores' = [pscustomobject]@{ Name = 'cores'; LocalName = 'Regional'; Used = $CoresUsed; Limit = $CoresLimit } } } }
+    }
+    It 'keeps the original QuotaRow columns in order and appends the steady/peak columns' {
+        $r = Measure-QuotaImpact -Moves @(& $Move 'a') -Usage (& $Usage 0 100 0 100) -Scope 'Retirement'
+        $names = @($r.FamilyRows[0].PSObject.Properties.Name)
+        ($names[0..17] -join ',') | Should -Be 'SubscriptionId,Region,QuotaName,QuotaDisplayName,VmCount,TargetSkus,Limit,CurrentUsage,Remaining,RequiredVcpu,RequiredVcpuAllocatedOnly,PostMigrationUsage,MinimumIncrease,RecommendedIncrease,RecommendedNewLimit,Status,DataQuality,Scope'
+        ($names[18..26] -join ',') | Should -Be 'MigrationQuotaModel,SideBySideVmCount,SteadyStateRequiredVcpu,PeakMigrationRequiredVcpu,PeakPostMigrationUsage,PeakMinimumIncrease,PeakRecommendedIncrease,PeakRecommendedNewLimit,PeakStatus'
+        $r.FamilyRows[0].Scope | Should -Be 'Retirement'
+        $r.RegionalRows[0].Scope | Should -Be 'Retirement'
+    }
+    It 'reports a regional-only shortage' {
+        $r = Measure-QuotaImpact -Moves @(& $Move 'a') -Usage (& $Usage 0 100 98 100)
+        $r.FamilyRows[0].Status | Should -Be 'Quota OK'
+        $r.ByVm['a'].Status | Should -Be 'Quota OK'
+        $side = Measure-QuotaImpact -Moves @(& $Move 'a' -Model 'SideBySide') -Usage (& $Usage 0 100 98 100)
+        $side.RegionalRows[0].Status | Should -Be 'Quota OK'
+        $side.RegionalRows[0].PeakStatus | Should -Be 'Quota Increase Required'
+        $side.RegionalRows[0].PeakMinimumIncrease | Should -Be 2
+        $side.ByVm['a'].PeakStatus | Should -Be 'Quota Increase Required'
+    }
+    It 'reports a family-only shortage' {
+        $r = Measure-QuotaImpact -Moves @(& $Move 'a') -Usage (& $Usage 98 100 0 350)
+        $r.FamilyRows[0].Status | Should -Be 'Quota Increase Required'
+        $r.RegionalRows[0].Status | Should -Be 'Quota OK'
+        $r.ByVm['a'].Status | Should -Be 'Quota Increase Required'
+    }
+    It 'flags missing quota data instead of assuming capacity' {
+        $none = Measure-QuotaImpact -Moves @(& $Move 'a') -Usage @{}
+        $none.ByVm['a'].Status | Should -Be 'Quota Information Unavailable'
+        $none.ByVm['a'].PeakStatus | Should -Be 'Quota Information Unavailable'
+        $noFamily = Measure-QuotaImpact -Moves @(& $Move 'a' -Family 'standardDSv7Family') -Usage (& $Usage 0 100 0 100)
+        $noFamily.FamilyRows[0].Status | Should -Be 'Manual Validation Required'
+        $noFamily.FamilyRows[0].PeakStatus | Should -Be 'Manual Validation Required'
+    }
+    It 'keeps subscriptions, regions and target families separate' {
+        $moves = @(
+            (& $Move 'a'), (& $Move 'b' -Family 'standardDSv6Family'), (& $Move 'c' -Region 'westus3'), (& $Move 'd' -Sub 's2')
+        )
+        $r = Measure-QuotaImpact -Moves $moves -Usage @{}
+        $r.FamilyRows.Count | Should -Be 4
+        $r.RegionalRows.Count | Should -Be 3
+        @($r.FamilyRows | Where-Object { $_.SubscriptionId -eq 's1' -and $_.Region -eq 'eastus2' }).Count | Should -Be 2
+    }
+    It 'does not double count a cross-family side-by-side move' {
+        $r = Measure-QuotaImpact -Moves @(& $Move 'a' -Model 'SideBySide' -Vcpu 8) -Usage (& $Usage 0 100 0 100)
+        $r.FamilyRows[0].SteadyStateRequiredVcpu | Should -Be 8
+        $r.FamilyRows[0].PeakMigrationRequiredVcpu | Should -Be 8
+        $r.RegionalRows[0].SteadyStateRequiredVcpu | Should -Be 4
+        $r.RegionalRows[0].PeakMigrationRequiredVcpu | Should -Be 8
+    }
+}
+
+Describe 'Retirement target vs modernization target' {
+    BeforeAll {
+        $script:StratCatalog = @{
+            'standard_d4s_v3' = $SkuCat['standard_d4s_v3']
+            'standard_d4s_v6' = $SkuCat['standard_d4s_v6']
+        }
+        $v7 = $SkuCat['standard_d4s_v6'].PSObject.Copy()
+        $v7.Name = 'Standard_D4s_v7'; $v7.Family = 'standardDSv7Family'
+        $script:StratCatalog['standard_d4s_v7'] = $v7
+    }
+    It 'keeps v5 as the retirement target and v6 as a convertible Gen1 + NVMe modernization target' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1') -CheckModernization
+        $s = $a.Strategy
+        $s.RetirementTargetSku | Should -Be 'Standard_D4ds_v5'
+        $s.RetirementTargetGeneration | Should -Be 5
+        $s.ModernizationTargetSku | Should -Be 'Standard_D4s_v6'
+        $s.ModernizationTargetSource | Should -Be 'Convertible'
+        $s.RequiresGenerationChange | Should -BeTrue
+        $s.RequiresNvmeConversion | Should -BeTrue
+        $s.ModernizationPath | Should -Be 'Gen1 + NVMe + Resize'
+        $s.Complexity | Should -Be 'High'
+        $s.MigrationQuotaModel | Should -Be 'SideBySide'
+        $s.RecommendedMigrationPath | Should -Match '^Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 \(requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion\)$'
+        ($s.ValidationItems -join ' ') | Should -Match 'Guest NVMe readiness: Validation Required'
+        ($s.ValidationItems -join ' ') | Should -Match 'Guest OS not reported'
+        $row = ConvertTo-AssessmentRow $a
+        $row.RecommendedSku | Should -Be 'Standard_D4ds_v5'
+        $row.RetirementTargetSku | Should -Be 'Standard_D4ds_v5'
+        $row.ModernizationTargetSku | Should -Be 'Standard_D4s_v6'
+    }
+    It 'models Gen2 SCSI to NVMe as an in-place conversion' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_D4s_v3') -CheckModernization
+        $a.Strategy.ModernizationPath | Should -Be 'SCSI to NVMe + Resize'
+        $a.Strategy.RequiresGenerationChange | Should -BeFalse
+        $a.Strategy.MigrationQuotaModel | Should -Be 'InPlace'
+        $a.Strategy.RecommendedMigrationPath | Should -Match 'requires SCSI to NVMe conversion'
+    }
+    It 'reports a direct v7 resize and requires MANA validation for Accelerated Networking' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_D4s_v3' -Controller 'NVMe') -Catalog $StratCatalog -CheckModernization
+        $s = $a.Strategy
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D4s_v7'
+        $s.ModernizationTargetSku | Should -Be 'Standard_D4s_v7'
+        $s.ModernizationTargetSource | Should -Be 'Selected'
+        $s.ModernizationPath | Should -Be 'Direct Resize'
+        $s.ModernizationReadiness | Should -Be 'Ready'
+        $s.MigrationQuotaModel | Should -Be 'InPlace'
+        $expectedRetirement = if ($a.AffectedByRetirement -notin 'Yes', 'Unknown') { $null } elseif ($a.Candidates.Modernization.ExistingRecommendation) { $a.Candidates.Modernization.ExistingRecommendation.SkuName } else { 'Standard_D4s_v7' }
+        $s.RetirementTargetSku | Should -Be $expectedRetirement
+        if (-not $expectedRetirement) { $s.RecommendedMigrationPath | Should -Be 'Optional modernization to Standard_D4s_v7' }
+        ($s.ValidationItems -join ' ') | Should -Match 'MANA networking: Validation Required'
+    }
+    It 'derives conversion flags from the selected target, not from FutureGeneration' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_D4s_v3' -Controller 'NVMe') -Catalog $StratCatalog -CheckModernization
+        $a.Candidates.FutureGeneration = [pscustomobject]@{ SkuName = 'Standard_D4s_v8'; Generation = 8; FailedGates = @('Disk Controller', 'VM Generation') }
+        $s = Get-TargetStrategy -Assessment $a
+        $s.RequiresNvmeConversion | Should -BeFalse
+        $s.RequiresGenerationChange | Should -BeFalse
+        $s.ModernizationPath | Should -Be 'Direct Resize'
+    }
+    It 'shows a quota-blocked modern target as a quota action, not as redeploy' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1') -CheckModernization
+        $a.Candidates.FutureGeneration = $null
+        $blocked = [pscustomobject]@{ SkuName = 'Standard_D4ds_v6'; Generation = 6; Family = 'standardDDSv6Family'; vCPUs = 4; TempDiskGB = 150; FailedGates = @() }
+        $a.Modernization | Add-Member -NotePropertyName QuotaBlockedAlternatives -NotePropertyValue @([pscustomobject]@{ Candidate = $blocked; QuotaStatus = 'Quota Increase Required' }) -Force
+        $s = Get-TargetStrategy -Assessment $a
+        $s.ModernizationTargetSource | Should -Be 'QuotaBlocked'
+        $s.ModernizationQuotaStatus | Should -Be 'Quota Increase Required'
+        $s.ModernizationReadiness | Should -Be 'Quota Increase'
+        $s.RedeployReview | Should -BeFalse
+    }
+    It 'recommends redeploy review only when the guest OS cannot use the Gen1 Trusted launch upgrade' {
+        $vm = New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $vm.OsName = 'debian 11'
+        $a = Invoke-TestAssessment -Vm $vm -CheckModernization
+        $a.Strategy.RedeployReview | Should -BeTrue
+        $a.Strategy.ModernizationPath | Should -Be 'Redeploy / Rebuild Review'
+        $a.Strategy.ModernizationReadiness | Should -Be 'Redeploy Review'
+        $a.Strategy.MigrationQuotaModel | Should -Be 'SideBySide'
+        $vm2 = New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $vm2.OsName = 'Ubuntu 22.04'
+        (Invoke-TestAssessment -Vm $vm2 -CheckModernization).Strategy.RedeployReview | Should -BeFalse
+    }
+    It 'flags unconfirmed retirement in the migration path' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
+        $a.AffectedByRetirement = 'Unknown'
+        $s = Get-TargetStrategy -Assessment $a
+        $s.RetirementUnconfirmed | Should -BeTrue
+        $s.RecommendedMigrationPath | Should -Match '^Retirement unconfirmed - validate lifecycle; Retire to Standard_D4ds_v5$'
+    }
+    It 'leaves modernization fields empty without -CheckModernization' {
+        $row = ConvertTo-AssessmentRow (Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'))
+        $row.RetirementTargetSku | Should -Be 'Standard_D4ds_v5'
+        $row.RecommendedMigrationPath | Should -Be 'Retire to Standard_D4ds_v5'
+        $row.ModernizationTargetSku | Should -BeNullOrEmpty
+        $row.ModernizationPath | Should -BeNullOrEmpty
+        $row.MigrationQuotaModel | Should -BeNullOrEmpty
+        $row.NewerGenerationIfConverted | Should -Match '^Standard_D4s_v6'
+    }
 }
 
 Describe 'Confidence, readiness, actions and waves' {
@@ -903,7 +1089,7 @@ Describe 'Per-subscription quota actions' {
         $sub1 | Should -Match 'Sub1 DDSv5 Family vCPUs'
         $sub1 | Should -Not -Match 'Sub2 DDSv5'
         $sub1 | Should -Not -Match '<th>Subscription</th>'
-        $sub1.IndexOf("<section id='quota'") | Should -BeLessThan $sub1.IndexOf("<section id='vms'")
+        $sub1.IndexOf("<section id='vms'") | Should -BeLessThan $sub1.IndexOf("<section id='quota'")
 
         $sub2 = Get-Content (Join-Path $out 'sub2-s2.html') -Raw
         $sub2 | Should -Match "<section id='quota'"

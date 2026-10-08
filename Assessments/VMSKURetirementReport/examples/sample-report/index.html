@@ -236,10 +236,152 @@ footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-i
 /* Let long size names and status badges wrap inside tables instead of forcing horizontal scroll */
 tbody td .badge { white-space: normal; text-align: center; }
 tbody td code { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
-thead th { white-space: normal; }</style></head><body>
+thead th { white-space: normal; }
+
+/* Modernization readiness experience */
+.modernization-kpis { grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); }
+.kpi-blue { border-top-color: #0078d4; } .kpi-blue .kpi-value { color: #0078d4; }
+.kpi-yellow { border-top-color: #f2a900; } .kpi-yellow .kpi-value { color: #a15c00; }
+.kpi-grey { border-top-color: #697386; } .kpi-grey .kpi-value { color: #596273; }
+
+.modernization-table { font-size: .84rem; }
+.modernization-table th, .modernization-table td { padding: 9px 10px; }
+.modernization-table td:first-child { min-width: 165px; }
+.modernization-table .path-cell { min-width: 175px; font-weight: 600; }
+.modernization-table .blocker-cell { min-width: 160px; }
+.modernization-table .target-cell { min-width: 145px; }
+.modernization-table .status-cell { min-width: 115px; }
+
+.action-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 12px; margin-top: 14px; }
+.action-group { border: 1px solid var(--border); border-radius: 8px; padding: 14px 15px; background: var(--surface-2); min-height: 132px; }
+.action-group h3 { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin: 0 0 8px; font-size: .94rem; }
+.action-group ul { margin: 0; padding-left: 1.15rem; color: var(--text-2); font-size: .88rem; }
+.action-group li { margin: 4px 0; }
+.action-group .count { display: inline-grid; place-items: center; min-width: 28px; height: 24px; padding: 0 7px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+.action-green { border-top: 3px solid #107c10; background: linear-gradient(180deg, var(--green-bg), var(--surface)); }
+.action-green .count { background: var(--green-bg); color: var(--green-fg); }
+.action-yellow { border-top: 3px solid #e0a100; background: linear-gradient(180deg, var(--yellow-bg), var(--surface)); }
+.action-yellow .count { background: var(--yellow-bg); color: var(--yellow-fg); }
+.action-orange { border-top: 3px solid #d83b01; background: linear-gradient(180deg, var(--orange-bg), var(--surface)); }
+.action-orange .count { background: var(--orange-bg); color: var(--orange-fg); }
+.action-red { border-top: 3px solid #d13438; background: linear-gradient(180deg, var(--red-bg), var(--surface)); }
+.action-red .count { background: var(--red-bg); color: var(--red-fg); }
+.action-purple { border-top: 3px solid #8764b8; background: linear-gradient(180deg, var(--purple-bg), var(--surface)); }
+.action-purple .count { background: var(--purple-bg); color: var(--purple-fg); }
+.action-grey { border-top: 3px solid #697386; background: linear-gradient(180deg, var(--grey-bg), var(--surface)); }
+.action-grey .count { background: var(--grey-bg); color: var(--grey-fg); }
+
+.modernization-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-top: 16px; }
+.modernization-panel { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.modernization-panel > h3 { margin: 0; padding: 13px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: .98rem; }
+.modernization-panel-body { padding: 14px 16px; }
+.modernization-panel-body p:first-child { margin-top: 0; }
+.modernization-panel-body p:last-child { margin-bottom: 0; }
+
+.guidance-list { display: grid; gap: 8px; }
+.guidance-item { border: 1px solid var(--border); border-radius: 7px; padding: 12px 14px; background: var(--surface-2); }
+.guidance-item strong { display: block; margin-bottom: 3px; color: var(--text); }
+.guidance-item span { color: var(--text-2); font-size: .88rem; }
+.guidance-item code { white-space: normal; }
+
+.migration-paths { display: grid; gap: 9px; }
+.migration-path { display: grid; grid-template-columns: minmax(145px, .9fr) 1fr auto 1fr; gap: 8px; align-items: center; border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; background: var(--surface-2); font-size: .88rem; }
+.migration-path-name { font-weight: 700; color: var(--accent-2); }
+.migration-node { padding: 6px 8px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); text-align: center; }
+.migration-arrow { color: var(--muted); font-size: 1.1rem; font-weight: 700; }
+
+.quota-impact-table .steady, .quota-impact-table .peak { font-weight: 700; }
+.quota-impact-table .peak { color: var(--purple-fg); }
+.quota-impact-table .quota-model { min-width: 130px; }
+.quota-impact-note { margin-top: 10px; padding: 10px 12px; border-radius: 7px; background: var(--purple-bg); color: var(--text-2); font-size: .86rem; }
+
+.inline-meta { display: flex; flex-wrap: wrap; gap: 5px 8px; align-items: center; }
+.modernization-subheading { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; margin: 1.25rem 0 .55rem; }
+.modernization-subheading h3 { margin: 0; }
+.modernization-subheading .note { margin: 0; }
+
+@media (max-width: 980px) {
+  .modernization-table { min-width: 1120px; }
+  .migration-path { grid-template-columns: 1fr; }
+  .migration-arrow { transform: rotate(90deg); justify-self: center; }
+}
+
+@media (max-width: 760px) {
+  .action-groups, .modernization-panels { grid-template-columns: 1fr; }
+  .modernization-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media print {
+  .action-groups { grid-template-columns: repeat(3, 1fr); }
+  .modernization-panels { grid-template-columns: repeat(2, 1fr); }
+  .action-group, .modernization-panel, .guidance-item, .migration-path { break-inside: avoid; }
+}
+
+/* Modernization per-VM expandable detail rows */
+.modernization-summary-row td { border-bottom: 0; }
+.modernization-detail-row > td { padding: 0 10px 10px; background: var(--surface-2); border-top: 0; }
+.modernization-vm-detail { border: 1px solid var(--border); border-radius: 7px; background: var(--surface); overflow: hidden; }
+.modernization-vm-detail > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; padding: 9px 12px; font-size: .82rem; font-weight: 700; color: var(--primary); background: var(--surface-2); list-style: none; }
+.modernization-vm-detail > summary::-webkit-details-marker { display: none; }
+.modernization-vm-detail > summary::before { content: '+'; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); margin-right: 7px; flex: 0 0 auto; }
+.modernization-vm-detail[open] > summary::before { content: '−'; }
+.modernization-vm-detail > summary span:first-child { margin-right: auto; }
+.detail-summary-meta { color: var(--text-muted); font-weight: 500; font-size: .78rem; text-align: right; }
+.modernization-vm-detail-body { padding: 14px; }
+.vm-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.vm-detail-card, .vm-detail-wide { border: 1px solid var(--border); border-radius: 7px; background: var(--surface); padding: 12px 14px; }
+.vm-detail-wide { margin-top: 12px; }
+.vm-detail-card h4, .vm-detail-wide h4 { margin: 0 0 9px; font-size: .92rem; }
+.vm-detail-card h5 { margin: 12px 0 6px; font-size: .82rem; }
+.vm-detail-card ul, .vm-detail-card ol, .vm-detail-wide ul { margin: 6px 0 0; padding-left: 20px; }
+.vm-detail-card li, .vm-detail-wide li { margin: 4px 0; }
+.compact-facts { grid-template-columns: minmax(120px, .8fr) minmax(160px, 1.2fr); margin: 0; }
+.compact-facts dt, .compact-facts dd { padding: 5px 0; }
+.validation-grid { columns: 2; column-gap: 30px; }
+.validation-grid li { break-inside: avoid; }
+.detail-table { font-size: .8rem; }
+.detail-table th, .detail-table td { padding: 7px 8px; }
+@media (max-width: 900px) {
+  .vm-detail-grid { grid-template-columns: 1fr; }
+  .validation-grid { columns: 1; }
+  .detail-summary-meta { display: none; }
+}
+@media print {
+  .modernization-vm-detail > summary { color: var(--text); }
+  .modernization-vm-detail:not([open]) .modernization-vm-detail-body { display: block; }
+}
+
+/* Retirement target vs strategic modernization target */
+.target-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: .82rem;
+}
+.target-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.target-legend strong { color: var(--text); }
+.modernization-table .retirement-target-cell { min-width: 150px; background: rgba(245, 158, 11, .035); }
+.modernization-table .modernization-target-cell { min-width: 165px; background: rgba(37, 99, 235, .035); }
+.modernization-table .path-cell { min-width: 235px; }
+.modernization-table .path-primary { font-weight: 700; color: var(--text); }
+.modernization-table .recommended-sequence { margin-top: 4px; line-height: 1.35; max-width: 360px; }
+.target-strategy-card { grid-column: span 1; }
+.target-strategy-card dd { overflow-wrap: anywhere; }
+
+@media (max-width: 1050px) {
+  .modernization-table { min-width: 1380px; }
+  .target-legend { display: grid; grid-template-columns: 1fr; }
+}
+</style></head><body>
 <header class="hero"><div class="wrap">
 <div class="app-bar">
-<div class="brand-lockup"><span class="brand-mark" aria-hidden="true">&#9729;</span><span><strong>VMSKURetirementReport</strong><small>Assessment report v1.0.0</small></span></div>
+<div class="brand-lockup"><span class="brand-mark" aria-hidden="true">&#9729;</span><span><strong>VMSKURetirementReport</strong><small>Assessment report v1.1.0</small></span></div>
 <span class="brand-divider" aria-hidden="true"></span>
 <span class="report-context">VMSKURetirementReport</span>
 <span class="mode-pill">Read-only</span>
@@ -251,22 +393,30 @@ thead th { white-space: normal; }</style></head><body>
 <div class="chips"><span class='chip'>Tenant <strong>Contoso (Sample)</strong></span><span class='chip'>As of <strong>2026-10-05</strong></span><span class='chip'>Evidence <strong>Cached (2026-10-06 00:44 UTC)</strong></span><span class='chip'>Read-only</span></div>
 </div>
 </div></header>
-<nav class='toc'><div class='wrap'><a href='#summary'>Summary</a><a href='#waves'>Waves</a><a href='#quota'>Quota</a><a href='#subscriptions'>Subscriptions</a><a href='#evidence'>Evidence</a><a href='#cross-vendor'>Cross-vendor</a><a href='#sku-families'>SKU families</a><a href='#cpu-vendor'>CPU from name</a><a href='#limitations'>Limitations</a></div></nav>
+<nav class='toc'><div class='wrap'><a href='#summary'>Summary</a><a href='#waves'>Waves</a><a href='#quota'>Quota</a><a href='#subscriptions'>Subscriptions</a><a href='#evidence'>Evidence</a><a href='#upgrade-guidance'>Upgrade guidance</a><a href='#cross-vendor'>Cross-vendor</a><a href='#sku-families'>SKU families</a><a href='#cpu-vendor'>CPU from name</a><a href='#limitations'>Limitations</a></div></nav>
 <main class="wrap">
 <div class="callout disclaimer"><strong>Unofficial planning report.</strong> Built from read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.</div>
 <section id='summary' class='card'><h2>Summary</h2><div class='kpis'><div class='kpi kpi-neutral'><div class='kpi-label'>VMs assessed</div><div class='kpi-value'>7</div><div class='kpi-hint'>1 subscription(s)</div></div><div class='kpi kpi-orange'><div class='kpi-label'>On retiring sizes</div><div class='kpi-value'>6</div><div class='kpi-hint'>Microsoft-confirmed</div></div><div class='kpi kpi-red'><div class='kpi-label'>Already retired</div><div class='kpi-value'>1</div></div><div class='kpi kpi-neutral'><div class='kpi-label'>Retire &lt; 12 months</div><div class='kpi-value'>0</div></div><div class='kpi kpi-orange'><div class='kpi-label'>Retire in 1-3 years</div><div class='kpi-value'>3</div></div><div class='kpi kpi-purple'><div class='kpi-label'>Optional modernization</div><div class='kpi-value'>0</div><div class='kpi-hint'>Older, not retiring</div></div><div class='kpi kpi-orange'><div class='kpi-label'>Need quota increase</div><div class='kpi-value'>4</div></div><div class='kpi kpi-green'><div class='kpi-label'>High-confidence moves</div><div class='kpi-value'>0</div></div></div><div class='bottom-line'><h3>Bottom line</h3><ul><li><strong>6 of 7 VMs</strong> run on VM sizes that Microsoft has retired or scheduled for retirement. The earliest retirement date is <strong>2025-09-30</strong> (Standard_NC6s_v3).</li><li><strong>1 VM(s)</strong> are on sizes that are already retired and need immediate attention.</li><li>4 recommended move(s) need a vCPU quota increase first (see Quota actions).</li></ul></div></section>
 <div class='callout warn'><strong>Evidence warning:</strong> Offline mode requested.</div><div class='callout info'><strong>Microsoft lifecycle entries that are not VM sizes:</strong> Dsv3-Type1, Dsv3-Type2, Esv3-Type1, Esv3-Type2 (ADH, Retired 2023-06-30). They are not matched to VMs; validate them separately (for example, Dedicated Host SKUs).</div>
-<section id='waves' class='card'><h2>Migration Waves</h2><p class='lead'>Waves 1&ndash;3 contain only VMs with a Microsoft retirement date. Wave 4 is optional modernization of older generations and is never mixed with required migrations.</p><div class='table-wrap'><table><thead><tr><th>Wave</th><th>Current size</th><th>Microsoft status</th><th>Retirement date</th><th class='num'>VMs</th><th>Recommended size</th></tr></thead><tbody><tr><td><span class='badge b-red'>Wave 1 - Urgent</span></td><td><code>Standard_<wbr>NC6s_v3</code></td><td><span class='badge b-red'>Already Retired</span></td><td class='nowrap'>2025-09-30</td><td class='num'>1</td><td>No recommendation</td></tr>
+<section id='waves' class='card'><h2>Migration Waves</h2><p class='lead'>Only VMs on sizes with an announced Microsoft retirement date and a required action are listed. Optional modernization and unconfirmed sizes are in <code>vm-assessment.csv</code> and <code>assessment.json</code>.</p><div class='table-wrap'><table><thead><tr><th>Wave</th><th>Current size</th><th>Microsoft status</th><th>Retirement date</th><th class='num'>VMs</th><th>Recommended size</th></tr></thead><tbody><tr><td><span class='badge b-red'>Wave 1 - Urgent</span></td><td><code>Standard_<wbr>NC6s_v3</code></td><td><span class='badge b-red'>Already Retired</span></td><td class='nowrap'>2025-09-30</td><td class='num'>1</td><td>No recommendation</td></tr>
 <tr><td><span class='badge b-orange'>Wave 2 - Near Term</span></td><td><code>Standard_<wbr>DS3_v2</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2028-05-01</td><td class='num'>2</td><td>Standard_D4ds_v5 &times;2</td></tr>
 <tr><td><span class='badge b-yellow'>Wave 3 - Planned</span></td><td><code>Standard_<wbr>B2ms</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2028-11-15</td><td class='num'>1</td><td>Standard_B2s_v2</td></tr>
 <tr><td><span class='badge b-grey'>Beyond Horizon</span></td><td><code>Standard_<wbr>D4s_v3</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2029-11-15</td><td class='num'>2</td><td>Standard_D4ds_v5 &times;2</td></tr></tbody></table></div></section>
-<section id='quota' class='card'><h2>Quota Actions</h2><p class='lead'>Demand is added up for all VMs moving into the same subscription, region and VM family. Minimum increase = current usage + needed &minus; limit; the recommended request adds a safety margin.</p><div class='table-wrap'><table class='quota-table'><thead><tr><th>Scope</th><th>Subscription</th><th>Region</th><th>Quota</th><th class='num quota-usage'>Used / limit</th><th class='num'>Needed</th><th class='num'>Min. increase</th><th class='num'>Recommended request</th><th>Status</th></tr></thead><tbody><tr><td>Retirement</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>standardbsv2family</td><td class='num quota-usage'><span class='muted'>&ndash;</span></td><td class='num'>2</td><td class='num'><strong></strong></td><td class='num'></td><td><span class='badge b-grey'>Manual Validation Required</span></td></tr>
+<section id='quota' class='card'><h2>Quota Actions</h2><p class='lead'>Demand is added up for all VMs moving into the same subscription, region and VM family. Minimum increase = current usage + needed &minus; limit; the recommended request adds a safety margin.</p><div class='table-wrap'><table class='quota-table'><thead><tr><th>Scope</th><th>Subscription</th><th>Region</th><th>Quota</th><th class='num quota-usage'>Used / limit</th><th class='num'>Needed</th><th class='num'>Min. increase</th><th class='num'>Recommended request</th><th>Status</th></tr></thead><tbody><tr><td>Retirement</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>standardbsv2family</td><td class='num quota-usage'><span class='muted'>&ndash;</span></td><td class='num'>2</td><td class='num'><strong></strong></td><td class='num'></td><td><span class='badge b-yellow'>Manual Validation Required</span></td></tr>
 <tr><td>Retirement</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>Standard DDSv5 Family vCPUs</td><td class='num quota-usage'>95 / 100</td><td class='num'>16</td><td class='num'><strong>11</strong></td><td class='num'>15</td><td><span class='badge b-orange'>Quota Increase Required</span></td></tr>
-<tr><td>Retirement+Modernization</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>standardbsv2family</td><td class='num quota-usage'><span class='muted'>&ndash;</span></td><td class='num'>2</td><td class='num'><strong></strong></td><td class='num'></td><td><span class='badge b-grey'>Manual Validation Required</span></td></tr>
-<tr><td>Retirement+Modernization</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>Standard DDSv5 Family vCPUs</td><td class='num quota-usage'>95 / 100</td><td class='num'>16</td><td class='num'><strong>11</strong></td><td class='num'>15</td><td><span class='badge b-orange'>Quota Increase Required</span></td></tr></tbody></table></div><p class='note'><em>Retirement</em> scope covers required migrations only; <em>Retirement+Modernization</em> also includes optional Wave 4 moves.</p></section>
+<tr><td>Retirement+Modernization</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>standardbsv2family</td><td class='num quota-usage'><span class='muted'>&ndash;</span></td><td class='num'>2</td><td class='num'><strong></strong></td><td class='num'></td><td><span class='badge b-yellow'>Manual Validation Required</span></td></tr>
+<tr><td>Retirement+Modernization</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>Standard DDSv5 Family vCPUs</td><td class='num quota-usage'>95 / 100</td><td class='num'>16</td><td class='num'><strong>11</strong></td><td class='num'>15</td><td><span class='badge b-orange'>Quota Increase Required</span></td></tr>
+<tr><td>Modernization</td><td class='sub'>11111111-1111-1111-1111-111111111111</td><td>eastus2</td><td>standarddsv6family</td><td class='num quota-usage'><span class='muted'>&ndash;</span></td><td class='num'>20</td><td class='num'><strong></strong></td><td class='num'></td><td><span class='badge b-yellow'>Manual Validation Required</span></td></tr></tbody></table></div><p class='note'><em>Retirement</em> scope covers required migrations to their retirement target; <em>Retirement+Modernization</em> also includes optional Wave 4 moves; <em>Modernization</em> (only with <code>--check-modernization</code>) covers the strategic v6/v7 targets.</p></section>
 <section id='subscriptions' class='card'><h2>Subscriptions</h2><div class='table-wrap'><table><thead><tr><th>Subscription</th><th class='num'>VMs</th><th class='num'>On retiring sizes</th><th class='num'>Wave 1</th><th class='num'>Modernization</th><th class='num'>Quota increase</th></tr></thead><tbody><tr><td><a class='strong' href='contoso-prod-11111111.html'>contoso-prod</a><div class='sub'>11111111-1111-1111-1111-111111111111</div></td><td class='num'>7</td><td class='num'><span class='badge b-orange'>6</span></td><td class='num'><span class='badge b-red'>1</span></td><td class='num'>0</td><td class='num'><span class='badge b-orange'>4</span></td></tr></tbody></table></div><p class='note'>Only subscriptions that contain VMs are listed. Select a subscription for per-VM details.</p></section>
 <section id='evidence' class='card'><h2>Microsoft Retirement Evidence</h2><p class='lead'>Retirement status comes only from these Microsoft sources. Older sizes without an announced retirement are reported as optional modernization, never as retired.</p><ul class='links'><li><a href='https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions' target='_blank'>VM size series retirements, capacity growth restrictions, and modernization guidance</a> <span class='muted'>&middot; updated 09/27/2026 11:03:00 &middot; retrieved 10/06/2026 00:44:07</span></li><li><a href='https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list' target='_blank'>End of Life Azure VM size series</a> <span class='muted'>&middot; updated 09/26/2026 06:04:00 &middot; retrieved 10/06/2026 00:44:07</span></li><li><a href='https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide' target='_blank'>Retired VM sizes modernization guide</a> <span class='muted'>&middot; updated 09/26/2026 06:04:00 &middot; retrieved 10/06/2026 00:44:07</span></li></ul></section>
-<section id='cross-vendor' class='card'><h2>Cross-Vendor Migration Warnings</h2><p class='lead'>Moving between Intel and AMD is usually transparent to the operating system, but some workloads need validation first.</p><div class="grid-2">
+<section id='upgrade-guidance' class='card'><h2>Upgrade Path and SCSI to NVMe Guidance</h2><p class='lead'>Microsoft Learn documentation for moving retiring VMs to a current size, including SCSI to NVMe conversion and Gen1 to Gen2 (Trusted launch).</p><ol class='upgrade-steps'>
+<li><strong>Confirm the retirement</strong> and the Microsoft-recommended target series for each retiring size.</li>
+<li><strong>Check prerequisites</strong>: Gen1 VMs need the Trusted launch upgrade before a Gen2-only size; SCSI VMs need NVMe conversion before an NVMe-only size (validate guest OS support first).</li>
+<li><strong>Request quota</strong> for the target family and regional vCPUs (see Quota Actions).</li>
+<li><strong>Resize in a change window</strong>, then validate disks, networking (MANA), temp-disk usage and application health.</li>
+</ol>
+<div class='grid-2'><div class='callout info'><h3>Retirement</h3><ul class='links'><li><a href='https://learn.microsoft.com/azure/virtual-machines/sizes/retirement/retired-sizes-list' target='_blank'>VM size series retirements and modernization guidance</a></li><li><a href='https://learn.microsoft.com/azure/virtual-machines/migration/sizes/d-ds-dv2-dsv2-ls-series-migration-guide' target='_blank'>Retired VM sizes modernization guide</a></li><li><a href='https://learn.microsoft.com/azure/virtual-machines/sizes/overview' target='_blank'>Virtual machine sizes overview</a></li></ul></div><div class='callout info'><h3>Resize</h3><ul class='links'><li><a href='https://learn.microsoft.com/azure/virtual-machines/sizes/resize-vm' target='_blank'>Resize a virtual machine</a></li></ul></div><div class='callout info'><h3>SCSI to NVMe</h3><ul class='links'><li><a href='https://learn.microsoft.com/azure/virtual-machines/nvme-overview' target='_blank'>NVMe overview</a></li><li><a href='https://learn.microsoft.com/azure/virtual-machines/nvme-linux' target='_blank'>Convert SCSI to NVMe for Linux and Windows VMs</a></li><li><a href='https://learn.microsoft.com/azure/virtual-machines/migration/scsi-to-nvme-migration' target='_blank'>Convert a VM from SCSI to NVMe in place</a></li><li><a href='https://learn.microsoft.com/azure/virtual-machines/enable-nvme-interface' target='_blank'>NVMe supported OS images</a></li><li><a href='https://learn.microsoft.com/azure/virtual-machines/enable-nvme-faqs' target='_blank'>NVMe general FAQ</a></li></ul></div><div class='callout info'><h3>Gen1 to Gen2</h3><ul class='links'><li><a href='https://learn.microsoft.com/azure/virtual-machines/trusted-launch-existing-vm-gen-1' target='_blank'>Upgrade Gen1 VMs to Trusted launch</a></li><li><a href='https://learn.microsoft.com/azure/virtual-machines/generation-2' target='_blank'>Azure support for Generation 2 VMs</a></li></ul></div><div class='callout info'><h3>Networking and temp disk</h3><ul class='links'><li><a href='https://learn.microsoft.com/azure/virtual-network/accelerated-networking-mana-overview' target='_blank'>Microsoft Azure Network Adapter (MANA) overview</a></li><li><a href='https://learn.microsoft.com/azure/virtual-machines/azure-vms-no-temp-disk' target='_blank'>FAQ: Azure VM sizes with no local temporary disk</a></li></ul></div></div></section>
+<details id='cross-vendor' class='card collapsible-section'><summary><span class='section-heading' role='heading' aria-level='2'>Cross-Vendor Migration Warnings</span><span class='section-intro'>Moving between Intel and AMD is usually transparent to the operating system, but some workloads need validation first.</span></summary><div class='section-body'><div class="grid-2">
 <div class="callout warn"><h3>Sensitive to a CPU vendor change (Intel &harr; AMD)</h3><ul>
 <li><strong>Licensing:</strong> per-core or per-socket licensed software (for example Oracle, some SAP components) may be priced or certified per processor family.</li>
 <li><strong>Instruction sets:</strong> applications compiled for specific extensions (AVX-512, AMX, or vendor-optimised math libraries) must be confirmed on the target processor.</li>
@@ -288,7 +438,7 @@ thead th { white-space: normal; }</style></head><body>
 <li>x64 &rarr; Arm64 (Azure Cobalt / Ampere) requires recompiled applications and ARM-compatible OS images. It is never recommended automatically.</li>
 <li><strong>Test after any resize:</strong> run the workload for 24&ndash;48 hours and watch CPU patterns and application performance.</li>
 </ul></div>
-</div></section>
+</div></div></details>
 <details id='sku-families' class='card collapsible-section'><summary><span class='section-heading' role='heading' aria-level='2'>SKU Family Quick Reference</span><span class='section-intro'>The first letter of a VM size is its family. Replacements stay in the same family unless Microsoft's migration guide names another one.</span></summary><div class='section-body'><div class="table-wrap"><table class="ref"><thead><tr><th>Family</th><th>Workload fit</th><th>Memory ratio</th><th>Latest generation by CPU vendor</th></tr></thead><tbody>
 <tr><td class='fam'>B</td><td>Burstable: dev/test, small web servers, low average CPU</td><td class='nowrap'>Varies</td><td><strong>Intel</strong> Bsv2 &middot; <strong>AMD</strong> Basv2 &middot; <strong>ARM</strong> Bpsv2</td></tr>
 <tr><td class='fam'>D</td><td>General purpose: balanced CPU and memory, most business apps</td><td class='nowrap'>~4 GiB / vCPU</td><td><strong>Intel</strong> Dsv7, Ddsv7, Dlsv7 &middot; <strong>AMD</strong> Dasv7, Dadsv7, Dalsv7 &middot; <strong>ARM</strong> Dpsv6, Dpdsv6, Dplsv6</td></tr>
@@ -326,5 +476,5 @@ thead th { white-space: normal; }</style></head><body>
 <tr><td><strong>VM Scale Sets (Uniform)</strong></td><td><span class='badge b-yellow'>Excluded</span></td><td>Only VM resources are inventoried; scale-set models share quota but are assessed separately.</td></tr>
 <tr><td><strong>Reserved Instances / Savings Plans</strong></td><td><span class='badge b-yellow'>Not assessed</span></td><td>Requires billing access; check RI exchange options before resizing reserved VMs.</td></tr></tbody></table></div></div></details>
 </main>
-<footer><div class="wrap"><span class="footer-status"><span aria-hidden="true"></span>Report generated successfully</span><span>VMSKURetirementReport v1.0.0 &middot; read-only assessment &middot; VMSKURetirementReport - Contoso (Sample)</span></div></footer>
+<footer><div class="wrap"><span class="footer-status"><span aria-hidden="true"></span>Report generated successfully</span><span>VMSKURetirementReport v1.1.0 &middot; read-only assessment &middot; VMSKURetirementReport - Contoso (Sample)</span></div></footer>
 </body></html>

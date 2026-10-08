@@ -186,8 +186,9 @@ no announced retirement, pass the mandatory workload gates, and pass the existin
 - Nested virtualization (Unknown)
 
 **Newer generation if converted:** if the best newer-generation same-vendor size is blocked *only* by the Hyper-V
-generation or disk-controller gates, it is reported as `NewerGenerationIfConverted`. Gen1 -> Gen2 and SCSI -> NVMe
-conversions are possible but are not in-place resizes.
+generation or disk-controller gates, it is reported as `NewerGenerationIfConverted`. It is never a directly
+deployable resize. With `--check-modernization` it can become the **convertible modernization target** (section 7),
+with the required Gen1 and/or SCSI -> NVMe path. Guest readiness is never assumed from control-plane data.
 
 ## 6. Selection
 
@@ -214,7 +215,99 @@ Modernization status is finalized after quota evaluation: `Modernize to v7`, `Mo
 or `Architecture mismatch`. A deployable v6 candidate is selected ahead of a quota-blocked v7 candidate; the v7 size
 remains visible as the quota-blocked alternative.
 
-## 7. Quota
+## 7. Retirement target vs modernization target
+
+The report separates the **lifecycle remediation decision** from the **strategic modernization decision**. They can be
+the same SKU, but they are modeled independently. All values come from one function, `Get-TargetStrategy`
+(`Assessment.psm1`); the CSV, JSON and HTML outputs only render it.
+
+| Field | Meaning |
+|---|---|
+| `RetirementTargetSku` | Supported replacement that remediates a retiring/retired (`Yes`) or unconfirmed (`Unknown`) SKU. May be v5. |
+| `ModernizationTargetSku` | Strategic v6/v7 destination. Only with `--check-modernization`. |
+| `RecommendedMigrationPath` | Sequence connecting the current SKU, the retirement target and the modernization target. |
+
+**Retirement target.** `Candidates.Modernization.ExistingRecommendation` when modernization ran (it preserves the
+original recommendation even when quota resolution promotes a v6/v7 size into `Candidates.Primary`), otherwise
+`Candidates.Primary`.
+
+**Modernization target** (first match, `--check-modernization` only):
+
+1. `Selected` - the modernization candidate chosen by the quota-aware v7 -> v6 selection.
+2. `Primary` - the primary recommendation when it is already v6/v7.
+3. `QuotaBlocked` - the newest v6/v7 option rejected only by aggregate quota (shown as a quota action, never as redeploy).
+4. `Convertible` - `NewerGenerationIfConverted`: a v6/v7 size blocked *only* by the Hyper-V generation and/or disk
+   controller gates.
+
+Conversion flags (`RequiresGenerationChange`, `RequiresNvmeConversion`) come from the **selected target's** failed gates,
+so a VM with a directly deployable v6 is never labelled as needing NVMe conversion because a blocked v7 exists.
+
+**Migration path text:**
+
+- not affected and already v6/v7: `No retirement move required; already on modern generation`;
+- retirement target older than the modernization target: `Retire to <v5> -> modernize to <v6/v7>` plus the required
+  conversion, e.g. `(requires SCSI to NVMe conversion)`;
+- retirement target newer or equal but a different SKU: `Retire to <X>; alternative modern target <Y>`;
+- same SKU: `Move directly to <X>`;
+- no modernization target: `Retire to <X>; no validated v6/v7 target` (or `Retire to <X>` without the flag);
+- unconfirmed lifecycle: prefixed with `Retirement unconfirmed - validate lifecycle;`;
+- not affected with a modernization target: `Optional modernization to <X>`.
+
+### Modernization path classification
+
+| Path | Meaning |
+|---|---|
+| `Already Modern` | Current SKU is v6/v7. |
+| `Direct Resize` | The target passed every mandatory gate; an in-place resize is possible. |
+| `SCSI to NVMe + Resize` | The target is NVMe-only; convert the disk controller (in place), then resize. |
+| `Gen1 Modernization + Resize` | The target is Gen2-only; Microsoft supports Gen1 -> Gen2 only through the [Trusted launch upgrade](https://learn.microsoft.com/azure/virtual-machines/trusted-launch-existing-vm-gen-1). |
+| `Gen1 + NVMe + Resize` | Both conversions are required. |
+| `Redeploy / Rebuild Review` | Gen1 conversion is required **and** the reported guest OS or image is not supported by the Trusted launch upgrade (Windows Server 2016, Debian, Azure Linux / CBL-Mariner). Deploy a Gen2 VM and migrate the workload. |
+| `No Validated Modern Target` | No v6/v7 size passed the workload gates or is available; see `ModernizationStatus` and the candidate table. |
+
+Redeploy is only recommended on evidence (unsupported guest OS); a missing target is reported as manual review.
+
+### Modernization complexity and readiness
+
+`ModernizationComplexity`:
+
+- **None** - already modern; **Unknown** - no modernization target.
+- **Low** - direct resize with no material prerequisite.
+- **Medium** - exactly one material prerequisite: SCSI -> NVMe conversion, a modernization quota increase, or removal
+  of a temp disk the current size has.
+- **High** - Gen1 -> Gen2, redeploy, or two or more material prerequisites.
+
+`ModernizationReadiness`, first match: `Current` (already modern), `Manual Review` (no target), `Redeploy Review`,
+`Quota Increase` (modernization quota insufficient or the target is quota-blocked), `Convertible` (Gen1 and/or NVMe
+conversion), `Manual Review` (modernization quota not verifiable, or the target is the primary and its readiness is
+SKU Restricted, Regional Limitation or Manual Review Required), otherwise `Ready`.
+
+Complexity and readiness are sequencing aids, not guarantees of change-window duration or application impact.
+
+### Data classes
+
+| Class | Examples |
+|---|---|
+| Authoritative assessment data | Microsoft lifecycle evidence, Resource SKU capabilities, availability and restrictions, quota usage and limits, inventory |
+| Derived assessment data | Gate results, retirement and modernization targets, conversion flags, migration path, complexity, readiness |
+| Planning estimates | Steady-state and peak quota demand, `MigrationQuotaModel`, recommended quota increases |
+| Guest validation requirements | `ModernizationValidationItems` and `ValidationItems` - never assumed from control-plane data |
+
+### Guest and workload validation
+
+The assessment is control-plane only. These are reported as **Validation Required** / **Unknown** items, never as ready:
+
+- **Guest NVMe readiness** when the target is NVMe-only: Azure controller support does not prove the guest has NVMe
+  drivers or discovers its disks over NVMe.
+- **Gen1 -> Gen2**: supported OS and size for the Trusted launch upgrade, MBR -> GPT conversion, boot and rollback
+  (also flags when the guest OS is not reported).
+- **MANA networking** when the source uses Accelerated Networking and the target is v6/v7: Accelerated Networking on the
+  source does not prove guest MANA driver support.
+- **Temporary disk dependency** (`Unknown / workload validation required`) when the current size has a temp disk and
+  the target has none, or presents local storage as NVMe. The SKU having temp storage does not show whether the
+  workload depends on it.
+- Physical regional capacity.
+## 8. Quota
 
 `az vm list-usage` is read per subscription/region. The target family is matched through the SKU's `family` field,
 e.g. `standardDDSv5Family`.
@@ -227,9 +320,15 @@ e.g. `standardDDSv5Family`.
   - Minimum increase = max(0, usage + required - limit).
   - Recommended increase = ceil(minimum + required x `QuotaSafetyPct`%).
   - Worked example: 100 limit, 92 used, 16 required -> +8 minimum, +12 recommended.
-- **Two scopes:**
-  - `Retirement`: mandatory migrations only. Used for affected VMs.
-  - `Retirement+Modernization`: also includes Wave 4 moves. Used for modernization VMs.
+- **Scopes:**
+  - `Retirement`: retirement-affected and unconfirmed VMs moving to their **retirement target**. Used for
+    `RetirementQuotaStatus`.
+  - `Retirement+Modernization`: every VM with an action moving to `Candidates.Primary` (retirement plus optional Wave 4
+    moves). Used for the `QuotaStatus` of non-affected VMs.
+  - `Modernization` (`--check-modernization` only): every VM with a strategic v6/v7 target, with steady-state and peak
+    demand. Used for `ModernizationQuotaStatus` / `ModernizationPeakQuotaStatus`.
+  - `QuotaStatus`, `DeploymentReadiness` and `NextStep` always describe `Candidates.Primary`; affected VMs are aggregated
+    with the other mandatory moves only, so optional work never inflates mandatory quota.
 - **Status values:**
   - Quota OK
   - Quota Increase Required
@@ -238,7 +337,31 @@ e.g. `standardDDSv5Family`.
 
 Quota OK does **not** mean physical capacity exists (see readiness).
 
-## 8. Readiness, confidence, actions, waves
+### Steady-state vs peak migration planning
+
+Every quota row carries steady-state and peak values. `RequiredVcpu`, `MinimumIncrease`, `RecommendedIncrease`,
+`RecommendedNewLimit` and `Status` remain the steady-state values; the original columns keep their order and the new
+columns are appended.
+
+`MigrationQuotaModel` per move:
+
+- `InPlace` - resizes and SCSI -> NVMe conversions (Microsoft's conversion deallocates and resizes the same VM).
+  Peak = steady state.
+- `SideBySide` - Gen1 -> Gen2 (Trusted launch upgrade) and redeploy paths, modeled conservatively as if a target VM
+  coexists with the source. Family peak: + target vCPU for a same-family move (the source keeps its usage), otherwise =
+  steady. Regional peak: + target vCPU.
+- A quota row is `Mixed` when it contains both.
+
+`Peak*` = the steady-state formulas applied to the peak demand. Side-by-side is only used in the `Modernization` scope;
+`Retirement` and `Retirement+Modernization` model in-place resizes. Retirement (e.g. Dsv5) and modernization (e.g. Dsv7)
+demand are computed in separate scopes and never merged.
+
+The HTML modernization section renders the `Modernization` rows of `quota-impact.csv` and each VM's own steady/peak
+contribution; it does not recalculate quota.
+
+Peak quota is a **planning estimate**, not proof of deployable physical capacity. Validate the final migration method,
+target-family quota, regional vCPU quota and Azure capacity before execution.
+## 9. Readiness, confidence, actions, waves
 
 **Deployment readiness**, first match wins:
 
@@ -308,7 +431,28 @@ excluded from the confidence count because no control-plane signal exists.
 `-MaxCandidates` limits the recommendations per VM: `1` = primary only, `2` = primary + alternative, `3` (default) =
 primary + alternative + third.
 
-## 9. Rightsizing (optional)
+### Modernization report presentation
+
+The HTML report lists only VMs affected by a Microsoft retirement announcement with a published retirement date and a
+required action (tenant *Migration Waves*, subscription *VMs with Retiring SKUs* and its details, and the modernization
+table). Optional modernization, unconfirmed and current-generation VMs remain in `vm-assessment.csv`, `assessment.json`
+and the Markdown reports. Each page links the Microsoft Learn upgrade path, SCSI to NVMe conversion and Gen1 to
+Trusted launch guidance.
+
+With `--check-modernization`, each subscription page adds a **v6/v7 Modernization Readiness** section for those VMs;
+all other sections are unchanged. It renders `Get-TargetStrategy` and the `Modernization` quota rows:
+
+- KPIs: direct resize ready, NVMe conversion, Gen1 modernization, quota increase, redeploy/rebuild review, manual review,
+  already v6/v7;
+- a table of VMs that are not already modern: current SKU, retirement target, modernization target, path, complexity,
+  key blocker, modernization quota and readiness, each with an expandable detail row (current configuration, targets,
+  blockers, remediation, the VM's steady/peak quota contribution, validation checklist, gates, differences,
+  alternatives);
+- action groups (direct resize, SCSI -> NVMe, Gen1, redeploy, quota, manual review);
+- steady-state vs peak quota from the `Modernization` scope;
+- guidance shown only when a VM in the subscription has the matching condition or validation item;
+- migration-path examples taken from assessed VMs.
+## 10. Rightsizing (optional)
 
 With `-IncludeRightsizing`, hourly `Percentage CPU` and `Available Memory Bytes` metrics are read over the lookback
 window through the Azure Monitor batch API (50 VMs per call). This applies only to running VMs that have an action.
@@ -322,7 +466,7 @@ A VM is flagged *Potential Rightsizing Opportunity* when:
 A half-size in the primary series is suggested. The result is reported in separate columns and **never** changes the
 primary recommendation.
 
-## 10. Pricing (optional)
+## 11. Pricing (optional)
 
 With `-IncludePricing`, prices come from the Retail Prices API: pay-as-you-go hourly x 730, by OS, in USD.
 

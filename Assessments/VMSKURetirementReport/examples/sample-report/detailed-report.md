@@ -1,10 +1,93 @@
-# Detailed VM Reports - Retirement-Affected and Unconfirmed VMs
+# Detailed VM Reports - Retirement and Modernization Assessment
 
 > UNOFFICIAL ASSESSMENT - FOR PLANNING PURPOSES ONLY. Generated with read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.
 
-Tenant: **Contoso (Sample)** (`22222222-2222-2222-2222-222222222222`) | As of: **2026-10-05** | Tool: VMSKURetirementReport v1.0.0
+Tenant: **Contoso (Sample)** (`22222222-2222-2222-2222-222222222222`) | As of: **2026-10-05** | Tool: VMSKURetirementReport v1.1.0
 
 ## Subscription: contoso-prod
+
+### VM: vm-d4sv5
+
+- **Subscription:** contoso-prod (`11111111-1111-1111-1111-111111111111`)
+- **Resource Group:** rg-app
+- **Region:** eastus2
+
+**CURRENT CONFIGURATION**
+
+| Attribute | Value |
+|---|---|
+| Current SKU | Standard\_D4s\_v5 |
+| Current SKU Generation | v5 |
+| VM Family | standardDSv5Family |
+| CPU Vendor | Intel (Verified) |
+| CPU Architecture | x64 |
+| Processors | Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids) |
+| vCPU | 4 |
+| Memory (GB) | 16 |
+| Premium Storage (in use) | Yes |
+| Accelerated Networking (in use) | Yes |
+| Temp Disk | None |
+| Data Disks | 0 |
+| Disk SKUs | Premium\_LRS |
+| NIC Count | 1 |
+| Availability Zone | None (regional deployment) |
+| Hyper-V Generation | V2 |
+| Disk Controller | SCSI (default, not reported) |
+| Security Type | Standard |
+| Power State | Running |
+
+**RETIREMENT**
+
+| Attribute | Value |
+|---|---|
+| Retirement Status | No Retirement Announced |
+| Retirement Date | Unknown |
+| Months Remaining | Unknown |
+| Microsoft Series | Unknown |
+| Microsoft Retirement Source | - |
+| Announcement | Unknown |
+| Migration Guide | - |
+| Evidence Classification | No Retirement Announced |
+| Data Quality | Verified |
+
+**MODERNIZATION ASSESSMENT**
+
+| Attribute | Value |
+|---|---|
+| Status | No suitable modern SKU found |
+| Recommended SKU | Unknown |
+| Recommended SKU Generation | Unknown |
+| Regional Availability | Not Available |
+| Quota Status | Manual Validation Required |
+| Reason | No same-vendor v6/v7 size passed all workload requirements: Standard\_D4s\_v6: Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support) |
+
+**PRIMARY RECOMMENDATION**
+
+_No primary recommendation: All candidates fail mandatory requirements: Standard_D4s_v6 [Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support)]_
+
+**MIGRATION CONSIDERATIONS**
+
+- Low confidence: No valid replacement candidate
+- Low confidence: Quota could not be validated
+- Nested virtualization / temp-disk usage / physical capacity: Unable to Verify from Azure control plane
+
+**RECOMMENDED ACTION**
+
+No Action Required. Next step: Manual Review Required.
+
+**DATA QUALITY**
+
+- RetirementDate: Verified (no date)
+- CpuVendor: Verified
+- CpuArchitecture: Verified
+- CurrentSkuCapabilities: Verified
+- RegionalAvailability: Partially Verified
+- Quota: Unable to Verify
+- PhysicalCapacity: Unable to Verify
+- NestedVirtualization: Unable to Verify
+- TempDiskUsage: Unable to Verify
+
+---
 
 ### VM: vm-nc6
 
@@ -51,6 +134,17 @@ Tenant: **Contoso (Sample)** (`22222222-2222-2222-2222-222222222222`) | As of: *
 | Data Quality | Partially Verified |
 
 > Note: Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC).
+
+**MODERNIZATION ASSESSMENT**
+
+| Attribute | Value |
+|---|---|
+| Status | SKU unavailable in region |
+| Recommended SKU | Unknown |
+| Recommended SKU Generation | Unknown |
+| Regional Availability | Not Available |
+| Quota Status | Manual Validation Required |
+| Reason | No suitable v6/v7 NC-series size is available to this subscription in eastus2. |
 
 **PRIMARY RECOMMENDATION**
 
@@ -128,6 +222,17 @@ Immediate Migration Required. Next step: Manual Review Required.
 | Data Quality | Partially Verified |
 
 > Note: Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC).
+
+**MODERNIZATION ASSESSMENT**
+
+| Attribute | Value |
+|---|---|
+| Status | No suitable modern SKU found |
+| Recommended SKU | Standard\_D4ds\_v5 |
+| Recommended SKU Generation | v5 |
+| Regional Availability | Available |
+| Quota Status | Quota Increase Required |
+| Reason | No same-vendor v6/v7 size passed all workload requirements: Standard\_D4s\_v6: VM Generation: VM is V1; target supports V2 only - in-place resize not possible (Gen1-\>Gen2 conversion or rebuild required) \| Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support) Retaining existing recommendation Standard\_D4ds\_v5. |
 
 **PRIMARY RECOMMENDATION**
 
@@ -251,6 +356,17 @@ Migration Required Within 24 Months. Next step: Request Quota Increase. Resize S
 
 > Note: Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC).
 
+**MODERNIZATION ASSESSMENT**
+
+| Attribute | Value |
+|---|---|
+| Status | No suitable modern SKU found |
+| Recommended SKU | Standard\_D4ds\_v5 |
+| Recommended SKU Generation | v5 |
+| Regional Availability | Available |
+| Quota Status | Quota Increase Required |
+| Reason | No same-vendor v6/v7 size passed all workload requirements: Standard\_D4s\_v6: VM Generation: VM is V1; target supports V2 only - in-place resize not possible (Gen1-\>Gen2 conversion or rebuild required) \| Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support) Retaining existing recommendation Standard\_D4ds\_v5. |
+
 **PRIMARY RECOMMENDATION**
 
 | Attribute | Value |
@@ -372,6 +488,17 @@ Migration Required Within 24 Months. Next step: Request Quota Increase. Resize S
 | Data Quality | Partially Verified |
 
 > Note: Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC).
+
+**MODERNIZATION ASSESSMENT**
+
+| Attribute | Value |
+|---|---|
+| Status | SKU unavailable in region |
+| Recommended SKU | Standard\_B2s\_v2 |
+| Recommended SKU Generation | v2 |
+| Regional Availability | Available |
+| Quota Status | Manual Validation Required |
+| Reason | No suitable v6/v7 B-series size is available to this subscription in eastus2. Retaining existing recommendation Standard\_B2s\_v2. |
 
 **PRIMARY RECOMMENDATION**
 
@@ -495,6 +622,17 @@ Migration Required Within 36 Months. Next step: Manual Review Required. Resize S
 
 > Note: Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC).
 
+**MODERNIZATION ASSESSMENT**
+
+| Attribute | Value |
+|---|---|
+| Status | No suitable modern SKU found |
+| Recommended SKU | Standard\_D4ds\_v5 |
+| Recommended SKU Generation | v5 |
+| Regional Availability | Available |
+| Quota Status | Quota Increase Required |
+| Reason | No same-vendor v6/v7 size passed all workload requirements: Standard\_D4s\_v6: Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support) Retaining existing recommendation Standard\_D4ds\_v5. |
+
 **PRIMARY RECOMMENDATION**
 
 | Attribute | Value |
@@ -616,6 +754,17 @@ Plan Migration. Next step: Request Quota Increase. Resize Standard_D4s_v3 -> Sta
 > Note: Planned retirement date listed on Microsoft Learn without a linked Azure Updates announcement.
 
 > Note: Retirement evidence from cached catalog: Cached (2026-10-06 00:44 UTC).
+
+**MODERNIZATION ASSESSMENT**
+
+| Attribute | Value |
+|---|---|
+| Status | No suitable modern SKU found |
+| Recommended SKU | Standard\_D4ds\_v5 |
+| Recommended SKU Generation | v5 |
+| Regional Availability | Available |
+| Quota Status | Quota Increase Required |
+| Reason | No same-vendor v6/v7 size passed all workload requirements: Standard\_D4s\_v6: VM Generation: VM is V1; target supports V2 only - in-place resize not possible (Gen1-\>Gen2 conversion or rebuild required) \| Disk Controller: VM uses SCSI; target supports NVMe only - controller conversion required (validate OS NVMe driver support) Retaining existing recommendation Standard\_D4ds\_v5. |
 
 **PRIMARY RECOMMENDATION**
 

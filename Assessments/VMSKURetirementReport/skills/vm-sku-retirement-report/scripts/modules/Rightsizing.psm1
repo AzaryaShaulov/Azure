@@ -36,8 +36,8 @@ function Get-VmUtilization {
             $body = @{ resourceids = @($batch) } | ConvertTo-Json -Depth 3
             $resp = $null
             for ($a = 1; $a -le 3 -and -not $resp; $a++) {
-                try { $resp = Invoke-RestMethod -Method Post -Uri $uri -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body -TimeoutSec 120 }
-                catch { Write-Verbose "Metrics batch failed ($a): $($_.Exception.Message)"; Start-Sleep -Seconds (3 * $a) }
+                try { $resp = Invoke-SnapshotRest -Request "POST metrics $sub $region lookback=$LookbackDays $($batch -join ',')" -Live { Invoke-RestMethod -Method Post -Uri $uri -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body -TimeoutSec 120 } }
+                catch { Write-Verbose "Metrics batch failed ($a): $($_.Exception.Message)"; if ((Get-SnapshotMode) -eq 'Replay') { break }; Start-Sleep -Seconds (3 * $a) }
             }
             if (-not $resp) { continue }
             foreach ($v in @($resp.values)) {

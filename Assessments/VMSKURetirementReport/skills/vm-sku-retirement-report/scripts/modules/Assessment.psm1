@@ -118,6 +118,7 @@ function New-VmAssessment {
         AffectedByRetirement = $affected
         Quota = $null; QuotaStatus = $null; Readiness = $null; Confidence = $null; Action = $null; NextStep = $null; Wave = $null
         SecondaryReason = $null; Rightsizing = $null; Pricing = $null; DataQuality = $null; ValidationItems = @()
+        RetirementQuota = $null; ModernizationQuota = $null; Strategy = $null
     }
 }
 
@@ -235,9 +236,16 @@ function Complete-VmAssessment {
     <#
     .SYNOPSIS
         Second pass: applies aggregated quota results and derives readiness, confidence, action, next step and wave.
+    .PARAMETER QuotaResult
+        Quota result for Candidates.Primary; drives QuotaStatus, Readiness and NextStep.
+    .PARAMETER RetirementQuotaResult
+        Quota result for the retirement target (Retirement scope).
+    .PARAMETER ModernizationQuotaResult
+        Quota result for the strategic v6/v7 target (Modernization scope, with steady-state and peak demand).
     #>
-    param([Parameter(Mandatory)]$Assessment, $QuotaResult, [hashtable]$Usage, [ValidateRange(12, 120)][int]$HorizonMonths = 36)
+    param([Parameter(Mandatory)]$Assessment, $QuotaResult, $RetirementQuotaResult, $ModernizationQuotaResult, [hashtable]$Usage, [ValidateRange(12, 120)][int]$HorizonMonths = 36)
     $a = $Assessment; $vm = $a.Vm; $c = $a.Candidates
+    $a.RetirementQuota = $RetirementQuotaResult; $a.ModernizationQuota = $ModernizationQuotaResult
     $primary = if ($c) { $c.Primary } else { $null }
     $secondary = if ($c) { $c.Secondary } else { $null }
 
@@ -312,7 +320,173 @@ function Complete-VmAssessment {
         NestedVirtualization  = 'Unable to Verify'
         TempDiskUsage         = 'Unable to Verify'
     }
+    $a.Strategy = Get-TargetStrategy -Assessment $a
     return $a
+}
+
+$script:Gen1UpgradeUnsupportedOs = '(?i)(windows ?server[^0-9]*2016|/2016-|\bdebian\b|cbl-?mariner|azure[ -]?linux)'
+
+function Get-ModernizationTargetInfo {
+    <#
+    .SYNOPSIS
+        Strategic v6/v7 target of one assessment and the conversion work it implies. Independent of quota results, so
+        it can build the Modernization quota scope and the final target strategy. Returns $null target unless
+        -CheckModernization was used.
+    #>
+    param([Parameter(Mandatory)]$Assessment)
+    $a = $Assessment; $c = $a.Candidates; $m = $a.Modernization
+    $enabled = [bool]($m -and $m.Enabled)
+    $alreadyModern = [bool]($m -and $m.Status -eq 'Already on modern generation')
+    $target = $null; $source = $null
+    if ($enabled -and -not $alreadyModern -and $c) {
+        $blocked = @(if ($m.PSObject.Properties.Name -contains 'QuotaBlockedAlternatives') { $m.QuotaBlockedAlternatives | Where-Object { $_ -and $_.Candidate } })
+        if ($m.Candidate) { $target = $m.Candidate; $source = 'Selected' }
+        elseif ($c.Primary -and $c.Primary.Generation -ge 6) { $target = $c.Primary; $source = 'Primary' }
+        elseif ($blocked.Count -gt 0) { $target = $blocked[0].Candidate; $source = 'QuotaBlocked' }
+        elseif ($c.FutureGeneration -and $c.FutureGeneration.Generation -ge 6) { $target = $c.FutureGeneration; $source = 'Convertible' }
+    }
+    # Conversion flags come from the selected target only; a target that passed its gates needs no conversion.
+    $failed = @(if ($target -and $source -eq 'Convertible') { $target.FailedGates })
+    $requiresGen = $failed -contains 'VM Generation'
+    $requiresNvme = $failed -contains 'Disk Controller'
+    $osEvidence = (@($a.Vm.OsName, $a.Vm.OsVersion, $a.Vm.ImageReference) | Where-Object { $_ }) -join ' '
+    $redeploy = $false; $redeployReason = $null
+    if ($requiresGen -and $osEvidence -match $script:Gen1UpgradeUnsupportedOs) {
+        $redeploy = $true
+        $redeployReason = "Gen1 to Trusted launch upgrade is not supported for this guest OS ($osEvidence); deploy a Gen2 VM and migrate the workload"
+    }
+    [pscustomobject]@{
+        Enabled = $enabled; AlreadyModern = $alreadyModern; Target = $target; Source = $source
+        RequiresGenerationChange = $requiresGen; RequiresNvmeConversion = $requiresNvme
+        RedeployReview = $redeploy; RedeployReason = $redeployReason; GuestOsReported = [bool]$osEvidence
+        MigrationQuotaModel = if (-not $target) { $null } elseif ($requiresGen -or $redeploy) { 'SideBySide' } else { 'InPlace' }
+    }
+}
+
+function Get-TargetStrategy {
+    <#
+    .SYNOPSIS
+        Single source of truth for the retirement target, the strategic modernization target, the migration path,
+        complexity, modernization readiness and modernization validation items. Output only renders this object.
+    #>
+    param([Parameter(Mandatory)]$Assessment)
+    $a = $Assessment; $c = $a.Candidates
+    $p = if ($c) { $c.Primary } else { $null }
+    $info = Get-ModernizationTargetInfo -Assessment $a
+    $retirementScope = $a.AffectedByRetirement -in 'Yes', 'Unknown'
+
+    $retTarget = $null
+    if ($retirementScope -and $c) {
+        $retTarget = if ($c.Modernization -and $c.Modernization.ExistingRecommendation) { $c.Modernization.ExistingRecommendation } else { $p }
+    }
+    $retQuota = if (-not $retTarget) { if ($retirementScope -and $c) { 'Manual Validation Required' } else { $null } }
+    elseif ($a.RetirementQuota) { $a.RetirementQuota.Status }
+    elseif ($p -and $retTarget.SkuName -eq $p.SkuName) { $a.QuotaStatus }
+    else { 'Quota Information Unavailable' }
+
+    $t = $info.Target
+    $modernSku = if ($t) { $t.SkuName } elseif ($info.AlreadyModern) { $a.Vm.SkuName } else { $null }
+    $modernGen = if ($t) { $t.Generation } elseif ($info.AlreadyModern) { $a.Current.NameInfo.Version } else { $null }
+    $modernQuota = $null; $modernPeak = $null
+    if ($t) {
+        if ($a.ModernizationQuota) { $modernQuota = $a.ModernizationQuota.Status; $modernPeak = $a.ModernizationQuota.PeakStatus }
+        elseif ($p -and $t.SkuName -eq $p.SkuName) { $modernQuota = $a.QuotaStatus; $modernPeak = $a.QuotaStatus }
+        else { $modernQuota = 'Quota Information Unavailable'; $modernPeak = 'Quota Information Unavailable' }
+        if ($info.Source -eq 'QuotaBlocked' -and $modernQuota -ne 'Quota Increase Required') { $modernQuota = 'Quota Increase Required' }
+    }
+
+    $items = New-Object System.Collections.Generic.List[string]
+    if ($t) {
+        if ($info.RequiresNvmeConversion) { $items.Add("Guest NVMe readiness: Validation Required - $($t.SkuName) supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).") }
+        if ($info.RequiresGenerationChange) {
+            $osNote = if ($info.GuestOsReported) { '' } else { ' Guest OS not reported by Azure; confirm it.' }
+            $items.Add("Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback.$osNote")
+        }
+        if ($info.RedeployReview) { $items.Add("Redeploy: Validation Required - $($info.RedeployReason).") }
+        if ($a.Vm.AcceleratedNetworking -and $t.Generation -ge 6) { $items.Add("MANA networking: Validation Required - $($t.SkuName) uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).") }
+        $targetNoTemp = $null -ne $t.TempDiskGB -and $t.TempDiskGB -eq 0
+        if ($a.Current.HasTempDisk -and $targetNoTemp) { $items.Add("Temporary disk: Unknown / workload validation required - current size has a $($a.Current.TempDiskGB) GB temp disk and $($t.SkuName) has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).") }
+        elseif ($a.Current.HasTempDisk -and $t.Generation -ge 6) { $items.Add("Temporary disk: Unknown / workload validation required - $($t.SkuName) may present local temp storage as NVMe; validate drive letters, mount points, pagefile and scripts that use the temp drive.") }
+    }
+
+    $quotaIncrease = $modernQuota -eq 'Quota Increase Required'
+    $tempRemoved = $t -and $a.Current.HasTempDisk -and $null -ne $t.TempDiskGB -and $t.TempDiskGB -eq 0
+    $prereqs = @(@($info.RequiresNvmeConversion, $quotaIncrease, [bool]$tempRemoved) | Where-Object { $_ })
+
+    $path = if (-not $info.Enabled) { $null }
+    elseif ($info.AlreadyModern) { 'Already Modern' }
+    elseif (-not $t) { 'No Validated Modern Target' }
+    elseif ($info.RedeployReview) { 'Redeploy / Rebuild Review' }
+    elseif ($info.RequiresGenerationChange -and $info.RequiresNvmeConversion) { 'Gen1 + NVMe + Resize' }
+    elseif ($info.RequiresGenerationChange) { 'Gen1 Modernization + Resize' }
+    elseif ($info.RequiresNvmeConversion) { 'SCSI to NVMe + Resize' }
+    else { 'Direct Resize' }
+
+    $complexity = if (-not $info.Enabled) { $null }
+    elseif ($info.AlreadyModern) { 'None' }
+    elseif (-not $t) { 'Unknown' }
+    elseif ($info.RedeployReview -or $info.RequiresGenerationChange -or @($prereqs).Count -ge 2) { 'High' }
+    elseif (@($prereqs).Count -eq 1) { 'Medium' }
+    else { 'Low' }
+
+    $status = if (-not $info.Enabled) { $null }
+    elseif ($info.AlreadyModern) { 'Current' }
+    elseif (-not $t) { 'Manual Review' }
+    elseif ($info.RedeployReview) { 'Redeploy Review' }
+    elseif ($quotaIncrease) { 'Quota Increase' }
+    elseif ($info.RequiresGenerationChange -or $info.RequiresNvmeConversion) { 'Convertible' }
+    elseif ($modernQuota -in 'Quota Information Unavailable', 'Manual Validation Required') { 'Manual Review' }
+    elseif ($p -and $t.SkuName -eq $p.SkuName -and $a.Readiness -in 'SKU Restricted', 'Regional Limitation', 'Manual Review Required') { 'Manual Review' }
+    else { 'Ready' }
+
+    $retSku = if ($retTarget) { $retTarget.SkuName } else { $null }
+    $conversion = if ($info.RedeployReview) { ' (redeploy review required)' }
+    elseif ($info.RequiresGenerationChange -and $info.RequiresNvmeConversion) { ' (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)' }
+    elseif ($info.RequiresGenerationChange) { ' (requires Gen1 to Trusted launch upgrade)' }
+    elseif ($info.RequiresNvmeConversion) { ' (requires SCSI to NVMe conversion)' }
+    else { '' }
+    $prefix = if ($a.AffectedByRetirement -eq 'Unknown') { 'Retirement unconfirmed - validate lifecycle; ' } else { '' }
+    $migrationPath = if ($info.AlreadyModern -and -not $retirementScope) { 'No retirement move required; already on modern generation' }
+    elseif ($retirementScope -and $retSku) {
+        if ($t -and $modernSku -ne $retSku) {
+            if ($retTarget.Generation -lt $modernGen) { "${prefix}Retire to $retSku -> modernize to $modernSku$conversion" }
+            else { "${prefix}Retire to $retSku; alternative modern target $modernSku$conversion" }
+        }
+        elseif ($t) { "${prefix}Move directly to $modernSku" }
+        elseif ($info.Enabled) { "${prefix}Retire to $retSku; no validated v6/v7 target" }
+        else { "${prefix}Retire to $retSku" }
+    }
+    elseif ($retirementScope -and $c) { "${prefix}No validated retirement target - manual review" }
+    elseif ($t) { "Optional modernization to $modernSku$conversion" }
+    elseif ($p -and $a.Action -and $a.Action -ne 'No Action Required') { "Optional move to $($p.SkuName)" }
+    else { $null }
+
+    [pscustomobject]@{
+        RetirementRequired = $a.AffectedByRetirement -eq 'Yes'
+        RetirementUnconfirmed = $a.AffectedByRetirement -eq 'Unknown'
+        RetirementTarget = $retTarget
+        RetirementTargetSku = $retSku
+        RetirementTargetGeneration = if ($retTarget) { $retTarget.Generation } else { $null }
+        RetirementQuotaStatus = $retQuota
+        ModernizationEnabled = $info.Enabled
+        AlreadyModern = $info.AlreadyModern
+        ModernizationTarget = $t
+        ModernizationTargetSku = if ($info.Enabled) { $modernSku } else { $null }
+        ModernizationTargetGeneration = if ($info.Enabled) { $modernGen } else { $null }
+        ModernizationTargetSource = $info.Source
+        RequiresGenerationChange = $info.RequiresGenerationChange
+        RequiresNvmeConversion = $info.RequiresNvmeConversion
+        RedeployReview = $info.RedeployReview
+        RedeployReason = $info.RedeployReason
+        MigrationQuotaModel = $info.MigrationQuotaModel
+        ModernizationQuotaStatus = $modernQuota
+        ModernizationPeakQuotaStatus = $modernPeak
+        ModernizationPath = $path
+        Complexity = $complexity
+        ModernizationReadiness = $status
+        ValidationItems = $items.ToArray()
+        RecommendedMigrationPath = $migrationPath
+    }
 }
 
 function Get-TimeRemainingText {
@@ -330,6 +504,7 @@ function ConvertTo-AssessmentRow {
     $t = if ($A.Candidates) { $A.Candidates.Third } else { $null }
     $f = if ($A.Candidates) { $A.Candidates.FutureGeneration } else { $null }
     $modern = $A.Modernization
+    $st = if ($A.Strategy) { $A.Strategy } else { Get-TargetStrategy -Assessment $A }
     $recommendedSku = if ($p) { $p.SkuName } elseif ($modern -and $modern.Status -eq 'Already on modern generation') { $vm.SkuName } else { $null }
     $recommendedGeneration = if ($p) { $p.Generation } elseif ($modern -and $modern.Status -eq 'Already on modern generation') { $A.Current.NameInfo.Version } else { $null }
     $diffs = if ($p -and $p.Differences) { (@($p.Differences | Where-Object { $_.Assessment -in 'Changed', 'Reduced', 'Improved' }) | ForEach-Object { "$($_.Attribute): $($_.Current) -> $($_.Target)" }) -join '; ' } else { '' }
@@ -406,6 +581,20 @@ function ConvertTo-AssessmentRow {
         DQ_Quota                = $A.DataQuality.Quota
         DQ_PhysicalCapacity     = $A.DataQuality.PhysicalCapacity
         LifecycleNotes          = ($A.Lifecycle.Notes -join ' | ')
+        RetirementTargetSku     = $st.RetirementTargetSku
+        RetirementTargetGeneration = $st.RetirementTargetGeneration
+        RetirementQuotaStatus   = $st.RetirementQuotaStatus
+        ModernizationTargetSku  = $st.ModernizationTargetSku
+        ModernizationTargetGeneration = $st.ModernizationTargetGeneration
+        ModernizationTargetSource = $st.ModernizationTargetSource
+        ModernizationPath       = $st.ModernizationPath
+        ModernizationComplexity = $st.Complexity
+        ModernizationReadiness  = $st.ModernizationReadiness
+        ModernizationQuotaStatus = $st.ModernizationQuotaStatus
+        ModernizationPeakQuotaStatus = $st.ModernizationPeakQuotaStatus
+        MigrationQuotaModel     = $st.MigrationQuotaModel
+        RecommendedMigrationPath = $st.RecommendedMigrationPath
+        ModernizationValidationItems = (@($st.ValidationItems) -join ' | ')
     }
 }
 
@@ -457,4 +646,4 @@ function New-AssessmentSummary {
     }
 }
 
-Export-ModuleMember -Function Test-NeedsCandidates, New-VmAssessment, Update-VmAction, Complete-VmAssessment, Resolve-ModernizationQuotaChoices, Get-TimeRemainingText, ConvertTo-AssessmentRow, New-AssessmentSummary
+Export-ModuleMember -Function Test-NeedsCandidates, New-VmAssessment, Update-VmAction, Complete-VmAssessment, Resolve-ModernizationQuotaChoices, Get-ModernizationTargetInfo, Get-TargetStrategy, Get-TimeRemainingText, ConvertTo-AssessmentRow, New-AssessmentSummary

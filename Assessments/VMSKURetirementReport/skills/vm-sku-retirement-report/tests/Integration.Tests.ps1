@@ -1,7 +1,8 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 <#
     End-to-end run of Invoke-VMSKURetirementReport.ps1 against a mock Azure CLI (tests/mock/az.ps1).
-    Exercises inventory joins, subscription-scoped SKU catalogs, aggregated quota, two quota scopes and all outputs.
+    Exercises inventory joins, subscription-scoped SKU catalogs, aggregated quota, the Retirement / Retirement+Modernization /
+    Modernization quota scopes and all outputs.
 #>
 BeforeAll {
     $script:Root = Split-Path $PSScriptRoot -Parent
@@ -77,6 +78,43 @@ Describe 'End-to-end assessment (mock Azure)' {
         $sub | Should -Not -BeNullOrEmpty
         (Get-Content $sub.FullName -Raw) | Should -Match 'Tenant summary'
     }
+    It 'lists only VMs with an announced retirement date and a required action in the HTML, under Overview' {
+        $html = Get-Content (Get-ChildItem $Out -Filter 'contoso-prod-*.html').FullName -Raw
+        $html | Should -Match '<h2>VMs with Retiring SKUs</h2>'
+        $html | Should -Match '<h2>VMs with Retiring SKUs details</h2>'
+        $html | Should -Not -Match 'VM Assessment</h2>|Recommendations in Detail'
+        $html.IndexOf("id='overview'") | Should -BeLessThan $html.IndexOf("id='vms'")
+        $html.IndexOf("id='vms'") | Should -BeLessThan $html.IndexOf("id='details'")
+        $html.IndexOf("id='details'") | Should -BeLessThan $html.IndexOf("id='quota'")
+        $retiring = @($Rows | Where-Object { $_.AffectedByRetirement -eq 'Yes' -and $_.RetirementDate -and $_.Action -ne 'No Action Required' })
+        $excluded = @($Rows | Where-Object { $_.VM -notin $retiring.VM })
+        $retiring.Count | Should -BeGreaterThan 0
+        $excluded.Count | Should -BeGreaterThan 0
+        foreach ($r in $retiring) { $html | Should -Match ">$([regex]::Escape($r.VM))<" }
+        foreach ($r in $excluded) { $html | Should -Not -Match ">$([regex]::Escape($r.VM))<" }
+        $Rows.Count | Should -Be 7
+    }
+    It 'collapses the cross-vendor section and links Microsoft Learn upgrade and SCSI to NVMe guidance' {
+        foreach ($page in @(Get-ChildItem $Out -Filter '*.html')) {
+            $html = Get-Content $page.FullName -Raw
+            $html | Should -Match "<details id='cross-vendor'"
+            $html | Should -Match "id='upgrade-guidance'"
+            $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/nvme-linux'
+            $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/migration/scsi-to-nvme-migration'
+            $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/trusted-launch-existing-vm-gen-1'
+        }
+    }
+    It 'keeps modernization outputs empty without --check-modernization' {
+        $q = @(Import-Csv (Join-Path $Out 'quota-impact.csv'))
+        @($q | Where-Object Scope -eq 'Modernization').Count | Should -Be 0
+        @($q | Where-Object Scope -eq 'Retirement+Modernization').Count | Should -BeGreaterThan 0
+        @($Rows | Where-Object { $_.ModernizationTargetSku -or $_.ModernizationPath -or $_.MigrationQuotaModel }).Count | Should -Be 0
+        $ByVm['vm-ds3v2'].RetirementTargetSku | Should -Be 'Standard_D4ds_v5'
+        $ByVm['vm-ds3v2'].RecommendedMigrationPath | Should -Be 'Retire to Standard_D4ds_v5'
+        $ByVm['vm-ds3v2'].NewerGenerationIfConverted | Should -Match '^Standard_D4s_v6'
+        $sub = Get-ChildItem $Out -Filter 'contoso-prod-*.html'
+        (Get-Content $sub.FullName -Raw) | Should -Not -Match "id='modernization'"
+    }
 }
 
 Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
@@ -102,8 +140,87 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $row.RecommendationReason | Should -Not -BeNullOrEmpty
         (Get-Content (Join-Path $ModernOut 'detailed-report.md') -Raw) | Should -Match 'VM: vm-d4sv5'
     }
+
+    It 'separates the retirement target from the strategic modernization target' {
+        $row = $ModernRows | Where-Object VM -eq 'vm-ds3v2'
+        $row.RetirementTargetSku | Should -Be 'Standard_D4ds_v5'
+        $row.ModernizationTargetSku | Should -Be 'Standard_D4s_v6'
+        $row.ModernizationTargetSource | Should -Be 'Convertible'
+        $row.ModernizationPath | Should -Be 'Gen1 + NVMe + Resize'
+        $row.MigrationQuotaModel | Should -Be 'SideBySide'
+        $row.RecommendedMigrationPath | Should -Match 'Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6'
+        $row.ModernizationValidationItems | Should -Match 'Guest NVMe readiness: Validation Required'
+        $nvme = $ModernRows | Where-Object VM -eq 'vm-d4sv3'
+        $nvme.ModernizationPath | Should -Be 'SCSI to NVMe + Resize'
+        $nvme.MigrationQuotaModel | Should -Be 'InPlace'
+    }
+
+    It 'adds a Modernization quota scope with steady-state and peak demand without changing the other scopes' {
+        $q = @(Import-Csv (Join-Path $ModernOut 'quota-impact.csv'))
+        $retirement = $q | Where-Object { $_.Scope -eq 'Retirement' -and $_.QuotaName -eq 'standardddsv5family' }
+        [int]$retirement.RequiredVcpu | Should -Be 16
+        $modernRegional = $q | Where-Object { $_.Scope -eq 'Modernization' -and $_.QuotaName -eq 'cores' }
+        $modernRegional | Should -Not -BeNullOrEmpty
+        [int]$modernRegional.PeakMigrationRequiredVcpu | Should -BeGreaterThan ([int]$modernRegional.SteadyStateRequiredVcpu)
+        $modernRegional.MigrationQuotaModel | Should -Be 'Mixed'
+        @($ModernRows | Where-Object { $_.ModernizationTargetSku -and -not $_.ModernizationQuotaStatus }).Count | Should -Be 0
+    }
+
+    It 'renders the modernization section from backend quota rows' {
+        $html = Get-Content (Get-ChildItem $ModernOut -Filter 'contoso-prod-*.html').FullName -Raw
+        $html | Should -Match "id='modernization'"
+        $html | Should -Match "class='quota-table quota-impact-table'"
+        $html | Should -Match 'Total Regional vCPUs'
+        $html | Should -Match 'Upgrade Gen1 VMs to Trusted launch'
+        $html | Should -Not -Match '<script'
+    }
 }
 
+Describe 'Snapshot capture and replay (mock Azure)' {
+    BeforeAll {
+        $mockDir = Join-Path $PSScriptRoot 'mock'
+        $script:Script = Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1'
+        $script:Capture = Join-Path $TestDrive 'capture'
+        $script:CaptureLog = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$Script' -SaveSnapshot -OutputPath '$Capture' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+        # Replay runs with no Azure CLI on PATH at all, proving that no Azure call is made.
+        $script:NoAz = { param([string]$ArgText)
+            $cmd = "`$env:PATH = ((`$env:PATH -split [regex]::Escape([string][System.IO.Path]::PathSeparator)) | Where-Object { `$_ -and -not (Test-Path (Join-Path `$_ 'az.cmd')) -and -not (Test-Path (Join-Path `$_ 'az.ps1')) -and -not (Test-Path (Join-Path `$_ 'az')) }) -join [System.IO.Path]::PathSeparator; if (Get-Command az -ErrorAction SilentlyContinue) { throw 'az still on PATH' }; & '$Script' $ArgText"
+            & pwsh -NoProfile -Command $cmd 2>&1 | Out-String }
+        $script:Replay = Join-Path $TestDrive 'replay'
+        $script:ReplayLog = & $NoAz "-FromSnapshot '$Capture' --check-modernization -OutputPath '$Replay' -OfflineCatalog -ThrottleLimit 2"
+    }
+    It 'records a complete snapshot without tokens or the unmasked account' {
+        $CaptureLog | Should -Match 'Snapshot: '
+        $manifest = Get-Content (Join-Path $Capture 'snapshot/snapshot.json') -Raw | ConvertFrom-Json
+        $manifest.TenantId | Should -Be '22222222-2222-2222-2222-222222222222'
+        $manifest.Vms | Should -Be 7
+        $text = (Get-ChildItem (Join-Path $Capture 'snapshot') -Recurse -File | ForEach-Object { Get-Content $_.FullName -Raw }) -join "`n"
+        $text | Should -Not -Match 'admin@contoso\.example'
+        $text | Should -Not -Match 'accessToken'
+    }
+    It 'replays without Azure CLI and can enable --check-modernization after the capture' {
+        $ReplayLog | Should -Match 'Data: replaying snapshot captured'
+        $ReplayLog | Should -Match 'Outputs:'
+        $j = Get-Content (Join-Path $Replay 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        $j.dataSource | Should -Match '^Snapshot captured '
+        $j.asOfDate | Should -Be '2026-09-24'
+        $j.parameters.FromSnapshot | Should -BeTrue
+        $j.parameters.CheckModernization | Should -BeTrue
+        @(Import-Csv (Join-Path $Replay 'quota-impact.csv') | Where-Object Scope -eq 'Modernization').Count | Should -BeGreaterThan 0
+        (Get-Content (Get-ChildItem $Replay -Filter 'contoso-prod-*.html').FullName -Raw) | Should -Match 'Data <strong>Snapshot captured'
+    }
+    It 'reproduces the captured assessment exactly' {
+        $out = Join-Path $TestDrive 'replay-same'
+        $null = & $NoAz "-FromSnapshot '$Capture' -OutputPath '$out' -OfflineCatalog -ThrottleLimit 2"
+        foreach ($file in 'vm-assessment.csv', 'quota-impact.csv', 'candidates.csv') {
+            (Get-Content (Join-Path $out $file) -Raw) | Should -Be (Get-Content (Join-Path $Capture $file) -Raw)
+        }
+    }
+    It 'rejects a scope that differs from the capture' {
+        $log = & $NoAz "-FromSnapshot '$Capture' -SubscriptionId 99999999-9999-9999-9999-999999999999 -OutputPath '$(Join-Path $TestDrive 'bad')' -OfflineCatalog"
+        (($log -replace '\s*\|\s*', ' ') -replace '\s+', ' ') | Should -Match 'SubscriptionId does not match the snapshot scope'
+    }
+}
 Describe 'End-to-end assessment of an empty estate (mock Azure)' {
     It 'completes with zero VMs and still writes the summary outputs (with the opt-in account and raw data)' {
         $mockDir = Join-Path $PSScriptRoot 'mock'

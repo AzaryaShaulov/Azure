@@ -180,26 +180,26 @@ reports in a specific location.
 
 Download the current customer package and its checksum directly from this repository:
 
-- [Download VMSKURetirementReport v1.0.0 ZIP](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.0.0.zip)
-- [Download VMSKURetirementReport v1.0.0 SHA-256 checksum](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.0.0.zip.sha256)
+- [Download VMSKURetirementReport v1.1.0 ZIP](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.0.zip)
+- [Download VMSKURetirementReport v1.1.0 SHA-256 checksum](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.0.zip.sha256)
 
 With PowerShell:
 
 ```powershell
 Set-Location ~\Downloads
 Invoke-WebRequest `
-  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.0.0.zip `
-  -OutFile VMSKURetirementReport-v1.0.0.zip
+  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.0.zip `
+  -OutFile VMSKURetirementReport-v1.1.0.zip
 Invoke-WebRequest `
-  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.0.0.zip.sha256 `
-  -OutFile VMSKURetirementReport-v1.0.0.zip.sha256
+  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.0.zip.sha256 `
+  -OutFile VMSKURetirementReport-v1.1.0.zip.sha256
 ```
 
 ### Step 2 - Verify the checksum
 
 ```powershell
-$actual = (Get-FileHash .\VMSKURetirementReport-v1.0.0.zip -Algorithm SHA256).Hash.ToLowerInvariant()
-$expected = (Get-Content .\VMSKURetirementReport-v1.0.0.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\VMSKURetirementReport-v1.1.0.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content .\VMSKURetirementReport-v1.1.0.zip.sha256).Split()[0]
 if ($actual -ne $expected) { throw 'Package checksum verification failed.' }
 ```
 
@@ -212,8 +212,8 @@ default `RemoteSigned` execution policy refuses to load blocked unsigned scripts
 matches, unblock the ZIP **before** extracting it so the extracted files are not marked:
 
 ```powershell
-Unblock-File .\VMSKURetirementReport-v1.0.0.zip
-Expand-Archive .\VMSKURetirementReport-v1.0.0.zip -DestinationPath C:\Tools\VMSKURetirementReport -Force
+Unblock-File .\VMSKURetirementReport-v1.1.0.zip
+Expand-Archive .\VMSKURetirementReport-v1.1.0.zip -DestinationPath C:\Tools\VMSKURetirementReport -Force
 ```
 
 > If you already extracted the ZIP (for example with Windows Explorer **Extract All**, which copies the blocked
@@ -326,6 +326,15 @@ Invoke-Item C:\Reports\vm-sku\full-assessment\index.html
 - `-TenantId`, `-SubscriptionId` and `-Region` are all optional; omit them to assess everything readable in the
   signed-in tenant.
 - Add `-OfflineCatalog` if Microsoft Learn is unreachable, to use the bundled lifecycle evidence.
+- **Reuse collected data:** add `-SaveSnapshot` to record the Azure data, then re-run any time with `-FromSnapshot` and
+  different options (for example `--check-modernization`, `-HorizonMonths` or `-QuotaSafetyPct`) without querying Azure or
+  signing in. The replay reuses the captured tenant, subscriptions, regions and as-of date, and labels the report with the
+  capture time. Quota and availability are as of the capture, so capture again before acting on them.
+
+  ```powershell
+  .\Invoke-VMSKURetirementReport.ps1 -SaveSnapshot -OutputPath C:\Reports\vm-sku\capture
+  .\Invoke-VMSKURetirementReport.ps1 -FromSnapshot C:\Reports\vm-sku\capture --check-modernization -OfflineCatalog -OutputPath C:\Reports\vm-sku\replay
+  ```
 - Running from a source checkout instead of the ZIP? From the Azure repository root, change to
   `Assessments\VMSKURetirementReport\skills\vm-sku-retirement-report\scripts`; the script-name examples above then work
   unchanged. Default reports go to `Assessments\VMSKURetirementReport\reports\`.
@@ -357,26 +366,35 @@ double-dash form accepted is `--check-modernization`.
 | `-ThrottleLimit` | `6` | Parallel SKU / quota requests |
 | `-IncludeOperatorAccount` | off | Record the full signed-in account in the console, `run.log` and `assessment.json` (masked by default) |
 | `-KeepRawData` | off | Also write the raw VM inventory and Resource SKU responses to `data/` for audit |
+| `-SaveSnapshot` | off | Record every Azure read of the run to `<OutputPath>/snapshot` so it can be replayed later (no tokens; account masked) |
+| `-FromSnapshot` | - | Replay a run folder captured with `-SaveSnapshot` without calling Azure; scope and as-of date come from the snapshot |
 
 `--check-modernization` is assessment-only. It reads Resource SKU availability/restrictions and quota, applies the
 existing workload capability gates, and never resizes, redeploys or modifies a VM. The PowerShell-style
 `-CheckModernization` spelling is also accepted. If v7 is suitable but lacks verified aggregate quota while v6 has
 quota, v6 is recommended and v7 is retained as the quota-blocked alternative.
 
+With the flag, every VM row also separates the **retirement target** (the supported replacement for a retiring size,
+often v5) from the **modernization target** (the strategic v6/v7 size, including sizes that need a Gen1 -> Gen2 Trusted
+launch upgrade or SCSI -> NVMe conversion), with a recommended migration path, complexity, readiness and guest
+validation items (NVMe drivers, MANA, temp disk). `quota-impact.csv` gains a `Modernization` scope with steady-state and
+peak (side-by-side) demand, and each subscription page gains a *v6/v7 Modernization Readiness* section.
+
 ## Outputs
 
 | File | Purpose |
 |---|---|
-| `index.html`, `<subscription>-<id>.html` | Browsable report: summary, waves, quota, per-VM cards, reference sections |
+| `index.html`, `<subscription>-<id>.html` | Browsable report: summary, waves, quota, *VMs with Retiring SKUs* and their details, Microsoft Learn upgrade-path and SCSI to NVMe guidance, reference sections. Lists only VMs with an announced retirement date and a required action |
 | `executive-summary.md` | Estate counts, waves, groupings, quota actions |
 | `detailed-report.md` | Per affected VM: configuration, evidence, recommendation, differences, validation items |
 | `vm-assessment.csv` | One row per VM (Excel / Power BI) |
 | `candidates.csv` | Every evaluated size with score breakdown and rejection reasons |
-| `quota-impact.csv` | Aggregated quota demand and increases |
+| `quota-impact.csv` | Aggregated quota demand and increases: scopes `Retirement`, `Retirement+Modernization` and, with `--check-modernization`, `Modernization` (steady-state and peak) |
 | `assessment.json` | Complete versioned result ([schema](skills/vm-sku-retirement-report/references/output-schema.md)) |
 | `retirement-evidence.json` | Exact Microsoft evidence used |
 | `run.log` | Console transcript (minimal header; account masked unless `-IncludeOperatorAccount`) |
 | `data/` | Raw inventory and Resource SKU responses, only with `-KeepRawData` |
+| `snapshot/` | Recorded Azure responses for `-FromSnapshot` replay, only with `-SaveSnapshot` (confidential inventory data) |
 
 > **Outputs contain tenant, subscription and VM identifiers**, and resource names can contain people's names. Store
 > them like other inventory data and delete them when no longer needed. The operator's account is masked by default,
@@ -443,7 +461,7 @@ From the Azure repository root:
 ```powershell
 Set-Location Assessments/VMSKURetirementReport
 ./build.ps1                        # Bootstrap, Lint, Version, Test (no Azure access needed)
-./build.ps1 -Task Sample           # regenerate examples/sample-report offline (mock estate, cached catalog, fixed date)
+./build.ps1 -Task Sample           # regenerate examples/sample-report offline with --check-modernization (mock estate, cached catalog, fixed date)
 ./build.ps1 -Task Package          # dist/VMSKURetirementReport-v<version>.zip + SHA-256
 ```
 

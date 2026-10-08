@@ -6,7 +6,7 @@
 |---|---|
 | Tenant | Contoso (Sample) (`22222222-2222-2222-2222-222222222222`) |
 | Assessment date (as of) | 2026-10-05 |
-| Generated (UTC) | 2026-10-07T15:56:10.1336922Z |
+| Generated (UTC) | 2026-10-08T13:32:40.7560919Z |
 | Retirement evidence | Cached (2026-10-06 00:44 UTC) - Microsoft Learn |
 | Source: RetiredList | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) (updated 09/27/2026 11:03:00, retrieved 10/06/2026 00:44:07) |
 | Source: PreviousGen | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list) (updated 09/26/2026 06:04:00, retrieved 10/06/2026 00:44:07) |
@@ -39,10 +39,10 @@
 | VMs Requiring Quota Increase | 4 |
 | VMs With Regional Restrictions | 0 |
 | VMs Requiring CPU Vendor Change | 0 |
-| VMs Requiring Manual Review | 2 |
+| VMs Requiring Manual Review | 3 |
 | High Confidence Recommendations | 0 |
 | Medium Confidence Recommendations | 0 |
-| Low Confidence Recommendations | 6 |
+| Low Confidence Recommendations | 7 |
 
 ## Migration waves
 
@@ -154,7 +154,7 @@ Waves 1-3 contain only VMs with Microsoft-confirmed or announced retirement date
 
 ## Quota actions
 
-Demand is aggregated for all VMs moving into the same subscription / region / family. Minimum increase = (current usage + required) - limit. Recommended increase adds the safety margin. Scope 'Retirement' covers mandatory migrations only; 'Retirement+Modernization' also includes optional Wave 4 moves.
+Demand is aggregated for all VMs moving into the same subscription / region / family. Minimum increase = (current usage + required) - limit. Recommended increase adds the safety margin. Scope 'Retirement' covers mandatory migrations to their retirement target; 'Retirement+Modernization' also includes optional Wave 4 moves; 'Modernization' (only with --check-modernization) covers the strategic v6/v7 targets with steady-state and peak demand.
 
 | Scope | SubscriptionId | Region | QuotaDisplayName | QuotaName | Limit | CurrentUsage | RequiredVcpu | PostMigrationUsage | MinimumIncrease | RecommendedIncrease | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -162,6 +162,7 @@ Demand is aggregated for all VMs moving into the same subscription / region / fa
 | Retirement | 11111111-1111-1111-1111-111111111111 | eastus2 | Standard DDSv5 Family vCPUs | standardddsv5family | 100 | 95 | 16 | 111 | 11 | 15 | Quota Increase Required |
 | Retirement+Modernization | 11111111-1111-1111-1111-111111111111 | eastus2 | - | standardbsv2family | - | - | 2 | - | - | - | Manual Validation Required |
 | Retirement+Modernization | 11111111-1111-1111-1111-111111111111 | eastus2 | Standard DDSv5 Family vCPUs | standardddsv5family | 100 | 95 | 16 | 111 | 11 | 15 | Quota Increase Required |
+| Modernization | 11111111-1111-1111-1111-111111111111 | eastus2 | - | standarddsv6family | - | - | 20 | - | - | - | Manual Validation Required |
 
 ## Data quality
 

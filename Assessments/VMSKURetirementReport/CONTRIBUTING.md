@@ -25,7 +25,7 @@ complete mock assessment under PowerShell 7.2.24.
 git clone https://github.com/AzaryaShaulov/Azure.git
 cd Azure/Assessments/VMSKURetirementReport
 ./build.ps1                    # Bootstrap, Lint, Version, Test
-./build.ps1 -Task Sample       # regenerate examples/sample-report
+./build.ps1 -Task Sample       # regenerate examples/sample-report (with --check-modernization)
 ./build.ps1 -Task Package      # build dist/VMSKURetirementReport-v<version>.zip
 ```
 

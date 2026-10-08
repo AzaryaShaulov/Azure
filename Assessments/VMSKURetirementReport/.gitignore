@@ -14,6 +14,8 @@ executive-summary.md
 detailed-report.md
 raw/
 **/raw/
+snapshot/
+**/snapshot/
 
 # The generated, fully synthetic sample report is the only committed output.
 !examples/sample-report/

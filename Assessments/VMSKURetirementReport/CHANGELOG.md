@@ -5,18 +5,41 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-07
+
 ### Added
 
+- `-SaveSnapshot` / `-FromSnapshot`: record a run's Azure reads and replay them later with different options (for example
+  `--check-modernization`) without calling Azure. Snapshots contain no access tokens and mask the signed-in account; reports
+  and `assessment.json` (`dataSource`) show when data was replayed.
+- *Upgrade Path and SCSI to NVMe Guidance* section and contextual Microsoft Learn links (resize, SCSI to NVMe conversion,
+  NVMe OS support and FAQ, Gen1 to Trusted launch, Gen2, MANA, sizes without temp disk).
 - Optional `--check-modernization` assessment for every VM, preferring suitable same-vendor/same-architecture v7,
   then v6 SKUs, with regional availability, capability gates, quota status, explicit modernization status and reason.
+- Retirement target vs strategic modernization target: appended `vm-assessment.csv` / JSON fields
+  (`RetirementTargetSku`, `ModernizationTargetSku`, `RecommendedMigrationPath`, `ModernizationPath`,
+  `ModernizationComplexity`, `ModernizationReadiness`, `MigrationQuotaModel`, retirement and modernization quota status,
+  `ModernizationValidationItems`) and a `strategy` object per VM in `assessment.json`.
+- Steady-state vs peak (side-by-side) quota planning: appended `quota-impact.csv` columns (`MigrationQuotaModel`,
+  `SideBySideVmCount`, `SteadyStateRequiredVcpu`, `PeakMigrationRequiredVcpu`, `Peak*`) and a `Modernization` scope with
+  `--check-modernization`. Gen1 -> Gen2 (Trusted launch upgrade) and redeploy paths are modeled side by side.
+- *v6/v7 Modernization Readiness* section on subscription pages (KPIs, actionable table with expandable VM details,
+  action groups, backend quota impact, guidance, migration-path examples).
+- Guest validation items for NVMe driver readiness, MANA networking, temp-disk dependency and the Gen1 Trusted launch
+  upgrade; redeploy review only when the guest OS is not supported by that upgrade.
 
 ### Changed
 
+- HTML report lists only VMs with an announced Microsoft retirement date and a required action (CSV/JSON/Markdown still
+  include every VM). Subscription pages: *VM Assessment* is now *VMs with Retiring SKUs* and *Recommendations in Detail*
+  is now *VMs with Retiring SKUs details*, both directly under Overview. *Cross-Vendor Migration Warnings* is collapsed.
 - Renamed the project, skill paths, command, generated report branding, output folders and release artifacts to
   `VMSKURetirementReport` (`vm-sku-retirement-report` where the Agent Skills specification requires a lowercase slug).
 - Corrected quota accounting for same-family allocated resizes and made modernization fallback quota-aware, so a
   deployable v6 size is preferred over a quota-blocked v7 size.
 - Scoped SKU restrictions to the assessed region and downgraded base-series processor matches to Partially Verified.
+- `Retirement` quota scope now uses each VM's retirement target; `Retirement+Modernization` keeps its meaning. Existing
+  CSV columns keep their order (new columns are appended). `Manual Validation Required` quota badges are now yellow.
 - Made cached mode compatible with PowerShell 7.2, fail closed on migration-guide parser drift, and preserve the
   existing processor catalog when a refresh is incomplete.
 - Hardened CSV and Markdown exports against formula/markup injection and made output folders collision resistant.
@@ -79,4 +102,5 @@ First public release.
 - `.github/copilot-instructions.md` with strict read-only rules for agents that access an Azure tenant.
 
 [Unreleased]: https://github.com/AzaryaShaulov/Azure/commits/main/Assessments/VMSKURetirementReport
+[1.1.0]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist
 [1.0.0]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist

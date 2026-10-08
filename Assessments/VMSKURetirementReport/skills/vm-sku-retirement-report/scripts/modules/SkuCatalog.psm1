@@ -111,7 +111,7 @@ function Get-RegionSkuCatalog {
         while ($url -and $pages -lt 50) {
             $resp = $null
             for ($attempt = 1; $attempt -le 3 -and -not $resp; $attempt++) {
-                try { $resp = Invoke-RestMethod -Uri $url -Headers @{ Authorization = "Bearer $tok" } -TimeoutSec 180 }
+                try { $resp = Invoke-SnapshotRest -Request "GET $url" -Live { Invoke-RestMethod -Uri $url -Headers @{ Authorization = "Bearer $tok" } -TimeoutSec 180 } }
                 catch { if ($attempt -eq 3) { throw }; Start-Sleep -Seconds (2 * $attempt) }
             }
             foreach ($v in @($resp.value)) { if ($v) { $items.Add($v) } }

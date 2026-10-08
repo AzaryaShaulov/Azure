@@ -37,8 +37,10 @@ function Invoke-ArgQuery {
                 $resp = $null
                 for ($attempt = 1; $attempt -le 4 -and -not $resp; $attempt++) {
                     try {
-                        $resp = Invoke-RestMethod -Method Post -Uri 'https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01' `
-                            -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body -TimeoutSec 120
+                        $resp = Invoke-SnapshotRest -Request "POST resourcegraph $body" -Live {
+                            Invoke-RestMethod -Method Post -Uri 'https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01' `
+                                -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body -TimeoutSec 120
+                        }
                     }
                     catch {
                         $status = if ($_.Exception.PSObject.Properties.Name -contains 'Response' -and $_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }

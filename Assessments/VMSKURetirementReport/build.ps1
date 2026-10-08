@@ -7,7 +7,7 @@
       Lint       PSScriptAnalyzer with PSScriptAnalyzerSettings.psd1 (fails on any Error/Warning finding).
       Version    Check the version is identical in Common.psm1, SKILL.md metadata and CHANGELOG.md.
       Test       Pester unit + end-to-end tests (mock Azure CLI, no Azure access). -CI writes JUnit XML.
-      Sample     Regenerate examples/sample-report offline (mock Azure CLI, cached catalog, fixed date, price snapshot).
+      Sample     Regenerate examples/sample-report offline with --check-modernization (mock Azure CLI, cached catalog, fixed date, price snapshot).
       Package    Zip the skill into dist/VMSKURetirementReport-v<version>.zip (+ .sha256).
       Clean      Remove test results.
 .EXAMPLE
@@ -135,7 +135,7 @@ function global:Invoke-RestMethod {
     throw "Sample build is offline; blocked request to `$Uri"
 }
 "@
-    $cmd = "$offlineRest`n`$env:PATH = '$mock$sep' + `$env:PATH; & '$script' -OutputPath '$tmp' -OfflineCatalog -AsOfDate '$($script:SampleAsOfDate)' -IncludePricing -ThrottleLimit 2"
+    $cmd = "$offlineRest`n`$env:PATH = '$mock$sep' + `$env:PATH; & '$script' --check-modernization -OutputPath '$tmp' -OfflineCatalog -AsOfDate '$($script:SampleAsOfDate)' -IncludePricing -ThrottleLimit 2"
     & pwsh -NoProfile -Command $cmd
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $tmp 'index.html'))) { throw 'Sample: generation failed.' }
     # Keep only portable report artifacts; run.log and data/ contain machine / user specific details.

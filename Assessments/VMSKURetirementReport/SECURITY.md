@@ -6,8 +6,8 @@ Security fixes are released for the latest minor version only.
 
 | Version | Supported |
 |---|---|
-| 1.0.x | Yes |
-| < 1.0 | No |
+| 1.1.x | Yes |
+| < 1.1 | No |
 
 ## Reporting a vulnerability
 
@@ -41,6 +41,8 @@ You should receive an acknowledgement within 5 business days. Coordinated disclo
   The operator's account is masked in the console, `run.log` and `assessment.json` unless `-IncludeOperatorAccount` is
   passed; the transcript uses a minimal header (no local user, machine or command line); displayed paths show the home
   directory as `~`; Azure CLI error text is sanitized (emails masked, home path hidden, length capped); and raw
-  inventory dumps are written only with `-KeepRawData`.
+  inventory dumps are written only with `-KeepRawData`. `-SaveSnapshot` stores raw Azure read responses (never access
+  tokens; the signed-in account is masked) so a run can be replayed offline with `-FromSnapshot`; treat the snapshot as
+  confidential inventory data.
 - **HTML safety.** All values written to HTML reports are HTML-encoded. Reports contain no scripts and load no remote
   assets.
