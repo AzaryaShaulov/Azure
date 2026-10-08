@@ -86,6 +86,12 @@ Describe 'End-to-end assessment (mock Azure)' {
         $html.IndexOf("id='overview'") | Should -BeLessThan $html.IndexOf("id='vms'")
         $html.IndexOf("id='vms'") | Should -BeLessThan $html.IndexOf("id='details'")
         $html.IndexOf("id='details'") | Should -BeLessThan $html.IndexOf("id='quota'")
+        # Part 1 (retirement) is a labelled band containing both retiring-VM sections; no Part 2 without --check-modernization.
+        $html | Should -Match "<div class='track track-retirement' id='track-retirement'"
+        $html.IndexOf("id='track-retirement'") | Should -BeLessThan $html.IndexOf("id='vms'")
+        $html | Should -Not -Match "id='track-modernization'"
+        $html | Should -Match "<span class='toc-group toc-retirement'><span class='toc-group-label'>Retirement</span>"
+        $html | Should -Match "class='track-tile track-tile-retirement' href='#track-retirement'"
         $retiring = @($Rows | Where-Object { $_.AffectedByRetirement -eq 'Yes' -and $_.RetirementDate -and $_.Action -ne 'No Action Required' })
         $excluded = @($Rows | Where-Object { $_.VM -notin $retiring.VM })
         $retiring.Count | Should -BeGreaterThan 0
@@ -172,6 +178,15 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $html | Should -Match "class='quota-table quota-impact-table'"
         $html | Should -Match 'Total Regional vCPUs'
         $html | Should -Match 'Upgrade Gen1 VMs to Trusted launch'
+        # Part 1 retirement and Part 2 modernization are separate, ordered, colour-coded bands with grouped navigation and tiles.
+        $html.IndexOf("id='track-retirement'") | Should -BeLessThan $html.IndexOf("id='vms'")
+        $html.IndexOf("id='details'") | Should -BeLessThan $html.IndexOf("id='track-modernization'")
+        $html.IndexOf("id='track-modernization'") | Should -BeLessThan $html.IndexOf("id='modernization'")
+        $html | Should -Match 'Part 1 &middot; <strong>Required</strong>'
+        $html | Should -Match 'Part 2 &middot; <strong>Optional</strong>'
+        $html | Should -Match "<span class='toc-group toc-modernization'><span class='toc-group-label'>Modernization</span>"
+        $html | Should -Match "class='track-tile track-tile-modernization' href='#track-modernization'"
+        $html | Should -Match "class='target-cell retirement-target-cell'"
         $html | Should -Not -Match '<script'
     }
 }
@@ -216,11 +231,40 @@ Describe 'Snapshot capture and replay (mock Azure)' {
             (Get-Content (Join-Path $out $file) -Raw) | Should -Be (Get-Content (Join-Path $Capture $file) -Raw)
         }
     }
+    It 'stores the Microsoft evidence with the snapshot and replays it without -OfflineCatalog' {
+        Join-Path $Capture 'snapshot/retirement-catalog.json' | Should -Exist
+        (Get-Content (Join-Path $Capture 'snapshot/snapshot.json') -Raw | ConvertFrom-Json).CatalogSource | Should -Match '^Cached'
+        $out = Join-Path $TestDrive 'replay-evidence'
+        $null = & $NoAz "-FromSnapshot '$Capture' -OutputPath '$out' -ThrottleLimit 2"
+        (Get-Content (Join-Path $out 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).catalog.source | Should -Match '^Cached'
+        (Get-Content (Join-Path $out 'vm-assessment.csv') -Raw) | Should -Be (Get-Content (Join-Path $Capture 'vm-assessment.csv') -Raw)
+    }
+    It 'warns when the snapshot is more than 7 days old' {
+        $old = Join-Path $TestDrive 'old-capture'
+        Copy-Item -Path $Capture -Destination $old -Recurse
+        $manifestPath = Join-Path $old 'snapshot/snapshot.json'
+        $m = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        $m.CapturedUtc = (Get-Date).ToUniversalTime().AddDays(-10).ToString('o')
+        $m | ConvertTo-Json -Depth 4 | Set-Content $manifestPath -Encoding utf8
+        $out = Join-Path $TestDrive 'replay-old'
+        $log = & $NoAz "-FromSnapshot '$old' -OutputPath '$out' -ThrottleLimit 2"
+        (($log -replace '\s*\|\s*', ' ') -replace '\s+', ' ') | Should -Match 'The snapshot is 10 days old'
+        (Get-Content (Join-Path $out 'index.html') -Raw) | Should -Match 'Replayed data is 10 days old'
+    }
+    It 'caps the per-VM HTML details and points to the full outputs' {
+        $out = Join-Path $TestDrive 'replay-capped'
+        $null = & $NoAz "-FromSnapshot '$Capture' -HtmlMaxVmDetails 2 -OutputPath '$out' -ThrottleLimit 2"
+        $html = Get-Content (Get-ChildItem $out -Filter 'contoso-prod-*.html').FullName -Raw
+        ([regex]::Matches($html, '<details class="vm"')).Count | Should -Be 2
+        $html | Should -Match 'Details are shown for the first 2 VMs'
+        @(Import-Csv (Join-Path $out 'vm-assessment.csv')).Count | Should -Be 7
+    }
     It 'rejects a scope that differs from the capture' {
         $log = & $NoAz "-FromSnapshot '$Capture' -SubscriptionId 99999999-9999-9999-9999-999999999999 -OutputPath '$(Join-Path $TestDrive 'bad')' -OfflineCatalog"
         (($log -replace '\s*\|\s*', ' ') -replace '\s+', ' ') | Should -Match 'SubscriptionId does not match the snapshot scope'
     }
 }
+
 Describe 'End-to-end assessment of an empty estate (mock Azure)' {
     It 'completes with zero VMs and still writes the summary outputs (with the opt-in account and raw data)' {
         $mockDir = Join-Path $PSScriptRoot 'mock'

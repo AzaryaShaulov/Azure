@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "tool": "VMSKURetirementReport",
   "toolVersion": "1.1.0",
-  "generatedUtc": "2026-10-08T13:32:40.7560919Z",
+  "generatedUtc": "2026-10-08T20:15:01.8069446Z",
   "asOfDate": "2026-10-05",
   "dataSource": "Live",
   "tenant": {
@@ -25,7 +25,9 @@
     "IncludeOperatorAccount": false,
     "KeepRawData": false,
     "SaveSnapshot": false,
-    "FromSnapshot": false
+    "FromSnapshot": false,
+    "HtmlIncludeOptionalModernization": false,
+    "HtmlMaxVmDetails": 250
   },
   "disclaimer": "UNOFFICIAL ASSESSMENT - FOR PLANNING PURPOSES ONLY. Generated with read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.",
   "catalog": {

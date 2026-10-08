@@ -436,11 +436,23 @@ primary + alternative + third.
 The HTML report lists only VMs affected by a Microsoft retirement announcement with a published retirement date and a
 required action (tenant *Migration Waves*, subscription *VMs with Retiring SKUs* and its details, and the modernization
 table). Optional modernization, unconfirmed and current-generation VMs remain in `vm-assessment.csv`, `assessment.json`
-and the Markdown reports. Each page links the Microsoft Learn upgrade path, SCSI to NVMe conversion and Gen1 to
-Trusted launch guidance.
+and the Markdown reports. `-HtmlIncludeOptionalModernization` also lists optional-modernization VMs (older generations
+without an announced retirement). `-HtmlMaxVmDetails` (default 250) caps the expandable per-VM detail blocks per page,
+in wave order, so very large subscriptions stay fast to open; the summary tables and every other output keep all VMs.
+Each page links the Microsoft Learn upgrade path, SCSI to NVMe conversion and Gen1 to Trusted launch guidance.
 
-With `--check-modernization`, each subscription page adds a **v6/v7 Modernization Readiness** section for those VMs;
-all other sections are unchanged. It renders `Get-TargetStrategy` and the `Modernization` quota rows:
+Subscription pages are split into two colour-coded parts so customers can tell required work from optional work:
+
+- **Part 1 - Required: Retirement remediation** (orange): *VMs with Retiring SKUs* and *VMs with Retiring SKUs details*.
+- **Part 2 - Optional: v6/v7 Modernization** (purple, only with `--check-modernization`): *v6/v7 Modernization Readiness*.
+
+Each part starts with a banner (part number, Required / Optional label, icon and short description) and every card in
+the part has a coloured left edge. The navigation groups the links under *Retirement* and *Modernization*, the
+Overview has a tile per part (VM count, earliest retirement date) linking to it, and the modernization table tints
+the retirement-target and modernization-target columns in the matching colours. Labels and icons carry the meaning as
+well as colour, the colours have dark-mode variants, and when printed Part 2 starts on a new page with colours kept.
+
+With `--check-modernization`, the **v6/v7 Modernization Readiness** section covers the same VMs as Part 1. It renders `Get-TargetStrategy` and the `Modernization` quota rows:
 
 - KPIs: direct resize ready, NVMe conversion, Gen1 modernization, quota increase, redeploy/rebuild review, manual review,
   already v6/v7;

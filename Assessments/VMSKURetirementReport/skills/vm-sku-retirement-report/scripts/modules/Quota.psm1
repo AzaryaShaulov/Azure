@@ -216,4 +216,4 @@ function Test-FamilyHeadroom {
     return ($u[$f].Limit - $u[$f].Used) -ge $RequiredVcpu
 }
 
-Export-ModuleMember -Function Get-QuotaUsage, Get-QuotaUsages, Get-QuotaIncrease, Measure-QuotaImpact, Test-FamilyHeadroom
+Export-ModuleMember -Function Get-QuotaUsage, Get-QuotaUsages, Get-QuotaIncrease, Get-CombinedQuotaStatus, Measure-QuotaImpact, Test-FamilyHeadroom

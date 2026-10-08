@@ -57,8 +57,18 @@
 .PARAMETER FromSnapshot
     Replay a run folder (or its snapshot folder) captured with -SaveSnapshot instead of calling Azure. Every other option
     can change (for example --check-modernization, -HorizonMonths, -QuotaSafetyPct, -MaxCandidates); tenant, subscription
-    and region scope come from the snapshot. -AsOfDate defaults to the capture date. No Azure CLI sign-in is needed;
-    only -IncludePricing (public Retail Prices API) and Microsoft Learn (unless -OfflineCatalog) go online.
+    and region scope come from the snapshot. -AsOfDate defaults to the capture's as-of date and the Microsoft retirement
+    evidence captured with the snapshot is reused, so a replay reproduces the capture. A warning is shown when the
+    snapshot is more than 7 days old. No Azure CLI sign-in is needed; only -IncludePricing (public Retail Prices API) goes
+    online.
+.PARAMETER HtmlIncludeOptionalModernization
+    Also list VMs whose action is 'Modernization Optional' (older generations without an announced retirement) in the HTML
+    VM tables, details and modernization view. By default the HTML lists only VMs with an announced retirement date and a
+    required action. CSV, JSON and Markdown always include every VM.
+.PARAMETER HtmlMaxVmDetails
+    Maximum number of expandable per-VM detail blocks per subscription page (default 250, 0 = no limit), in wave order.
+    Every VM stays in the summary tables, vm-assessment.csv, detailed-report.md and assessment.json; this only keeps very
+    large subscription pages fast to open.
 .EXAMPLE
     pwsh ./Invoke-VMSKURetirementReport.ps1
 .EXAMPLE
@@ -89,6 +99,8 @@ param(
     [switch]$KeepRawData,
     [switch]$SaveSnapshot,
     [string]$FromSnapshot,
+    [switch]$HtmlIncludeOptionalModernization,
+    [ValidateRange(0, 100000)][int]$HtmlMaxVmDetails = 250,
     [Parameter(ValueFromRemainingArguments = $true, DontShow = $true)][string[]]$RemainingArguments
 )
 $ErrorActionPreference = 'Stop'
@@ -138,6 +150,7 @@ if ($FromSnapshot) {
         $AsOfDate = if ($snapshot.AsOfDate -is [datetime]) { $snapshot.AsOfDate.Date } else { [datetime]::ParseExact("$($snapshot.AsOfDate)", 'yyyy-MM-dd', [cultureinfo]::InvariantCulture) }
     }
     $snapshotCaptured = ([datetime]$snapshot.CapturedUtc).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC'
+    $snapshotAgeDays = [int][math]::Floor(((Get-Date).ToUniversalTime() - ([datetime]$snapshot.CapturedUtc).ToUniversalTime()).TotalDays)
     $env:VMSKU_SNAPSHOT_DIR = $snapshotDir; $env:VMSKU_SNAPSHOT_MODE = 'Replay'
 }
 elseif ($SaveSnapshot) {
@@ -206,12 +219,25 @@ try {
     Write-Host "Tenant: $tenantName ($tenantId)  Account: $accountDisplay$(if ($crossTenant) { '  [tenant-scoped; Azure CLI default unchanged]' })"
     Write-Host "Scope: $($subs.Count) subscription(s)$(if ($Region) { ", regions $($Region -join ',')" })  As of: $($AsOfDate.ToString('yyyy-MM-dd'))  Output: $(ConvertTo-DisplayPath $OutputPath)"
     Write-Host "VMSKURetirementReport v$(Get-ToolVersion)  Mode: READ-ONLY (no Azure resources are modified)" -ForegroundColor Green
-    if ($FromSnapshot) { Write-Host "Data: replaying snapshot captured $snapshotCaptured (no Azure calls; quota and availability are as of the capture)" -ForegroundColor Yellow }
+    if ($FromSnapshot) {
+        Write-Host "Data: replaying snapshot captured $snapshotCaptured, $snapshotAgeDays day(s) ago (no Azure calls; quota and availability are as of the capture)" -ForegroundColor Yellow
+        if ($snapshotAgeDays -gt 7) { Write-Warning "The snapshot is $snapshotAgeDays days old. Quota, availability and inventory may have changed; capture a new snapshot before acting on quota or resize decisions." }
+    }
     elseif ($SaveSnapshot) { Write-Host "Data: live; recording a snapshot to $(ConvertTo-DisplayPath $snapshotDir)" -ForegroundColor DarkGray }
 
     # -- Microsoft evidence --
     Write-Phase 'Retirement evidence (Microsoft Learn)'
-    $catalogResult = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath (Join-Path $skillRoot 'data/retirement-catalog.json') -Offline:$OfflineCatalog
+    $snapshotCatalogPath = if ($snapshotDir) { Join-Path $snapshotDir 'retirement-catalog.json' } else { $null }
+    if ($FromSnapshot -and (Test-Path -LiteralPath $snapshotCatalogPath) -and $snapshot.PSObject.Properties.Name -contains 'CatalogSource') {
+        # Replay the Microsoft evidence captured with the snapshot, labelled as it was at capture, so results are reproducible.
+        $catalogResult = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath $snapshotCatalogPath -Offline
+        $catalogResult.Source = $snapshot.CatalogSource
+        $catalogResult.Warning = $null
+    }
+    else {
+        $catalogResult = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath (Join-Path $skillRoot 'data/retirement-catalog.json') -Offline:$OfflineCatalog
+    }
+    if ($SaveSnapshot) { $catalogResult.Catalog | ConvertTo-Json -Depth 20 | Out-File -LiteralPath $snapshotCatalogPath -Encoding utf8 }
     $retCatalog = $catalogResult.Catalog
     Write-PhaseDone "$($catalogResult.Source); $(@($retCatalog.series).Count) series, $(@(Get-UnmappedSeriesNames -Catalog $retCatalog).Count) unmapped"
     foreach ($u in @(Get-UnmappedSeriesNames -Catalog $retCatalog)) { Write-Warning "Unmapped Microsoft series '$u' - VMs of this series will be 'Unable to Confirm'." }
@@ -363,11 +389,13 @@ try {
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o'); AsOf = $AsOfDate; ToolVersion = (Get-ToolVersion)
         Tenant = [pscustomobject]@{ Id = $tenantId; Name = $tenantName }; Account = $accountDisplay
         DataSource = if ($snapshot) { "Snapshot captured $snapshotCaptured" } else { 'Live' }
+        SnapshotAgeDays = if ($snapshot) { $snapshotAgeDays } else { $null }
         Parameters = [ordered]@{
             TenantId = $tenantId; SubscriptionId = $SubscriptionId; Region = $Region; HorizonMonths = $HorizonMonths; OfflineCatalog = [bool]$OfflineCatalog; QuotaSafetyPct = $QuotaSafetyPct
             MaxCandidates = $MaxCandidates; IncludeRightsizing = [bool]$IncludeRightsizing; RightsizingLookbackDays = $RightsizingLookbackDays; IncludePricing = [bool]$IncludePricing
             CheckModernization = [bool]$CheckModernization; IncludeOperatorAccount = [bool]$IncludeOperatorAccount; KeepRawData = [bool]$KeepRawData
             SaveSnapshot = [bool]$SaveSnapshot; FromSnapshot = [bool]$FromSnapshot
+            HtmlIncludeOptionalModernization = [bool]$HtmlIncludeOptionalModernization; HtmlMaxVmDetails = $HtmlMaxVmDetails
         }
         Counts = $inventory.Counts
     }
@@ -381,10 +409,10 @@ try {
         # The manifest is written last, so an interrupted capture is never mistaken for a complete snapshot.
         [ordered]@{
             SnapshotVersion = 1; Tool = 'VMSKURetirementReport'; ToolVersion = (Get-ToolVersion); CapturedUtc = $startTime.ToUniversalTime().ToString('o')
-            AsOfDate = $AsOfDate.ToString('yyyy-MM-dd'); TenantId = $tenantId; TenantName = $tenantName
+            AsOfDate = $AsOfDate.ToString('yyyy-MM-dd'); TenantId = $tenantId; TenantName = $tenantName; CatalogSource = $catalogResult.Source
             SubscriptionId = @(if ($SubscriptionId) { $SubscriptionId }); Region = @(if ($Region) { $Region })
             Subscriptions = $subs.Count; Vms = $vms.Count; IncludeRightsizing = [bool]$IncludeRightsizing; RightsizingLookbackDays = $RightsizingLookbackDays
-            Note = 'Raw Azure read responses (inventory, Resource SKUs, quota, Advisor / Service Health). No access tokens; the signed-in account is masked. Treat as confidential inventory data.'
+            Note = 'Raw Azure read responses (inventory, Resource SKUs, quota, Advisor / Service Health) and the Microsoft retirement evidence used. No access tokens; the signed-in account is masked. Treat as confidential inventory data.'
         } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $snapshotDir 'snapshot.json') -Encoding utf8
         Write-Host "Snapshot: $(ConvertTo-DisplayPath $snapshotDir) (replay with -FromSnapshot)" -ForegroundColor Green
     }

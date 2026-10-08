@@ -76,7 +76,9 @@ function New-VmAssessment {
             $CandidateCache[$sig] = Find-ReplacementCandidates -Vm $Vm -Current $current -Lifecycle $lc -RegionCatalog $RegionCatalog -ProcessorCatalog $ProcessorCatalog `
                 -RetirementCatalog $RetirementCatalog -LifecycleCache $LifecycleCache -Weights $Weights -AsOf $AsOf -MaxCandidates $MaxCandidates -CheckModernization:$CheckModernization
         }
-        $cand = $CandidateCache[$sig]
+        # Each VM gets its own container: quota resolution changes Primary/Secondary per VM, and identical VMs share the
+        # cached evaluation (the candidate objects themselves are read-only after selection).
+        $cand = $CandidateCache[$sig].PSObject.Copy()
     }
     $modernization = $null
     if ($CheckModernization) {
@@ -145,23 +147,54 @@ function Resolve-ModernizationQuotaChoices {
     <#
     .SYNOPSIS
         Finalizes opt-in modernization choices in v7, v6, existing-recommendation order using aggregate quota.
+    .PARAMETER SafetyPct
+        Accepted for compatibility; the choice depends only on whether the steady-state demand fits the current limit.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Usage', Justification = 'Read inside the quota status script block.')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'SafetyPct', Justification = 'Kept for backward compatibility of callers.')]
     param(
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments,
         [Parameter(Mandatory)][hashtable]$Usage,
         [double]$SafetyPct = 20
     )
     $active = @($Assessments | Where-Object { $_.Candidates -and $_.Candidates.Primary -and $_.Action -ne 'No Action Required' })
-    $toMoves = {
-        @($active | ForEach-Object {
-                [pscustomobject]@{
-                    SubscriptionId = $_.Vm.SubscriptionId; Region = $_.Vm.Region; VmId = $_.Vm.Id
-                    CurrentFamily = $_.Current.Family; CurrentVcpu = [int]$_.Current.vCPUs
-                    TargetSku = $_.Candidates.Primary.SkuName; TargetFamily = $_.Candidates.Primary.Family
-                    TargetVcpu = [int]$_.Candidates.Primary.vCPUs; IsAllocated = $_.Vm.IsAllocated
-                }
-            })
+
+    # Steady-state demand is aggregated once and then updated incrementally per decision, using the same rules and status
+    # precedence as Measure-QuotaImpact (family: allocated same-family move adds the vCPU delta, otherwise the target;
+    # regional: allocated adds the delta, deallocated the target). This keeps the choice linear in the number of VMs.
+    $familyDemand = @{}; $regionalDemand = @{}
+    $demandOf = {
+        param($Assessment, $Target)
+        $pair = "$($Assessment.Vm.SubscriptionId)|$($Assessment.Vm.Region)".ToLowerInvariant()
+        $family = if ($Target.Family) { "$($Target.Family)".ToLowerInvariant() } else { '' }
+        $vcpu = [int]$Target.vCPUs
+        $delta = [math]::Max(0, $vcpu - [int]$Assessment.Current.vCPUs)
+        $sameFamily = $Assessment.Current.Family -and $Target.Family -and $Assessment.Current.Family -ieq $Target.Family
+        [pscustomobject]@{
+            Pair = $pair; Family = $family; FamilyKey = "$pair|$family"
+            FamilyVcpu = if ($Assessment.Vm.IsAllocated -and $sameFamily) { $delta } else { $vcpu }
+            RegionalVcpu = if ($Assessment.Vm.IsAllocated) { $delta } else { $vcpu }
+        }
     }
+    $apply = {
+        param($Demand, [int]$Sign)
+        $familyDemand[$Demand.FamilyKey] = [int]$familyDemand[$Demand.FamilyKey] + $Sign * $Demand.FamilyVcpu
+        $regionalDemand[$Demand.Pair] = [int]$regionalDemand[$Demand.Pair] + $Sign * $Demand.RegionalVcpu
+    }
+    $statusOf = {
+        param($Demand)
+        $pairUsage = $Usage[$Demand.Pair]
+        $family = if (-not $Demand.Family) { 'Manual Validation Required' }
+        elseif (-not $pairUsage) { 'Quota Information Unavailable' }
+        elseif (-not $pairUsage.ContainsKey($Demand.Family)) { 'Manual Validation Required' }
+        else { $q = $pairUsage[$Demand.Family]; if ($q.Used + $familyDemand[$Demand.FamilyKey] -gt $q.Limit) { 'Quota Increase Required' } else { 'Quota OK' } }
+        $regional = if ($pairUsage -and $pairUsage.ContainsKey('cores')) {
+            $q = $pairUsage['cores']; if ($q.Used + $regionalDemand[$Demand.Pair] -gt $q.Limit) { 'Quota Increase Required' } else { 'Quota OK' }
+        }
+        else { 'Quota Information Unavailable' }
+        Get-CombinedQuotaStatus @($family, $regional)
+    }
+    foreach ($x in $active) { & $apply (& $demandOf $x $x.Candidates.Primary) 1 }
 
     foreach ($a in @($active | Where-Object { $_.Modernization -and $_.Modernization.Candidate } | Sort-Object { $_.Vm.Id })) {
         $modern = @($a.Candidates.Candidates | Where-Object {
@@ -173,13 +206,15 @@ function Resolve-ModernizationQuotaChoices {
         if ($options.Count -eq 0) { continue }
 
         $original = $a.Candidates.Primary
+        & $apply (& $demandOf $a $original) -1
         $selected = $null
         $selectedQuotaVerified = $false
         $blocked = New-Object System.Collections.Generic.List[object]
         foreach ($option in $options) {
-            $a.Candidates.Primary = $option
-            $scenario = Measure-QuotaImpact -Moves @(& $toMoves) -Usage $Usage -SafetyPct $SafetyPct
-            $status = if ($scenario.ByVm.ContainsKey($a.Vm.Id)) { $scenario.ByVm[$a.Vm.Id].Status } else { 'Quota Information Unavailable' }
+            $d = & $demandOf $a $option
+            & $apply $d 1
+            $status = & $statusOf $d
+            & $apply $d -1
             if ($status -eq 'Quota OK') {
                 $selected = $option
                 $selectedQuotaVerified = $true
@@ -193,6 +228,7 @@ function Resolve-ModernizationQuotaChoices {
                 $blocked.Add([pscustomobject]@{ Candidate = $option; QuotaStatus = $status })
             }
         }
+        & $apply (& $demandOf $a $(if ($selected) { $selected } else { $original })) 1
 
         if (-not $selected) {
             $a.Candidates.Primary = $original

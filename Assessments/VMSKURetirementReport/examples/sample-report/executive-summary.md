@@ -6,7 +6,7 @@
 |---|---|
 | Tenant | Contoso (Sample) (`22222222-2222-2222-2222-222222222222`) |
 | Assessment date (as of) | 2026-10-05 |
-| Generated (UTC) | 2026-10-08T13:32:40.7560919Z |
+| Generated (UTC) | 2026-10-08T20:15:01.8069446Z |
 | Retirement evidence | Cached (2026-10-06 00:44 UTC) - Microsoft Learn |
 | Source: RetiredList | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) (updated 09/27/2026 11:03:00, retrieved 10/06/2026 00:44:07) |
 | Source: PreviousGen | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list) (updated 09/26/2026 06:04:00, retrieved 10/06/2026 00:44:07) |

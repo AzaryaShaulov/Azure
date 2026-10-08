@@ -342,6 +342,49 @@ Describe 'Candidate selection and mandatory gates' {
             $a.SecondaryReason | Should -Match 'blocked by aggregate quota'
         }
 
+        It 'gives identical VMs independent quota decisions even though they share one candidate evaluation' {
+            $cache = @{}
+            $make = { param($Name)
+                $vm = New-TestVm -Name $Name -Sku 'Standard_D4s_v3' -Controller 'NVMe'
+                $lc = Resolve-SkuLifecycle -SkuName $vm.SkuName -Catalog $Catalog -AsOf $AsOf
+                $x = New-VmAssessment -Vm $vm -Lifecycle $lc -RegionCatalog $ModernCatalog -ProcessorCatalog $Proc -RetirementCatalog $Catalog `
+                    -LifecycleCache @{} -CandidateCache $cache -Weights $Weights -AsOf $AsOf -SubscriptionName 'sub1' -CheckModernization
+                Update-VmAction -Assessment $x }
+            $a1 = & $make 'vm-a'; $a2 = & $make 'vm-b'
+            $cache.Count | Should -Be 1
+            [object]::ReferenceEquals($a1.Candidates, $a2.Candidates) | Should -BeFalse
+            $usage = @{ 's1|eastus2' = @{
+                    'standarddsv7family' = [pscustomobject]@{ Name = 'standardDSv7Family'; LocalName = 'DSv7'; Used = 0; Limit = 4 }
+                    'standarddsv6family' = [pscustomobject]@{ Name = 'standardDSv6Family'; LocalName = 'DSv6'; Used = 0; Limit = 100 }
+                    'cores' = [pscustomobject]@{ Name = 'cores'; LocalName = 'Regional'; Used = 0; Limit = 100 } } }
+            [void](Resolve-ModernizationQuotaChoices -Assessments @($a1, $a2) -Usage $usage)
+            # Only one 4-vCPU VM fits the DSv7 limit; the other falls back to v6 and keeps v7 as the quota-blocked alternative.
+            @(@($a1, $a2) | Where-Object { $_.Candidates.Primary.SkuName -eq 'Standard_D4s_v7' }).Count | Should -Be 1
+            @(@($a1, $a2) | Where-Object { $_.Candidates.Primary.SkuName -eq 'Standard_D4s_v6' }).Count | Should -Be 1
+            $fallback = @($a1, $a2) | Where-Object { $_.Candidates.Primary.SkuName -eq 'Standard_D4s_v6' }
+            $fallback.Candidates.Secondary.SkuName | Should -Be 'Standard_D4s_v7'
+            $fallback.Modernization.Status | Should -Be 'Modernize to v6'
+        }
+
+        It 'resolves modernization quota for a large estate in linear time' {
+            $cache = @{}
+            $set = foreach ($i in 1..300) {
+                $vm = New-TestVm -Name ('vm{0:d3}' -f $i) -Sku 'Standard_D4s_v3' -Controller 'NVMe'
+                $lc = Resolve-SkuLifecycle -SkuName $vm.SkuName -Catalog $Catalog -AsOf $AsOf
+                Update-VmAction -Assessment (New-VmAssessment -Vm $vm -Lifecycle $lc -RegionCatalog $ModernCatalog -ProcessorCatalog $Proc -RetirementCatalog $Catalog `
+                        -LifecycleCache @{} -CandidateCache $cache -Weights $Weights -AsOf $AsOf -SubscriptionName 'sub1' -CheckModernization)
+            }
+            $usage = @{ 's1|eastus2' = @{
+                    'standarddsv7family' = [pscustomobject]@{ Name = 'standardDSv7Family'; LocalName = 'DSv7'; Used = 0; Limit = 400 }
+                    'standarddsv6family' = [pscustomobject]@{ Name = 'standardDSv6Family'; LocalName = 'DSv6'; Used = 0; Limit = 2000 }
+                    'cores' = [pscustomobject]@{ Name = 'cores'; LocalName = 'Regional'; Used = 0; Limit = 5000 } } }
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
+            [void](Resolve-ModernizationQuotaChoices -Assessments @($set) -Usage $usage)
+            $sw.Stop()
+            $sw.Elapsed.TotalSeconds | Should -BeLessThan 15
+            @($set | Where-Object { $_.Candidates.Primary.SkuName -eq 'Standard_D4s_v7' }).Count | Should -Be 100
+            @($set | Where-Object { $_.Candidates.Primary.SkuName -eq 'Standard_D4s_v6' }).Count | Should -Be 200
+        }
         It 'does not treat unavailable quota information as verified insufficiency' {
             $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_D4s_v3' -Controller 'NVMe') -Catalog $ModernCatalog -CheckModernization
             [void](Resolve-ModernizationQuotaChoices -Assessments @($a) -Usage @{})
@@ -701,6 +744,21 @@ Describe 'Retirement target vs modernization target' {
     }
 }
 
+Describe 'HTML VM scope' {
+    It 'lists retiring VMs by default and optional modernization only when requested' {
+        InModuleScope Output {
+            $retiring = [pscustomobject]@{ AffectedByRetirement = 'Yes'; Lifecycle = [pscustomobject]@{ RetirementDate = '2028-05-01' }; Action = 'Plan Migration' }
+            $optional = [pscustomobject]@{ AffectedByRetirement = 'No'; Lifecycle = [pscustomobject]@{ RetirementDate = $null }; Action = 'Modernization Optional' }
+            $current = [pscustomobject]@{ AffectedByRetirement = 'No'; Lifecycle = [pscustomobject]@{ RetirementDate = $null }; Action = 'No Action Required' }
+            $undated = [pscustomobject]@{ AffectedByRetirement = 'Yes'; Lifecycle = [pscustomobject]@{ RetirementDate = $null }; Action = 'Plan Migration' }
+            Test-HtmlListedVm -Assessment $retiring | Should -BeTrue
+            Test-HtmlListedVm -Assessment $optional | Should -BeFalse
+            Test-HtmlListedVm -Assessment $optional -IncludeOptional | Should -BeTrue
+            Test-HtmlListedVm -Assessment $current -IncludeOptional | Should -BeFalse
+            Test-HtmlListedVm -Assessment $undated -IncludeOptional | Should -BeFalse
+        }
+    }
+}
 Describe 'Confidence, readiness, actions and waves' {
     It 'HIGH only when nothing is left to validate' {
         $lc = [pscustomobject]@{ EvidenceClass = 'Confirmed Retirement'; DataQuality = 'Verified' }

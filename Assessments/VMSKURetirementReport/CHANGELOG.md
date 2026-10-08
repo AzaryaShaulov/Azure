@@ -11,7 +11,10 @@ All notable changes to this project are documented here. The format follows
 
 - `-SaveSnapshot` / `-FromSnapshot`: record a run's Azure reads and replay them later with different options (for example
   `--check-modernization`) without calling Azure. Snapshots contain no access tokens and mask the signed-in account; reports
-  and `assessment.json` (`dataSource`) show when data was replayed.
+  and `assessment.json` (`dataSource`) show when data was replayed. Snapshots also store the Microsoft retirement
+  evidence, so a replay reproduces the capture, and replays warn when the data is more than 7 days old.
+- `-HtmlIncludeOptionalModernization` to also list optional-modernization VMs in the HTML, and `-HtmlMaxVmDetails`
+  (default 250) to cap per-VM HTML detail blocks on very large subscription pages.
 - *Upgrade Path and SCSI to NVMe Guidance* section and contextual Microsoft Learn links (resize, SCSI to NVMe conversion,
   NVMe OS support and FAQ, Gen1 to Trusted launch, Gen2, MANA, sizes without temp disk).
 - Optional `--check-modernization` assessment for every VM, preferring suitable same-vendor/same-architecture v7,
@@ -30,6 +33,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- Subscription pages separate *Part 1 - Required: Retirement remediation* (orange) from *Part 2 - Optional: v6/v7
+  Modernization* (purple) with banners, coloured card edges, grouped navigation, Overview tiles, tinted target columns
+  and a print page break before Part 2.
 - HTML report lists only VMs with an announced Microsoft retirement date and a required action (CSV/JSON/Markdown still
   include every VM). Subscription pages: *VM Assessment* is now *VMs with Retiring SKUs* and *Recommendations in Detail*
   is now *VMs with Retiring SKUs details*, both directly under Overview. *Cross-Vendor Migration Warnings* is collapsed.
@@ -45,6 +51,13 @@ All notable changes to this project are documented here. The format follows
 - Hardened CSV and Markdown exports against formula/markup injection and made output folders collision resistant.
 - Locked Pester and PSScriptAnalyzer to exact verified versions, pinned GitHub Actions to immutable commits, added a
   PowerShell 7.2 CI lane, and separated read-only release builds from write-enabled publication.
+
+### Fixed
+
+- VMs with identical configurations shared one cached candidate object, so a modernization quota decision for one VM
+  could change another's recommendation. Each VM now gets its own copy.
+- Modernization quota resolution re-aggregated the whole estate for every option of every VM (quadratic). It now updates
+  aggregate demand incrementally with the same rules (1,000 modernizing VMs resolve in about 1.5 s).
 
 ### Security
 

@@ -378,7 +378,59 @@ thead th { white-space: normal; }
   .modernization-table { min-width: 1380px; }
   .target-legend { display: grid; grid-template-columns: 1fr; }
 }
-</style></head><body>
+
+/* -- Parts: Part 1 retirement remediation (required) vs Part 2 v6/v7 modernization (optional) -- */
+:root {
+  --retire: #d83b01; --retire-soft: #fdf1ea; --retire-tint: #fff6f1;
+  --modern: #8764b8; --modern-soft: #f4effb; --modern-tint: #f9f6fd;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --retire: #ff9a5c; --retire-soft: #3a2214; --retire-tint: #2a1b12;
+    --modern: #b99cf0; --modern-soft: #2a2140; --modern-tint: #221b33;
+  }
+}
+.track { margin: 28px 0 8px; }
+.track-banner { display: flex; gap: 16px; align-items: flex-start; border-radius: var(--radius); padding: 18px 22px; margin: 0 0 16px; border: 1px solid; border-left-width: 8px; }
+.track-retirement .track-banner { background: var(--retire-soft); border-color: var(--retire); }
+.track-modernization .track-banner { background: var(--modern-soft); border-color: var(--modern); }
+.track-icon { font-size: 1.6rem; line-height: 1; font-weight: 700; }
+.track-retirement .track-icon, .track-retirement .track-part strong { color: var(--retire); }
+.track-modernization .track-icon, .track-modernization .track-part strong { color: var(--modern); }
+.track-part { display: block; font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+.track-title { font-size: 1.35rem; font-weight: 700; margin: 2px 0 4px; }
+.track-desc { margin: 0; color: var(--text-2); }
+.track-retirement > .card { border-left: 6px solid var(--retire); }
+.track-modernization > .card { border-left: 6px solid var(--modern); }
+
+/* Grouped navigation */
+.toc-group { display: inline-flex; align-items: center; gap: 2px; padding: 0 6px 0 10px; margin: 0 4px; border-bottom: 3px solid var(--border); white-space: nowrap; }
+.toc-group-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-right: 4px; }
+.toc-retirement { border-bottom-color: var(--retire); } .toc-retirement .toc-group-label { color: var(--retire); }
+.toc-modernization { border-bottom-color: var(--modern); } .toc-modernization .toc-group-label { color: var(--modern); }
+
+/* Overview tiles linking to each part */
+.track-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 6px 0 18px; }
+.track-tile { display: flex; flex-direction: column; gap: 2px; padding: 14px 18px; border-radius: 10px; border: 1px solid var(--border); border-left: 6px solid; color: var(--text); text-decoration: none; }
+.track-tile:hover { text-decoration: none; box-shadow: var(--shadow); }
+.track-tile-retirement { border-left-color: var(--retire); background: var(--retire-tint); }
+.track-tile-modernization { border-left-color: var(--modern); background: var(--modern-tint); }
+.track-tile-part { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+.track-tile-value { font-size: 1.9rem; font-weight: 700; line-height: 1.15; }
+.track-tile-retirement .track-tile-value { color: var(--retire); }
+.track-tile-modernization .track-tile-value { color: var(--modern); }
+.track-tile-label { font-weight: 650; }
+.track-tile-hint { font-size: .86rem; color: var(--text-2); }
+
+/* Retirement vs modernization target columns */
+.modernization-table td.retirement-target-cell { background: var(--retire-tint); box-shadow: inset 3px 0 0 var(--retire); }
+.modernization-table td.modernization-target-cell { background: var(--modern-tint); box-shadow: inset 3px 0 0 var(--modern); }
+
+@media print {
+  .track-banner, .track > .card, .track-tile, .modernization-table td.retirement-target-cell, .modernization-table td.modernization-target-cell { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .track-modernization { break-before: page; page-break-before: always; }
+  .track-banner { break-after: avoid; page-break-after: avoid; }
+}</style></head><body>
 <header class="hero"><div class="wrap">
 <div class="app-bar">
 <div class="brand-lockup"><span class="brand-mark" aria-hidden="true">&#9729;</span><span><strong>VMSKURetirementReport</strong><small>Assessment report v1.1.0</small></span></div>
@@ -398,7 +450,7 @@ thead th { white-space: normal; }
 <div class="callout disclaimer"><strong>Unofficial planning report.</strong> Built from read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.</div>
 <section id='summary' class='card'><h2>Summary</h2><div class='kpis'><div class='kpi kpi-neutral'><div class='kpi-label'>VMs assessed</div><div class='kpi-value'>7</div><div class='kpi-hint'>1 subscription(s)</div></div><div class='kpi kpi-orange'><div class='kpi-label'>On retiring sizes</div><div class='kpi-value'>6</div><div class='kpi-hint'>Microsoft-confirmed</div></div><div class='kpi kpi-red'><div class='kpi-label'>Already retired</div><div class='kpi-value'>1</div></div><div class='kpi kpi-neutral'><div class='kpi-label'>Retire &lt; 12 months</div><div class='kpi-value'>0</div></div><div class='kpi kpi-orange'><div class='kpi-label'>Retire in 1-3 years</div><div class='kpi-value'>3</div></div><div class='kpi kpi-purple'><div class='kpi-label'>Optional modernization</div><div class='kpi-value'>0</div><div class='kpi-hint'>Older, not retiring</div></div><div class='kpi kpi-orange'><div class='kpi-label'>Need quota increase</div><div class='kpi-value'>4</div></div><div class='kpi kpi-green'><div class='kpi-label'>High-confidence moves</div><div class='kpi-value'>0</div></div></div><div class='bottom-line'><h3>Bottom line</h3><ul><li><strong>6 of 7 VMs</strong> run on VM sizes that Microsoft has retired or scheduled for retirement. The earliest retirement date is <strong>2025-09-30</strong> (Standard_NC6s_v3).</li><li><strong>1 VM(s)</strong> are on sizes that are already retired and need immediate attention.</li><li>4 recommended move(s) need a vCPU quota increase first (see Quota actions).</li></ul></div></section>
 <div class='callout warn'><strong>Evidence warning:</strong> Offline mode requested.</div><div class='callout info'><strong>Microsoft lifecycle entries that are not VM sizes:</strong> Dsv3-Type1, Dsv3-Type2, Esv3-Type1, Esv3-Type2 (ADH, Retired 2023-06-30). They are not matched to VMs; validate them separately (for example, Dedicated Host SKUs).</div>
-<section id='waves' class='card'><h2>Migration Waves</h2><p class='lead'>Only VMs on sizes with an announced Microsoft retirement date and a required action are listed. Optional modernization and unconfirmed sizes are in <code>vm-assessment.csv</code> and <code>assessment.json</code>.</p><div class='table-wrap'><table><thead><tr><th>Wave</th><th>Current size</th><th>Microsoft status</th><th>Retirement date</th><th class='num'>VMs</th><th>Recommended size</th></tr></thead><tbody><tr><td><span class='badge b-red'>Wave 1 - Urgent</span></td><td><code>Standard_<wbr>NC6s_v3</code></td><td><span class='badge b-red'>Already Retired</span></td><td class='nowrap'>2025-09-30</td><td class='num'>1</td><td>No recommendation</td></tr>
+<section id='waves' class='card'><h2>Migration Waves</h2><p class='lead'>Only VMs on sizes with an announced Microsoft retirement date and a required action are listed. Every VM is in <code>vm-assessment.csv</code> and <code>assessment.json</code>.</p><div class='table-wrap'><table><thead><tr><th>Wave</th><th>Current size</th><th>Microsoft status</th><th>Retirement date</th><th class='num'>VMs</th><th>Recommended size</th></tr></thead><tbody><tr><td><span class='badge b-red'>Wave 1 - Urgent</span></td><td><code>Standard_<wbr>NC6s_v3</code></td><td><span class='badge b-red'>Already Retired</span></td><td class='nowrap'>2025-09-30</td><td class='num'>1</td><td>No recommendation</td></tr>
 <tr><td><span class='badge b-orange'>Wave 2 - Near Term</span></td><td><code>Standard_<wbr>DS3_v2</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2028-05-01</td><td class='num'>2</td><td>Standard_D4ds_v5 &times;2</td></tr>
 <tr><td><span class='badge b-yellow'>Wave 3 - Planned</span></td><td><code>Standard_<wbr>B2ms</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2028-11-15</td><td class='num'>1</td><td>Standard_B2s_v2</td></tr>
 <tr><td><span class='badge b-grey'>Beyond Horizon</span></td><td><code>Standard_<wbr>D4s_v3</code></td><td><span class='badge b-orange'>Confirmed Retirement</span></td><td class='nowrap'>2029-11-15</td><td class='num'>2</td><td>Standard_D4ds_v5 &times;2</td></tr></tbody></table></div></section>

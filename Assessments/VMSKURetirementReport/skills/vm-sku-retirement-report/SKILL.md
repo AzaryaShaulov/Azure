@@ -70,7 +70,9 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
    Microsoft evidence), `-AsOfDate`, `-SkipHtml`, `-ThrottleLimit 6`,
    `-IncludeOperatorAccount` (record the full signed-in account; masked by default), `-KeepRawData` (write raw `data/`),
    `-SaveSnapshot` (record the Azure data to `<OutputPath>/snapshot`) and `-FromSnapshot <run folder>` (re-run from a
-   snapshot with different options and no Azure calls; prefer this when the user only wants another view of a recent run).
+   snapshot with different options and no Azure calls; prefer this when the user only wants another view of a recent run;
+   it warns when the snapshot is more than 7 days old), `-HtmlIncludeOptionalModernization` (also list optional-modernization
+   VMs in the HTML) and `-HtmlMaxVmDetails 250` (cap per-VM HTML detail blocks; `0` = no limit).
 4. **Report back** from `executive-summary.md` (counts, waves, quota actions) and point the user to `index.html`.
    Answer drill-down questions from `vm-assessment.csv` / `assessment.json`; quote the Microsoft source URL for any
    retirement claim.

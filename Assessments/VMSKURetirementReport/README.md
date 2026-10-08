@@ -328,8 +328,9 @@ Invoke-Item C:\Reports\vm-sku\full-assessment\index.html
 - Add `-OfflineCatalog` if Microsoft Learn is unreachable, to use the bundled lifecycle evidence.
 - **Reuse collected data:** add `-SaveSnapshot` to record the Azure data, then re-run any time with `-FromSnapshot` and
   different options (for example `--check-modernization`, `-HorizonMonths` or `-QuotaSafetyPct`) without querying Azure or
-  signing in. The replay reuses the captured tenant, subscriptions, regions and as-of date, and labels the report with the
-  capture time. Quota and availability are as of the capture, so capture again before acting on them.
+  signing in. The replay reuses the captured tenant, subscriptions, regions, as-of date and Microsoft retirement evidence,
+  so it reproduces the capture, and labels the report with the capture time. Quota and availability are as of the
+  capture: the report warns when the snapshot is more than 7 days old, so capture again before acting on them.
 
   ```powershell
   .\Invoke-VMSKURetirementReport.ps1 -SaveSnapshot -OutputPath C:\Reports\vm-sku\capture
@@ -367,7 +368,9 @@ double-dash form accepted is `--check-modernization`.
 | `-IncludeOperatorAccount` | off | Record the full signed-in account in the console, `run.log` and `assessment.json` (masked by default) |
 | `-KeepRawData` | off | Also write the raw VM inventory and Resource SKU responses to `data/` for audit |
 | `-SaveSnapshot` | off | Record every Azure read of the run to `<OutputPath>/snapshot` so it can be replayed later (no tokens; account masked) |
-| `-FromSnapshot` | - | Replay a run folder captured with `-SaveSnapshot` without calling Azure; scope and as-of date come from the snapshot |
+| `-FromSnapshot` | - | Replay a run folder captured with `-SaveSnapshot` without calling Azure; scope, as-of date and Microsoft evidence come from the snapshot; warns when it is more than 7 days old |
+| `-HtmlIncludeOptionalModernization` | off | Also list optional-modernization VMs (older generations without an announced retirement) in the HTML |
+| `-HtmlMaxVmDetails` | `250` | Maximum expandable per-VM detail blocks per subscription page (`0` = no limit); every VM stays in the tables, CSV, JSON and Markdown |
 
 `--check-modernization` is assessment-only. It reads Resource SKU availability/restrictions and quota, applies the
 existing workload capability gates, and never resizes, redeploys or modifies a VM. The PowerShell-style
@@ -384,7 +387,7 @@ peak (side-by-side) demand, and each subscription page gains a *v6/v7 Modernizat
 
 | File | Purpose |
 |---|---|
-| `index.html`, `<subscription>-<id>.html` | Browsable report: summary, waves, quota, *VMs with Retiring SKUs* and their details, Microsoft Learn upgrade-path and SCSI to NVMe guidance, reference sections. Lists only VMs with an announced retirement date and a required action |
+| `index.html`, `<subscription>-<id>.html` | Browsable report: summary, waves, quota, *Part 1 - Required: Retirement remediation* (*VMs with Retiring SKUs* and their details) and, with `--check-modernization`, *Part 2 - Optional: v6/v7 Modernization*, as colour-coded parts; Microsoft Learn upgrade-path and SCSI to NVMe guidance, reference sections. Lists only VMs with an announced retirement date and a required action |
 | `executive-summary.md` | Estate counts, waves, groupings, quota actions |
 | `detailed-report.md` | Per affected VM: configuration, evidence, recommendation, differences, validation items |
 | `vm-assessment.csv` | One row per VM (Excel / Power BI) |

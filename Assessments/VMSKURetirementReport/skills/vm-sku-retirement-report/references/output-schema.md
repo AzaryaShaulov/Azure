@@ -10,7 +10,7 @@ machine-readable result for Azure Workbooks, Power BI, Excel, Logic Apps, PowerS
   schemaVersion: "1.0", tool: "VMSKURetirementReport", generatedUtc, asOfDate, tenant: { Id, Name },
   signedInAccount (masked, e.g. "j****@contoso.com", unless -IncludeOperatorAccount),
   dataSource: "Live" | "Snapshot captured <yyyy-MM-dd HH:mm> UTC",
-  parameters: { SubscriptionId, Region, HorizonMonths, OfflineCatalog, QuotaSafetyPct, MaxCandidates, CheckModernization, IncludeRightsizing, IncludeOperatorAccount, KeepRawData, SaveSnapshot, FromSnapshot, ... },
+  parameters: { SubscriptionId, Region, HorizonMonths, OfflineCatalog, QuotaSafetyPct, MaxCandidates, CheckModernization, IncludeRightsizing, IncludeOperatorAccount, KeepRawData, SaveSnapshot, FromSnapshot, HtmlIncludeOptionalModernization, HtmlMaxVmDetails, ... },
   disclaimer,
   catalog: { source: "Live" | "Cached (<utc>)", warning, sources: [ { Name, Url, Title, UpdatedAt, GitCommitId, RetrievedUtc } ], unmappedSeries: [...],
              nonVmSizeEntries: [ { Category, Name, Status, PlannedRetirementDate, GuideUrl, SourceUrl } ] },
@@ -123,9 +123,10 @@ use `cores`. `Scope` is one of:
 
 ## snapshot/ (only with -SaveSnapshot)
 
-- `snapshot.json` - manifest: `SnapshotVersion`, `Tool`, `ToolVersion`, `CapturedUtc`, `AsOfDate`, `TenantId`, `TenantName`,
+- `snapshot.json` - manifest: `SnapshotVersion`, `Tool`, `ToolVersion`, `CapturedUtc`, `AsOfDate`, `TenantId`, `TenantName`, `CatalogSource`,
   `SubscriptionId[]`, `Region[]` (capture scope; empty = all), `Subscriptions`, `Vms`, `IncludeRightsizing`, `RightsizingLookbackDays`.
   Written last, so an interrupted capture has no manifest and cannot be replayed.
+- `retirement-catalog.json` - the Microsoft retirement evidence used by the capture; a replay reuses it under `CatalogSource`.
 - `responses/<sha256>.json` - one recorded Azure read each: `{ Kind: az|rest, Request, Failed, Text }`. Requests are keyed
   without credentials; access tokens are never stored and the signed-in account is masked.
 
