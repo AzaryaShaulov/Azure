@@ -1,12 +1,14 @@
 # VMSKURetirementReport - Executive Summary
 
+[Source repository](https://github.com/AzaryaShaulov/Azure) | VMSKURetirementReport v1.1.2
+
 > UNOFFICIAL ASSESSMENT - FOR PLANNING PURPOSES ONLY. Generated with read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.
 
 | Item | Value |
 |---|---|
 | Tenant | Contoso (Sample) (`22222222-2222-2222-2222-222222222222`) |
 | Assessment date (as of) | 2026-10-05 |
-| Generated (UTC) | 2026-10-08T22:12:01.8898832Z |
+| Generated (UTC) | 2026-10-09T03:26:31.7874951Z |
 | Retirement evidence | Cached (2026-10-06 00:44 UTC) - Microsoft Learn |
 | Source: RetiredList | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) (updated 09/27/2026 11:03:00, retrieved 10/06/2026 00:44:07) |
 | Source: PreviousGen | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list) (updated 09/26/2026 06:04:00, retrieved 10/06/2026 00:44:07) |

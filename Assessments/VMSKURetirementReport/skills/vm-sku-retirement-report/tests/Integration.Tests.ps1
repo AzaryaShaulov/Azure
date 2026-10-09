@@ -26,6 +26,14 @@ Describe 'End-to-end assessment (mock Azure)' {
         }
         $Rows.Count | Should -Be 7
     }
+    It 'links the source repository from every human-readable report' {
+        foreach ($file in Get-ChildItem $Out -Filter '*.html') {
+            (Get-Content $file.FullName -Raw) | Should -Match '<a href="https://github.com/AzaryaShaulov/Azure" target="_blank" rel="noopener noreferrer">Source repository</a>'
+        }
+        foreach ($name in 'executive-summary.md', 'detailed-report.md') {
+            (Get-Content (Join-Path $Out $name) -Raw) | Should -Match '\[Source repository\]\(https://github.com/AzaryaShaulov/Azure\)'
+        }
+    }
     It 'keeps operator details out of the shared outputs by default' {
         (Get-Content (Join-Path $Out 'assessment.json') -Raw | ConvertFrom-Json).signedInAccount | Should -Be 'a****@contoso.example'
         $runLog = Get-Content (Join-Path $Out 'run.log') -Raw
@@ -155,6 +163,53 @@ Describe 'End-to-end assessment (mock Azure)' {
     }
 }
 
+Describe 'End-to-end pricing pagination failures (mock Azure)' {
+    It 'discards the incomplete region and reports <Status>' -ForEach @(
+        @{ FailedRegion = 'eastus2'; Status = 'Unavailable'; CompletedRegions = 0 }
+        @{ FailedRegion = 'westus2'; Status = 'Partial'; CompletedRegions = 1 }
+    ) {
+        $out = Join-Path $TestDrive "pricing-$Status"
+        $requests = Join-Path $TestDrive "pricing-$Status-requests.txt"
+        $prices = Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json'
+        $mockDir = Join-Path $PSScriptRoot 'mock'
+        $shim = @"
+function global:Invoke-RestMethod {
+    param([string]`$Uri, [int]`$TimeoutSec)
+    Add-Content -LiteralPath '$requests' -Value `$Uri
+    if (`$Uri -eq 'https://prices.azure.com/$FailedRegion/page2') { throw 'later page blocked' }
+    if (`$Uri -notlike 'https://prices.azure.com/*') { throw "Test is offline; blocked request to `$Uri" }
+    `$response = Get-Content -LiteralPath '$prices' -Raw | ConvertFrom-Json
+    if (`$Uri -match "armRegionName eq '$FailedRegion'") { `$response.NextPageLink = 'https://prices.azure.com/$FailedRegion/page2' }
+    return `$response
+}
+function global:Start-Sleep { param([int]`$Seconds) }
+"@
+        $log = & pwsh -NoProfile -Command "$shim; `$env:MOCK_AZ_MULTI_REGION='1'; `$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$out' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+        $log | Should -Match 'Outputs:'
+        $flat = ($log -replace '\s*\|\s*', ' ') -replace '\s+', ' '
+        ([regex]::Matches($flat, 'Retail pricing unavailable')).Count | Should -Be 1
+        $flat | Should -Match "prices from $CompletedRegions completed region\(s\) retained"
+        $j = Get-Content (Join-Path $out 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        $j.pricingStatus | Should -Be $Status
+        $rows = @(Import-Csv (Join-Path $out 'vm-assessment.csv'))
+        @($rows | Where-Object { $_.Region -eq $FailedRegion -and ($_.CurrentMonthlyUSD -or $_.TargetMonthlyUSD) }).Count | Should -Be 0
+        @($j.vms | Where-Object { $_.row.Region -eq $FailedRegion -and $null -ne $_.pricing }).Count | Should -Be 0
+        if ($CompletedRegions) {
+            @($rows | Where-Object { $_.Region -eq 'eastus2' -and $_.CurrentMonthlyUSD }).Count | Should -BeGreaterThan 0
+        }
+        else {
+            @($rows | Where-Object { $_.CurrentMonthlyUSD -or $_.TargetMonthlyUSD }).Count | Should -Be 0
+        }
+        (Get-Content $requests -Raw) | Should -Not -Match "armRegionName eq 'westus3'"
+        (Get-Content (Join-Path $out 'index.html') -Raw) | Should -Match ">${Status}</span>"
+        $html = Get-Content (Get-ChildItem $out -Filter 'contoso-prod-*.html').FullName -Raw
+        $failedVm = if ($FailedRegion -eq 'eastus2') { 'vm-ds3v2' } else { 'vm-d4sv3' }
+        $failedRow = [regex]::Match($html, "(?s)<tr><td><a[^>]+>$failedVm</a>.*?</tr>").Value
+        $failedRow | Should -Not -BeNullOrEmpty
+        $failedRow | Should -Not -Match '\$\d'
+    }
+}
+
 Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
     BeforeAll {
         $mockDir = Join-Path $PSScriptRoot 'mock'
@@ -216,6 +271,18 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
     It 'renders the modernization section from backend quota rows' {
         $html = Get-Content (Get-ChildItem $ModernOut -Filter 'contoso-prod-*.html').FullName -Raw
         $html | Should -Match "id='modernization'"
+        $html | Should -Match 'v6/v7 Generation Modernization Paths'
+        $html | Should -Not -Match 'v6/v7 Modernization Readiness|<th>Complexity</th>|<dt>Complexity</dt>| complexity</span>'
+        $modernTable = [regex]::Match($html, "(?s)<table class='modernization-table'>.*?</table>").Value
+        $modernTable | Should -Not -BeNullOrEmpty
+        ([regex]::Matches([regex]::Match($modernTable, '(?s)<thead>.*?</thead>').Value, '<th>')).Count | Should -Be 9
+        foreach ($row in [regex]::Matches($modernTable, "(?s)<tr class='modernization-summary-row'>.*?</tr>")) {
+            ([regex]::Matches($row.Value, '<td(?:>| )')).Count | Should -Be 9
+        }
+        $modernTable | Should -Match "colspan='9'"
+        @($ModernRows | Where-Object ModernizationComplexity).Count | Should -BeGreaterThan 0
+        $json = Get-Content (Join-Path $ModernOut 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        @($json.vms | Where-Object { $_.strategy.Complexity }).Count | Should -BeGreaterThan 0
         $html | Should -Match "class='quota-table quota-impact-table'"
         $html | Should -Match 'Total Regional vCPUs'
         $html | Should -Match 'Upgrade Gen1 VMs to Trusted launch'

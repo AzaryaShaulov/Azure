@@ -1,8 +1,10 @@
 # Detailed VM Reports - Retirement and Modernization Assessment
 
+[Source repository](https://github.com/AzaryaShaulov/Azure)
+
 > UNOFFICIAL ASSESSMENT - FOR PLANNING PURPOSES ONLY. Generated with read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.
 
-Tenant: **Contoso (Sample)** (`22222222-2222-2222-2222-222222222222`) | As of: **2026-10-05** | Tool: VMSKURetirementReport v1.1.0
+Tenant: **Contoso (Sample)** (`22222222-2222-2222-2222-222222222222`) | As of: **2026-10-05** | Tool: VMSKURetirementReport v1.1.2
 
 ## Subscription: contoso-prod
 

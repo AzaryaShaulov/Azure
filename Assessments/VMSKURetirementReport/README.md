@@ -14,7 +14,7 @@ retirement**, and recommends the closest **current-generation, same-CPU-vendor**
 recommendation against regional availability, subscription restrictions and VM-family quota. The output is an
 auditable wave plan in HTML, Markdown, CSV and JSON.
 
-![Report overview](docs/images/report-overview.png)
+![Summary screenshot](docs/images/report-overview.png)
 
 ## Why
 
@@ -43,21 +43,38 @@ auditable wave plan in HTML, Markdown, CSV and JSON.
 | Extras | PAYGO price comparison (on by default, `-SkipPricing` to turn off) and an optional rightsizing signal from Azure Monitor (never changes the recommendation) |
 | Outputs | Responsive HTML report, executive summary and per-VM detail (Markdown), CSV for Excel / Power BI, versioned JSON |
 
-<table>
-<tr>
-<td><img src="docs/images/report-waves.png" alt="Migration waves" /></td>
-<td><img src="docs/images/report-vm-detail.png" alt="Per-VM recommendation detail" /></td>
-</tr>
-<tr>
-<td><img src="docs/images/report-cross-vendor.png" alt="Cross-vendor migration warnings" /></td>
-<td><img src="docs/images/report-sku-families.png" alt="SKU family quick reference" /></td>
-</tr>
-</table>
+### VMs with Retiring SKUs
+
+![VMs with Retiring SKUs screenshot](docs/images/report-vm-table.png)
+
+### v6/v7 Generation Modernization Paths
+
+![v6/v7 Generation Modernization Paths screenshot](docs/images/report-modernization.png)
 
 Browse the full generated sample in [`examples/sample-report/`](examples/sample-report/). It uses a synthetic
-*Contoso* estate: open `index.html` locally.
+*Contoso* estate with seven VMs, `--check-modernization` enabled and PAYGO pricing included by default.
+The sample is generated entirely offline using mock Azure inventory, cached lifecycle evidence, a fixed assessment
+date of **2026-10-05**, and fixture prices. It is illustrative, not a live tenant assessment or current price quote.
 
-![VM assessment table with current vs recommended disk capabilities](docs/images/report-vm-table.png)
+Download or clone the project, then open the [tenant overview](examples/sample-report/index.html) locally and follow
+its subscription link. GitHub displays HTML source rather than rendering the report.
+
+| Sample output | Contents |
+|---|---|
+| [Subscription report](examples/sample-report/contoso-prod-11111111.html) | Required retirement remediation, separate optional v6/v7 modernization, quota impact and Microsoft Learn upgrade links |
+| [Executive summary](examples/sample-report/executive-summary.md) | Estate findings and migration waves |
+| [Detailed report](examples/sample-report/detailed-report.md) | Per-VM recommendations and validation items |
+| [VM assessment CSV](examples/sample-report/vm-assessment.csv) | All seven VMs, retirement/modernization targets and monthly price estimates |
+| [Candidates CSV](examples/sample-report/candidates.csv) | Evaluated replacement sizes |
+| [Quota impact CSV](examples/sample-report/quota-impact.csv) | Retirement, combined and modernization quota scopes with steady-state/peak planning |
+| [Assessment JSON](examples/sample-report/assessment.json) | Structured assessment, effective parameters and pricing status |
+| [Retirement evidence JSON](examples/sample-report/retirement-evidence.json) | Lifecycle evidence and provenance |
+
+The default HTML lists End of Life or retired VMs that require action; CSV, JSON and Markdown retain every VM.
+Confidence and readiness badges describe the assessed evidence and platform/quota checks, not guaranteed hardware
+allocation or a successful resize. Expand a VM by selecting/tapping its summary or using Enter/Space to read its
+explanations; hover text is also available. Badge labels wrap on narrow screens, and VM details appear in print.
+HTML report footers and Markdown reports include a **Source repository** link to this project's parent repository.
 
 ## Local use
 
@@ -180,26 +197,26 @@ reports in a specific location.
 
 Download the current customer package and its checksum directly from this repository:
 
-- [Download VMSKURetirementReport v1.1.0 ZIP](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.0.zip)
-- [Download VMSKURetirementReport v1.1.0 SHA-256 checksum](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.0.zip.sha256)
+- [Download VMSKURetirementReport v1.1.2 ZIP](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.2.zip)
+- [Download VMSKURetirementReport v1.1.2 SHA-256 checksum](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.2.zip.sha256)
 
 With PowerShell:
 
 ```powershell
 Set-Location ~\Downloads
 Invoke-WebRequest `
-  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.0.zip `
-  -OutFile VMSKURetirementReport-v1.1.0.zip
+  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.2.zip `
+  -OutFile VMSKURetirementReport-v1.1.2.zip
 Invoke-WebRequest `
-  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.0.zip.sha256 `
-  -OutFile VMSKURetirementReport-v1.1.0.zip.sha256
+  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.2.zip.sha256 `
+  -OutFile VMSKURetirementReport-v1.1.2.zip.sha256
 ```
 
 ### Step 2 - Verify the checksum
 
 ```powershell
-$actual = (Get-FileHash .\VMSKURetirementReport-v1.1.0.zip -Algorithm SHA256).Hash.ToLowerInvariant()
-$expected = (Get-Content .\VMSKURetirementReport-v1.1.0.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\VMSKURetirementReport-v1.1.2.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content .\VMSKURetirementReport-v1.1.2.zip.sha256).Split()[0]
 if ($actual -ne $expected) { throw 'Package checksum verification failed.' }
 ```
 
@@ -212,8 +229,8 @@ default `RemoteSigned` execution policy refuses to load blocked unsigned scripts
 matches, unblock the ZIP **before** extracting it so the extracted files are not marked:
 
 ```powershell
-Unblock-File .\VMSKURetirementReport-v1.1.0.zip
-Expand-Archive .\VMSKURetirementReport-v1.1.0.zip -DestinationPath C:\Tools\VMSKURetirementReport -Force
+Unblock-File .\VMSKURetirementReport-v1.1.2.zip
+Expand-Archive .\VMSKURetirementReport-v1.1.2.zip -DestinationPath C:\Tools\VMSKURetirementReport -Force
 ```
 
 > If you already extracted the ZIP (for example with Windows Explorer **Extract All**, which copies the blocked
@@ -373,6 +390,11 @@ double-dash form accepted is `--check-modernization`.
 | `-HtmlIncludeOptionalModernization` | off | Also list optional-modernization VMs (older generations without an announced retirement) in the HTML |
 | `-HtmlMaxVmDetails` | `250` | Maximum expandable per-VM detail blocks per subscription page (`0` = no limit); every VM stays in the tables, CSV, JSON and Markdown |
 
+Pricing is applied only after a region's full API response is retrieved. An incomplete region's prices are discarded;
+previously completed regions retain their prices. On failure the run warns once and skips subsequent pricing regions.
+`assessment.json` records `pricingStatus: Partial` when some regions completed, or `Unavailable` when none completed.
+A blank price can also mean no matching public list price exists.
+
 `--check-modernization` is assessment-only. It reads Resource SKU availability/restrictions and quota, applies the
 existing workload capability gates, and never resizes, redeploys or modifies a VM. The PowerShell-style
 `-CheckModernization` spelling is also accepted. If v7 is suitable but lacks verified aggregate quota while v6 has
@@ -382,7 +404,7 @@ With the flag, every VM row also separates the **retirement target** (the suppor
 often v5) from the **modernization target** (the strategic v6/v7 size, including sizes that need a Gen1 -> Gen2 Trusted
 launch upgrade or SCSI -> NVMe conversion), with a recommended migration path, complexity, readiness and guest
 validation items (NVMe drivers, MANA, temp disk). `quota-impact.csv` gains a `Modernization` scope with steady-state and
-peak (side-by-side) demand, and each subscription page gains a *v6/v7 Modernization Readiness* section.
+peak (side-by-side) demand, and each subscription page gains a *v6/v7 Generation Modernization Paths* section.
 
 ## Outputs
 
@@ -465,7 +487,7 @@ From the Azure repository root:
 ```powershell
 Set-Location Assessments/VMSKURetirementReport
 ./build.ps1                        # Bootstrap, Lint, Version, Test (no Azure access needed)
-./build.ps1 -Task Sample           # regenerate examples/sample-report offline with --check-modernization (mock estate, cached catalog, fixed date)
+./build.ps1 -Task Sample           # regenerate all sample reports offline with modernization and default pricing
 ./build.ps1 -Task Package          # dist/VMSKURetirementReport-v<version>.zip + SHA-256
 ```
 

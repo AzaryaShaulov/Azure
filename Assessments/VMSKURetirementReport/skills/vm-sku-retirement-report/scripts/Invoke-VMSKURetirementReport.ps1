@@ -374,13 +374,13 @@ try {
     # -- Optional: pricing --
     if ($pricingEnabled) {
         Write-Phase 'Retail pricing (informational, PAYGO USD)'
+        $completedPricingRegions = 0
         foreach ($rg in ($assessments | Group-Object { $_.Vm.Region })) {
             $skuSet = @($rg.Group | ForEach-Object { $_.Vm.SkuName; if ($_.Candidates -and $_.Candidates.Primary) { $_.Candidates.Primary.SkuName; if ($_.Candidates.Secondary) { $_.Candidates.Secondary.SkuName } } } | Sort-Object -Unique)
             try { $prices = Get-RetailPrices -Region $rg.Name -SkuNames $skuSet }
             catch {
-                # One unreachable-API warning instead of retrying every region; the report completes without prices.
-                Write-Warning "Retail pricing unavailable, PAYGO columns left blank: $($_.Exception.Message) Use -SkipPricing to skip this step."
-                $pricingStatus = 'Unavailable'
+                $pricingStatus = if ($completedPricingRegions -gt 0) { 'Partial' } else { 'Unavailable' }
+                Write-Warning "Retail pricing unavailable for region '$($rg.Name)'. Incomplete region prices discarded; prices from $completedPricingRegions completed region(s) retained. Remaining regions skipped. $($_.Exception.Message) Use -SkipPricing to skip this step."
                 break
             }
             foreach ($a in $rg.Group) {
@@ -392,8 +392,9 @@ try {
                     Basis = 'Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit'
                 }
             }
+            $completedPricingRegions++
         }
-        Write-PhaseDone $(if ($pricingStatus -eq 'Done') { '' } else { 'unavailable' })
+        Write-PhaseDone $(if ($pricingStatus -eq 'Done') { '' } else { $pricingStatus.ToLowerInvariant() })
     }
     Write-Phase 'Writing outputs'
     $summary = New-AssessmentSummary -Assessments $assessments.ToArray() -SubscriptionsScanned $subs.Count

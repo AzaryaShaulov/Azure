@@ -175,14 +175,18 @@ table.ref td.fam { font-size: 1.3rem; font-weight: 700; color: var(--accent); wi
 details.vm { border: 1px solid var(--border); border-radius: 12px; margin: 0 0 12px; background: var(--surface); overflow: hidden; }
 details.vm > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 16px 20px; background: var(--surface-2); }
 details.vm > summary::-webkit-details-marker { display: none; }
+details.vm > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 details.vm > summary::before { content: "\25B8"; color: var(--accent); font-size: 1.1rem; transition: transform .15s; }
 details.vm[open] > summary::before { transform: rotate(90deg); }
 details.vm[open] > summary { border-bottom: 1px solid var(--border); }
 .vm-name { font-weight: 700; font-size: 1.08rem; }
-.vm-move { color: var(--text-2); }
-.vm-badges { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.vm-move { color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
+.vm-move code { white-space: normal; }
+.vm-badges { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; min-width: 0; max-width: 100%; }
+.vm-badges .badge { white-space: normal; overflow-wrap: anywhere; }
 .badge[title] { cursor: help; }
 .vm-body { padding: 18px 22px 22px; }
+.assessment-explanation { white-space: pre-line; overflow-wrap: anywhere; }
 dl.facts { display: grid; grid-template-columns: 190px 1fr; gap: 10px 20px; margin: 0 0 18px; }
 dl.facts dt { font-weight: 650; color: var(--text-2); }
 dl.facts dd { margin: 0; }
@@ -226,6 +230,8 @@ footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-i
   .card { box-shadow: none; }
   .collapsible-section > .section-body { display: block !important; }
   details.vm { break-inside: avoid; }
+  details.vm::details-content { content-visibility: visible; display: block; }
+  details.vm > .vm-body { display: block !important; }
   a { color: #000; }
 }
 

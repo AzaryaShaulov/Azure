@@ -44,7 +44,7 @@ if ($joined -match '^graph query') {
     if ($text -match "microsoft.compute/virtualmachines'" -and $env:MOCK_AZ_EMPTY -eq '1') { Out-Json (& $wrap @()) }
     if ($text -match "microsoft.compute/virtualmachines'") {
         $mk = { param($n, $size, $gen, $power = 'PowerState/running', $zones = $null, $os = 'Premium_LRS')
-            [pscustomobject]@{ id = "$vmBase/vm-$n"; name = "vm-$n"; resourceGroup = 'rg-app'; subscriptionId = $sub; location = 'eastus2'; zones = $zones; vmSize = $size
+            [pscustomobject]@{ id = "$vmBase/vm-$n"; name = "vm-$n"; resourceGroup = 'rg-app'; subscriptionId = $sub; location = $(if ($env:MOCK_AZ_MULTI_REGION -eq '1' -and $n -eq 'b2ms') { 'westus3' } elseif ($env:MOCK_AZ_MULTI_REGION -eq '1' -and $n -in 'd4sv3', 'd4sv5') { 'westus2' } else { 'eastus2' }); zones = $zones; vmSize = $size
                 powerState = $power; osType = 'Windows'; osName = 'Windows Server 2022'; osVersion = '10.0'; hyperVGen = $gen; osDiskType = $os; osDiskId = "/disk/os-$n"
                 osDiskDes = ''; osDiskSecurityDes = ''; ephemeral = ''; ephemeralPlacement = ''; osDiskWriteAccel = $false; diskController = ''; dataDisks = @()
                 imagePublisher = 'MicrosoftWindowsServer'; imageOffer = 'WindowsServer'; imageSku = '2022-datacenter'; imageId = ''; sharedGalleryImageId = ''; communityGalleryImageId = ''

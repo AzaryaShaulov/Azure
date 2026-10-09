@@ -1183,12 +1183,88 @@ Describe 'Per-subscription quota actions' {
     }
 }
 
+Describe 'Retail pricing completeness' {
+    BeforeEach {
+        Mock Start-Sleep -ModuleName SkuCatalog {}
+    }
+    It 'retrieves every page, excludes spot prices and preserves missing prices' {
+        InModuleScope SkuCatalog {
+            Mock Invoke-RestMethod {
+                param($Uri)
+                if ($Uri -eq 'https://prices.azure.com/next') {
+                    return [pscustomobject]@{ Items = @(
+                        [pscustomobject]@{ unitOfMeasure = '1 Hour'; armSkuName = 'Standard_D4s_v5'; skuName = 'D4s_v5'; productName = 'Windows'; retailPrice = 0.4 },
+                        [pscustomobject]@{ unitOfMeasure = '1 Hour'; armSkuName = 'Standard_D4s_v5'; skuName = 'D4s_v5 Spot'; productName = 'Windows'; retailPrice = 0.01 }
+                    ); NextPageLink = $null }
+                }
+                [pscustomobject]@{ Items = @([pscustomobject]@{ unitOfMeasure = '1 Hour'; armSkuName = 'Standard_D4s_v5'; skuName = 'D4s_v5'; productName = 'Linux'; retailPrice = 0.2 }); NextPageLink = 'https://prices.azure.com/next' }
+            }
+            $prices = Get-RetailPrices -Region eastus2 -SkuNames @('standard_d4s_v5', 'Standard_Missing')
+            $prices['standard_d4s_v5|Linux'] | Should -Be 0.2
+            $prices['standard_d4s_v5|Windows'] | Should -Be 0.4
+            $prices.ContainsKey('standard_missing|Linux') | Should -BeFalse
+            Should -Invoke Invoke-RestMethod -Times 2 -Exactly
+        }
+    }
+    It 'throws after three failures on the first page' {
+        InModuleScope SkuCatalog {
+            Mock Invoke-RestMethod { throw 'offline' }
+            { Get-RetailPrices -Region eastus2 -SkuNames Standard_D4s_v5 } | Should -Throw '*eastus2*, page 1: offline'
+            Should -Invoke Invoke-RestMethod -Times 3 -Exactly
+            Should -Invoke Start-Sleep -Times 2 -Exactly
+        }
+    }
+    It 'throws rather than returning partial prices after a later-page failure' {
+        InModuleScope SkuCatalog {
+            Mock Invoke-RestMethod {
+                param($Uri)
+                if ($Uri -eq 'https://prices.azure.com/next') { throw 'page unavailable' }
+                [pscustomobject]@{ Items = @([pscustomobject]@{ unitOfMeasure = '1 Hour'; armSkuName = 'Standard_D4s_v5'; skuName = 'D4s_v5'; productName = 'Linux'; retailPrice = 0.2 }); NextPageLink = 'https://prices.azure.com/next' }
+            }
+            { Get-RetailPrices -Region eastus2 -SkuNames Standard_D4s_v5 } | Should -Throw '*eastus2*, page 2: page unavailable'
+            Should -Invoke Invoke-RestMethod -Times 4 -Exactly
+        }
+    }
+    It 'recovers from a transient retry without discarding complete prices' {
+        InModuleScope SkuCatalog {
+            $script:PriceAttempt = 0
+            Mock Invoke-RestMethod {
+                $script:PriceAttempt++
+                if ($script:PriceAttempt -eq 1) { throw 'transient' }
+                [pscustomobject]@{ Items = @(); NextPageLink = $null }
+            }
+            (Get-RetailPrices -Region eastus2 -SkuNames Standard_D4s_v5).Count | Should -Be 0
+            Should -Invoke Invoke-RestMethod -Times 2 -Exactly
+            Should -Invoke Start-Sleep -Times 1 -Exactly
+        }
+    }
+    It 'throws if the page cap is reached with more pages pending' {
+        InModuleScope SkuCatalog {
+            Mock Invoke-RestMethod { [pscustomobject]@{ Items = @(); NextPageLink = 'https://prices.azure.com/next' } }
+            { Get-RetailPrices -Region eastus2 -SkuNames Standard_D4s_v5 } | Should -Throw '*page limit (200) reached with more pages pending*'
+            Should -Invoke Invoke-RestMethod -Times 200 -Exactly
+        }
+    }
+    It 'accepts a completed response on the last allowed page' {
+        InModuleScope SkuCatalog {
+            $script:PricePage = 0
+            Mock Invoke-RestMethod {
+                $script:PricePage++
+                [pscustomobject]@{ Items = @(); NextPageLink = if ($script:PricePage -lt 200) { 'https://prices.azure.com/next' } else { $null } }
+            }
+            (Get-RetailPrices -Region eastus2 -SkuNames Standard_D4s_v5).Count | Should -Be 0
+            Should -Invoke Invoke-RestMethod -Times 200 -Exactly
+        }
+    }
+}
+
 Describe 'HTML anchors and encoding' {
     It 'gives same-named VMs in different resource groups distinct detail anchors and encodes the zone' {
         $out = Join-Path $TestDrive 'anchors'; New-Item -ItemType Directory $out | Out-Null
         $vmA = New-TestVm -Name 'app01' -Sku 'Standard_DS3_v2' -Gen 'V1'; $vmA.ResourceGroup = 'rg-east'
         $vmB = New-TestVm -Name 'app01' -Sku 'Standard_DS3_v2' -Gen 'V1'; $vmB.ResourceGroup = 'rg-west'; $vmB.Zone = '1<b>'
         $as = @((Invoke-TestAssessment $vmA), (Invoke-TestAssessment $vmB))
+        $as[0].Confidence.ValidationItems += "Owner's workload <script>alert(1)</script>"
         $sum = New-AssessmentSummary -Assessments $as -SubscriptionsScanned 1
         $run = [pscustomobject]@{ GeneratedUtc = 'now'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'tenant' }; Account = 'x'; Parameters = @{}; Counts = @{} }
         Export-HtmlReports -OutDir $out -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $sum -Assessments $as -QuotaImpact $null -CatalogResult ([pscustomobject]@{ Catalog = $Catalog; Source = 'Live'; Warning = $null }) -ProcessorCatalog $Proc
@@ -1199,6 +1275,8 @@ Describe 'HTML anchors and encoding' {
         $html | Should -Match "href='#vm-rg-west-app01'"
         $html | Should -Match 'zone 1&lt;b&gt;'
         $html | Should -Not -Match 'zone 1<b>'
+        $html | Should -Match 'Owner&#39;s workload &lt;script&gt;alert\(1\)&lt;/script&gt;'
+        $html | Should -Not -Match '<script>'
     }
     It 'labels the confidence and readiness badges, explains them on hover and encodes the hover text' {
         InModuleScope Output {
@@ -1209,11 +1287,19 @@ Describe 'HTML anchors and encoding' {
             $tip | Should -Match '^Confidence in the recommended size: LOW\. Validate first:'
             $tip | Should -Match '- Blocker: CPU vendor change required'
             $tip | Should -Match '- Temp Disk: target has no temp disk'
-            Get-ConfidenceTooltip ([pscustomobject]@{ Level = 'HIGH'; LowReasons = @(); ValidationItems = @() }) | Should -Match 'Everything verified'
+            Get-ConfidenceTooltip ([pscustomobject]@{ Level = 'HIGH'; LowReasons = @(); ValidationItems = @() }) | Should -Match 'No outstanding items in the assessed evidence'
+            $script:ReadinessMeaning['Ready'].Long | Should -Match 'does not guarantee hardware allocation or a successful resize'
+            $script:ReadinessMeaning['Ready'].Long | Should -Match 'Validate guest OS, workload, licensing and capacity'
         }
         $html = Get-Content (Get-ChildItem (Join-Path $TestDrive 'anchors') -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
         $html | Should -Match "<span class='badge b-\w+' title='Confidence in the recommended size: \w+\.[^']*'>Confidence: (HIGH|MEDIUM|LOW)</span>"
         $html | Should -Match "<span class='badge b-\w+' title='Readiness of the recommended size: [^']+'>Readiness: [^<]+</span>"
-        $html | Should -Match 'Readiness: can the target be deployed today\?'
+        $html | Should -Match 'Readiness: checked platform prerequisites'
+        $html | Should -Match 'Neither <em>Ready</em> nor <em>HIGH</em> guarantees hardware allocation or a successful resize'
+        $html | Should -Not -Match 'can be deployed now|Can be resized in a change window|Everything verified'
+        $html | Should -Match 'select, tap, or use Enter/Space'
+        $html | Should -Match '<h3>Assessment explanations</h3>'
+        $html | Should -Match '<dd class="assessment-explanation">Confidence in the recommended size:'
+        $html | Should -Match '<dd class="assessment-explanation">Readiness of the recommended size:'
     }
 }

@@ -5,6 +5,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-10-08
+
+### Added
+
+- Repository links in HTML report footers and Markdown summaries/details.
+
+### Changed
+
+- Renamed the subscription modernization section to *v6/v7 Generation Modernization Paths* and aligned README
+  screenshot labels. Removed Complexity from the HTML modernization table and expanded details; existing CSV/JSON
+  complexity fields remain available for compatibility.
+
+### Fixed
+
+- Qualified Ready and HIGH confidence explanations: assessed platform/quota checks do not guarantee hardware
+  allocation, guest/workload compatibility or a successful resize.
+- Incomplete Retail Prices API pagination now discards that region's prices instead of silently using partial data.
+  Completed regions retain their prices; the run warns, skips remaining pricing regions and records Partial or
+  Unavailable rather than Done.
+- VM detail confidence/readiness explanations are readable after keyboard or touch expansion, not only on hover.
+  Badge labels wrap on narrow screens; closed VM detail bodies are visible in print.
+
 ## [1.1.0] - 2026-10-07
 
 ### Added
@@ -126,5 +148,6 @@ First public release.
 - `.github/copilot-instructions.md` with strict read-only rules for agents that access an Azure tenant.
 
 [Unreleased]: https://github.com/AzaryaShaulov/Azure/commits/main/Assessments/VMSKURetirementReport
+[1.1.2]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.2.zip
 [1.1.0]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist
 [1.0.0]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist

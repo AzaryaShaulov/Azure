@@ -11,7 +11,7 @@ description: >-
   For quota increase requests afterwards use azure-quotas; for general VM sizing/pricing use azure-compute.
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.1.2"
   requires: "PowerShell 7.2+, Azure CLI 2.60+ with the resource-graph extension, Reader role"
 ---
 
@@ -49,7 +49,9 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
 1. **Confirm scope with the user**: tenant, subscriptions (default: all enabled in the signed-in tenant), regions,
    whether to check every VM for v7/v6 modernization (`--check-modernization`), and whether to include rightsizing
    telemetry (`-IncludeRightsizing`). PAYGO prices are included by default; add `-SkipPricing` when
-   `prices.azure.com` is not reachable or prices are not wanted.
+   `prices.azure.com` is not reachable or prices are not wanted. An incomplete pricing region is discarded; completed
+   regions retain prices (`pricingStatus: Partial`), or `Unavailable` if none completed. The run warns and skips the
+   remaining pricing regions.
 2. **Preflight**: `az account show` - confirm the tenant is the one the user means. If not signed in, ask the user to
    run `az login --tenant <tenant>` (interactive; never automate or handle credentials). The script checks the token
    first and fails within `-AuthTimeoutSec` (default 60) with the exact `az login` command when a cached token has

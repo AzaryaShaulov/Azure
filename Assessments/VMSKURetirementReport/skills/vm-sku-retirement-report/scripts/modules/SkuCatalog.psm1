@@ -209,8 +209,8 @@ function Get-ProcessorInfo {
 function Get-RetailPrices {
     <#
     .SYNOPSIS
-        Pay-as-you-go hourly retail prices (USD) for the given SKUs in a region. Informational only. Throws when the API
-        cannot be reached at all; a failure after the first page returns the prices collected so far.
+        Pay-as-you-go hourly retail prices (USD) for the given SKUs in a region. Informational only.
+        Throws if any page cannot be retrieved or pagination is incomplete; partial-region prices are never returned.
     .OUTPUTS
         Hashtable "skuName|Linux" / "skuName|Windows" -> hourly price.
     #>
@@ -222,12 +222,11 @@ function Get-RetailPrices {
     while ($url -and $page -lt 200) {
         $resp = $null; $lastError = $null
         for ($i = 1; $i -le 3 -and -not $resp; $i++) {
-            try { $resp = Invoke-RestMethod -Uri $url -TimeoutSec 60 }
+            try { $resp = Invoke-RestMethod -Uri $url -TimeoutSec 60 -ErrorAction Stop }
             catch { $lastError = $_.Exception.Message; if ($i -lt 3) { Start-Sleep -Seconds (2 * $i) } }
         }
         if (-not $resp) {
-            if ($page -eq 0) { throw "Retail Prices API (prices.azure.com) not reachable: $lastError" }
-            break
+            throw "Retail Prices API retrieval failed for region '$Region', page $($page + 1): $lastError"
         }
         foreach ($it in $resp.Items) {
             if ($it.unitOfMeasure -ne '1 Hour' -or -not $it.armSkuName) { continue }
@@ -240,6 +239,7 @@ function Get-RetailPrices {
         }
         $url = $resp.NextPageLink; $page++
     }
+    if ($url) { throw "Retail Prices API retrieval incomplete for region '$Region': page limit (200) reached with more pages pending." }
     return $prices
 }
 

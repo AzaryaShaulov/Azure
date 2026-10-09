@@ -387,6 +387,10 @@ target-family quota, regional vCPU quota and Azure capacity before execution.
 7. Capacity-sensitive (PPG, dedicated host, capacity reservation, Ultra, GPU, >= 64 vCPU) -> Capacity Validation Required
 8. Otherwise -> Ready
 
+`Ready` means the checked platform and quota prerequisites pass. It does not guarantee physical hardware allocation,
+a supported guest/workload migration or a successful resize. Validate guest OS, workload, licensing and capacity
+before scheduling a change, regardless of the readiness or confidence badge.
+
 **Confidence:**
 
 - **LOW** if any of these apply:
@@ -403,10 +407,15 @@ target-family quota, regional vCPU quota and Azure capacity before execution.
   - disk-throughput reduction
   - availability set or PPG
   - cached / partially verified lifecycle evidence
-- **HIGH:** nothing left to validate.
+- **HIGH:** no outstanding items in the assessed evidence, not certification of guest/workload readiness.
 
 Nested virtualization and physical capacity are always `Unable to Verify` and are reported in data quality. They are
 excluded from the confidence count because no control-plane signal exists.
+
+HTML VM detail cards label confidence and readiness separately. Expand a card by selecting/tapping its summary
+or using Enter/Space to read the same explanations and assessment reasons shown in the hover text. These
+explanations are ordinary visible content, not dependent on hovering. Badge labels wrap on narrow screens;
+VM bodies are shown in print, including when their on-screen disclosure is closed.
 
 **Action values:**
 
@@ -457,7 +466,7 @@ Each page links the Microsoft Learn upgrade path, SCSI to NVMe conversion and Ge
 Subscription pages are split into two colour-coded parts so customers can tell required work from optional work:
 
 - **Part 1 - Required: Retirement remediation** (orange): *VMs with Retiring SKUs* and *VMs with Retiring SKUs details*.
-- **Part 2 - Optional: v6/v7 Modernization** (purple, only with `--check-modernization`): *v6/v7 Modernization Readiness*.
+- **Part 2 - Optional: v6/v7 Modernization** (purple, only with `--check-modernization`): *v6/v7 Generation Modernization Paths*.
 
 Each part starts with a banner (part number, Required / Optional label, icon and short description) and every card in
 the part has a coloured left edge. The navigation groups the links under *Retirement* and *Modernization*, the
@@ -465,11 +474,11 @@ Overview has a tile per part (VM count, earliest retirement date) linking to it,
 the retirement-target and modernization-target columns in the matching colours. Labels and icons carry the meaning as
 well as colour, the colours have dark-mode variants, and when printed Part 2 starts on a new page with colours kept.
 
-With `--check-modernization`, the **v6/v7 Modernization Readiness** section covers the same VMs as Part 1. It renders `Get-TargetStrategy` and the `Modernization` quota rows:
+With `--check-modernization`, the **v6/v7 Generation Modernization Paths** section covers the same VMs as Part 1. It renders `Get-TargetStrategy` and the `Modernization` quota rows:
 
 - KPIs: direct resize ready, NVMe conversion, Gen1 modernization, quota increase, redeploy/rebuild review, manual review,
   already v6/v7;
-- a table of VMs that are not already modern: current SKU, retirement target, modernization target, path, complexity,
+- a table of VMs that are not already modern: current SKU, retirement target, modernization target, path,
   key blocker, modernization quota and readiness, each with an expandable detail row (current configuration, targets,
   blockers, remediation, the VM's steady/peak quota contribution, validation checklist, gates, differences,
   alternatives);
@@ -477,6 +486,9 @@ With `--check-modernization`, the **v6/v7 Modernization Readiness** section cove
 - steady-state vs peak quota from the `Modernization` scope;
 - guidance shown only when a VM in the subscription has the matching condition or validation item;
 - migration-path examples taken from assessed VMs.
+
+Complexity is not displayed in the HTML or Markdown reports. The existing `ModernizationComplexity` CSV field and
+JSON strategy `Complexity` property are retained for compatibility with automation.
 ## 10. Rightsizing (optional)
 
 With `-IncludeRightsizing`, hourly `Percentage CPU` and `Available Memory Bytes` metrics are read over the lookback
@@ -494,8 +506,12 @@ primary recommendation.
 ## 11. Pricing (on by default)
 
 Prices come from the public Retail Prices API: pay-as-you-go hourly x 730, by OS, in USD. Use `-SkipPricing` to turn
-pricing off (`-IncludePricing` is still accepted). If the API cannot be reached, the run warns once, continues without
-prices and records `pricingStatus: "Unavailable"`.
+pricing off (`-IncludePricing` is still accepted). Each region's prices are applied only after every API page is
+retrieved. Failed pages are retried up to three times; an exhausted retry or a 200-page limit with more pages pending
+discards the entire incomplete region. The run warns once and skips subsequent pricing regions, preserving prices
+from previously completed regions. `pricingStatus` is `Partial` if any region completed before failure, otherwise
+`Unavailable`; `Done` means all regions completed retrieval, not that every SKU has a price. Missing list prices
+remain null and are distinct from incomplete retrieval. This policy also applies to snapshot replays.
 
 - Informational only; never used for ranking.
 - Excludes EA/MCA discounts, reservations, savings plans and Azure Hybrid Benefit.

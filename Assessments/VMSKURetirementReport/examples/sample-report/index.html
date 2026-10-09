@@ -176,14 +176,18 @@ table.ref td.fam { font-size: 1.3rem; font-weight: 700; color: var(--accent); wi
 details.vm { border: 1px solid var(--border); border-radius: 12px; margin: 0 0 12px; background: var(--surface); overflow: hidden; }
 details.vm > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 16px 20px; background: var(--surface-2); }
 details.vm > summary::-webkit-details-marker { display: none; }
+details.vm > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 details.vm > summary::before { content: "\25B8"; color: var(--accent); font-size: 1.1rem; transition: transform .15s; }
 details.vm[open] > summary::before { transform: rotate(90deg); }
 details.vm[open] > summary { border-bottom: 1px solid var(--border); }
 .vm-name { font-weight: 700; font-size: 1.08rem; }
-.vm-move { color: var(--text-2); }
-.vm-badges { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.vm-move { color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
+.vm-move code { white-space: normal; }
+.vm-badges { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; min-width: 0; max-width: 100%; }
+.vm-badges .badge { white-space: normal; overflow-wrap: anywhere; }
 .badge[title] { cursor: help; }
 .vm-body { padding: 18px 22px 22px; }
+.assessment-explanation { white-space: pre-line; overflow-wrap: anywhere; }
 dl.facts { display: grid; grid-template-columns: 190px 1fr; gap: 10px 20px; margin: 0 0 18px; }
 dl.facts dt { font-weight: 650; color: var(--text-2); }
 dl.facts dd { margin: 0; }
@@ -227,6 +231,8 @@ footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-i
   .card { box-shadow: none; }
   .collapsible-section > .section-body { display: block !important; }
   details.vm { break-inside: avoid; }
+  details.vm::details-content { content-visibility: visible; display: block; }
+  details.vm > .vm-body { display: block !important; }
   a { color: #000; }
 }
 
@@ -436,7 +442,7 @@ thead th { white-space: normal; }
 }</style></head><body>
 <header class="hero"><div class="wrap">
 <div class="app-bar">
-<div class="brand-lockup"><span class="brand-mark" aria-hidden="true">&#9729;</span><span><strong>VMSKURetirementReport</strong><small>Assessment report v1.1.0</small></span></div>
+<div class="brand-lockup"><span class="brand-mark" aria-hidden="true">&#9729;</span><span><strong>VMSKURetirementReport</strong><small>Assessment report v1.1.2</small></span></div>
 <span class="brand-divider" aria-hidden="true"></span>
 <span class="report-context">VMSKURetirementReport</span>
 <span class="mode-pill">Read-only</span>
@@ -523,7 +529,7 @@ thead th { white-space: normal; }
 <tr><td><strong>Size capabilities and restrictions</strong></td><td><span class='badge b-green'>Done</span></td><td>Subscription-scoped Resource SKUs API: temp disk, controller, Hyper-V generation, zones, restrictions.</td></tr>
 <tr><td><strong>vCPU quota</strong></td><td><span class='badge b-green'>Done</span></td><td>Family and regional quota per subscription/region; demand aggregated across VMs moving to the same family.</td></tr>
 <tr><td><strong>Azure Advisor / Service Health</strong></td><td><span class='badge b-green'>Done</span></td><td>Best-effort corroboration: 0 Advisor and 0 Service Health retirement signals.</td></tr>
-<tr><td><strong>Retail pricing</strong></td><td><span class='badge b-green'>Done</span></td><td>On by default (-SkipPricing turns it off). Pay-as-you-go list price x 730 h (prices.azure.com). Excludes EA/MCA discounts, reservations, savings plans and Azure Hybrid Benefit.</td></tr>
+<tr><td><strong>Retail pricing</strong></td><td><span class='badge b-green'>Done</span></td><td>On by default (-SkipPricing turns it off). Partial means only completed regions have prices; incomplete-region results are discarded. Unavailable means no region completed. Blank prices can also mean no matching list price exists. Pay-as-you-go list price x 730 h (prices.azure.com). Excludes EA/MCA discounts, reservations, savings plans and Azure Hybrid Benefit.</td></tr>
 <tr><td><strong>Rightsizing telemetry</strong></td><td><span class='badge b-yellow'>Skipped</span></td><td>Azure Monitor CPU / memory for running VMs with an action. Deallocated VMs have no recent data. Never changes the recommendation.</td></tr>
 <tr><td><strong>Physical regional capacity</strong></td><td><span class='badge b-yellow'>Not verifiable</span></td><td>Quota and SKU restrictions do not guarantee allocatable hardware; confirm with a resize or Capacity Reservation.</td></tr>
 <tr><td><strong>Nested virtualization / temp-disk usage</strong></td><td><span class='badge b-yellow'>Not verifiable</span></td><td>Not visible from the Azure control plane; confirm with the workload owner.</td></tr>
@@ -531,5 +537,5 @@ thead th { white-space: normal; }
 <tr><td><strong>VM Scale Sets (Uniform)</strong></td><td><span class='badge b-yellow'>Excluded</span></td><td>Only VM resources are inventoried; scale-set models share quota but are assessed separately.</td></tr>
 <tr><td><strong>Reserved Instances / Savings Plans</strong></td><td><span class='badge b-yellow'>Not assessed</span></td><td>Requires billing access; check RI exchange options before resizing reserved VMs.</td></tr></tbody></table></div></div></details>
 </main>
-<footer><div class="wrap"><span class="footer-status"><span aria-hidden="true"></span>Report generated successfully</span><span>VMSKURetirementReport v1.1.0 &middot; read-only assessment &middot; VMSKURetirementReport - Contoso (Sample)</span></div></footer>
+<footer><div class="wrap"><span class="footer-status"><span aria-hidden="true"></span>Report generated successfully</span><span>VMSKURetirementReport v1.1.2 &middot; read-only assessment &middot; VMSKURetirementReport - Contoso (Sample) &middot; <a href="https://github.com/AzaryaShaulov/Azure" target="_blank" rel="noopener noreferrer">Source repository</a></span></div></footer>
 </body></html>

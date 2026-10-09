@@ -10,7 +10,7 @@ machine-readable result for Azure Workbooks, Power BI, Excel, Logic Apps, PowerS
   schemaVersion: "1.0", tool: "VMSKURetirementReport", generatedUtc, asOfDate, tenant: { Id, Name },
   signedInAccount (masked, e.g. "j****@contoso.com", unless -IncludeOperatorAccount),
   dataSource: "Live" | "Snapshot captured <yyyy-MM-dd HH:mm> UTC",
-  pricingStatus: "Done" | "Unavailable" (Retail Prices API not reachable) | "Skipped" (-SkipPricing),
+  pricingStatus: "Done" (all regions retrieved) | "Partial" (completed regions retained, failed/incomplete region discarded and remaining regions skipped) | "Unavailable" (no region completed) | "Skipped" (-SkipPricing),
   parameters: { SubscriptionId, Region, HorizonMonths, OfflineCatalog, QuotaSafetyPct, MaxCandidates, CheckModernization, IncludeRightsizing, IncludePricing (effective, true unless -SkipPricing), SkipPricing, IncludeOperatorAccount, KeepRawData, SaveSnapshot, FromSnapshot, HtmlIncludeOptionalModernization, HtmlMaxVmDetails, ... },
   disclaimer,
   catalog: { source: "Live" | "Cached (<utc>)", warning, sources: [ { Name, Url, Title, UpdatedAt, GitCommitId, RetrievedUtc } ], unmappedSeries: [...],
