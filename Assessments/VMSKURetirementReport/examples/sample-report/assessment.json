@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "tool": "VMSKURetirementReport",
   "toolVersion": "1.1.2",
-  "generatedUtc": "2026-10-09T03:26:31.7874951Z",
+  "generatedUtc": "2026-10-09T04:01:34.7663960Z",
   "asOfDate": "2026-10-05",
   "dataSource": "Live",
   "pricingStatus": "Done",
@@ -31,7 +31,7 @@
     "HtmlIncludeOptionalModernization": false,
     "HtmlMaxVmDetails": 250
   },
-  "disclaimer": "UNOFFICIAL ASSESSMENT - FOR PLANNING PURPOSES ONLY. Generated with read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.",
+  "disclaimer": "This assessment and its recommendations are provided \"AS IS,\" without warranties or guarantees. This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.\n\nFindings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.",
   "catalog": {
     "source": "Cached (2026-10-06 00:44 UTC)",
     "warning": "Offline mode requested.",

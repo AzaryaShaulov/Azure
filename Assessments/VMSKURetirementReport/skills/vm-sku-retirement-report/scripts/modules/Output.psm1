@@ -3,8 +3,21 @@ Import-Module (Join-Path $PSScriptRoot 'Common.psm1') -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot 'Retirement.psm1') -DisableNameChecking
 Import-Module (Join-Path $PSScriptRoot 'Assessment.psm1') -DisableNameChecking
 
-$script:Disclaimer = 'UNOFFICIAL ASSESSMENT - FOR PLANNING PURPOSES ONLY. Generated with read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.'
+$script:DisclaimerWarranty = 'This assessment and its recommendations are provided "AS IS," without warranties or guarantees.'
+$script:DisclaimerIndependence = 'This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.'
+$script:DisclaimerValidation = 'Findings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.'
+$script:Disclaimer = "$script:DisclaimerWarranty $script:DisclaimerIndependence`n`n$script:DisclaimerValidation"
 $script:RepositoryUrl = 'https://github.com/AzaryaShaulov/Azure'
+
+function Add-ReportDisclaimerMarkdown {
+    param([Parameter(Mandatory)][System.Text.StringBuilder]$Builder)
+    [void]$Builder.AppendLine()
+    [void]$Builder.AppendLine('## Disclaimer')
+    [void]$Builder.AppendLine()
+    [void]$Builder.AppendLine("**$script:DisclaimerWarranty** $script:DisclaimerIndependence")
+    [void]$Builder.AppendLine()
+    [void]$Builder.AppendLine($script:DisclaimerValidation)
+}
 
 function ConvertTo-SafeCsvValue {
     param([AllowNull()][object]$Value)
@@ -145,6 +158,7 @@ function Export-AssessmentData {
 
     $evidence = [ordered]@{
         schemaVersion = '1.0'; generatedUtc = $Run.GeneratedUtc; catalogSource = $CatalogResult.Source; catalogWarning = $CatalogResult.Warning
+        disclaimer = $script:Disclaimer
         microsoftSources = $CatalogResult.Catalog.sources; unmappedSeries = $CatalogResult.Catalog.unmappedSeries
         nonVmSizeEntries = @(Get-NonVmSizeEntries -Catalog $CatalogResult.Catalog)
         seriesEvidence = $CatalogResult.Catalog.series
@@ -196,8 +210,6 @@ function Export-ExecutiveSummaryMarkdown {
     [void]$sb.AppendLine("# VMSKURetirementReport - Executive Summary")
     [void]$sb.AppendLine()
     [void]$sb.AppendLine("[Source repository]($script:RepositoryUrl) | VMSKURetirementReport v$(Get-ToolVersion)")
-    [void]$sb.AppendLine()
-    [void]$sb.AppendLine("> $($script:Disclaimer)")
     [void]$sb.AppendLine()
     [void]$sb.AppendLine("| Item | Value |`n|---|---|")
     [void]$sb.AppendLine("| Tenant | $(ConvertTo-MarkdownText $Run.Tenant.Name) (``$(ConvertTo-MarkdownText $Run.Tenant.Id)``) |")
@@ -275,6 +287,7 @@ function Export-ExecutiveSummaryMarkdown {
     [void]$sb.AppendLine('- CPU vendor: Microsoft Learn size-series processor tables (Verified) or the Azure VM naming convention (Partially Verified).')
     [void]$sb.AppendLine('- Regional availability and restrictions: subscription-scoped Azure Resource SKUs API (Verified).')
     [void]$sb.AppendLine('- Physical regional capacity, nested virtualization use and temp-disk usage cannot be verified from the control plane (Unable to Verify).')
+    Add-ReportDisclaimerMarkdown -Builder $sb
     Set-Content -Path $Path -Value $sb.ToString() -Encoding utf8
 }
 
@@ -286,8 +299,6 @@ function Export-DetailedReportMarkdown {
     [void]$sb.AppendLine()
     [void]$sb.AppendLine("[Source repository]($script:RepositoryUrl)")
     [void]$sb.AppendLine()
-    [void]$sb.AppendLine("> $($script:Disclaimer)")
-    [void]$sb.AppendLine()
     [void]$sb.AppendLine("Tenant: **$(ConvertTo-MarkdownText $Run.Tenant.Name)** (``$(ConvertTo-MarkdownText $Run.Tenant.Id)``) | As of: **$($Run.AsOf.ToString('yyyy-MM-dd'))** | Tool: VMSKURetirementReport v$(Get-ToolVersion)")
     [void]$sb.AppendLine()
     $affected = @(if ($checkModernization) {
@@ -296,7 +307,12 @@ function Export-DetailedReportMarkdown {
     else {
         $Assessments | Where-Object { $_.AffectedByRetirement -in 'Yes', 'Unknown' } | Sort-Object { $_.SubscriptionName }, { $_.Lifecycle.RetirementDate }, { $_.Vm.Name }
     })
-    if ($affected.Count -eq 0) { [void]$sb.AppendLine('_No retirement-affected VMs were found._'); Set-Content -Path $Path -Value $sb.ToString() -Encoding utf8; return }
+    if ($affected.Count -eq 0) {
+        [void]$sb.AppendLine('_No retirement-affected VMs were found._')
+        Add-ReportDisclaimerMarkdown -Builder $sb
+        Set-Content -Path $Path -Value $sb.ToString() -Encoding utf8
+        return
+    }
     $v = { param($x) if ($null -eq $x -or "$x" -eq '') { 'Unknown' } elseif ($x -is [bool]) { if ($x) { 'Yes' } else { 'No' } } else { "$x" } }
     foreach ($sub in ($affected | Group-Object SubscriptionName)) {
         [void]$sb.AppendLine("## Subscription: $(ConvertTo-MarkdownText $sub.Name)")
@@ -398,6 +414,7 @@ function Export-DetailedReportMarkdown {
             [void]$sb.AppendLine()
         }
     }
+    Add-ReportDisclaimerMarkdown -Builder $sb
     Set-Content -Path $Path -Value $sb.ToString() -Encoding utf8
 }
 
@@ -476,8 +493,8 @@ $(if ($Subtitle) { "<p class='subtitle'>$(& $e $Subtitle)</p>" })
 </div></header>
 $(if ($navHtml) { "<nav class='toc'><div class='wrap'>$navHtml</div></nav>" })
 <main class="wrap">
-<div class="callout disclaimer"><strong>Unofficial planning report.</strong> Built from read-only Azure Resource Manager / Resource Graph queries and Microsoft Learn lifecycle data. Validate every recommendation (workload, licensing, capacity) before resizing.</div>
 $Body
+<section class="callout disclaimer" aria-label="Disclaimer"><h2>Disclaimer</h2><p><strong>$(& $e $script:DisclaimerWarranty)</strong> $(& $e $script:DisclaimerIndependence)</p><p>$(& $e $script:DisclaimerValidation)</p></section>
 </main>
 <footer><div class="wrap"><span class="footer-status"><span aria-hidden="true"></span>Report generated successfully</span><span>VMSKURetirementReport v$version &middot; read-only assessment &middot; $(& $e $Title) &middot; <a href="$script:RepositoryUrl" target="_blank" rel="noopener noreferrer">Source repository</a></span></div></footer>
 </body></html>

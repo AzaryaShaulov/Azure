@@ -140,3 +140,9 @@ Details: [methodology.md](references/methodology.md) | [scoring.md](references/s
 - A run warning **"Unmapped Microsoft series"** means Learn lists a series with no SKU pattern in
   `data/series-map.json`. Add the pattern (from the Learn size page) - affected VMs stay `Unable to Confirm` until then.
 - Tests (offline, mock Azure CLI, no Azure access): `Invoke-Pester -Path <skill-dir>/tests`.
+
+## Disclaimer
+
+**This assessment and its recommendations are provided "AS IS," without warranties or guarantees.** This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.
+
+Findings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.

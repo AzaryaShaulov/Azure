@@ -1,8 +1,9 @@
 {
   "schemaVersion": "1.0",
-  "generatedUtc": "2026-10-09T03:26:31.7874951Z",
+  "generatedUtc": "2026-10-09T04:01:34.7663960Z",
   "catalogSource": "Cached (2026-10-06 00:44 UTC)",
   "catalogWarning": "Offline mode requested.",
+  "disclaimer": "This assessment and its recommendations are provided \"AS IS,\" without warranties or guarantees. This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.\n\nFindings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.",
   "microsoftSources": [
     {
       "Name": "RetiredList",

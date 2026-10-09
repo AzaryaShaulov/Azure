@@ -515,3 +515,18 @@ remain null and are distinct from incomplete retrieval. This policy also applies
 
 - Informational only; never used for ranking.
 - Excludes EA/MCA discounts, reservations, savings plans and Azure Hybrid Benefit.
+
+## 12. Report disclaimer and export limits
+
+The shared output renderer includes one labeled Disclaimer section near the bottom of each HTML and Markdown
+assessment report, including empty-estate reports. HTML print and browser-generated PDF preserve that section.
+The same wording is stored in the `disclaimer` property of both JSON outputs. CSV files remain pure tables with
+unchanged headers and rows; they do not embed a disclaimer. Share the accompanying report/documentation with CSV
+exports. There is no dedicated PDF generator. Third-party workbook Excel exports and existing dashboard artifacts
+are not modified by this documentation update.
+
+### Disclaimer
+
+**This assessment and its recommendations are provided "AS IS," without warranties or guarantees.** This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.
+
+Findings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.

@@ -495,11 +495,30 @@ Published customer packages are retained in [`dist/`](dist/). Commit the version
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports go through [SECURITY.md](SECURITY.md).
 
-## License and disclaimer
+## License
 
 Released under the [MIT License](LICENSE). Microsoft Learn data included in `data/` and the sample is used under
 CC BY 4.0; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-This is an independent community project. It is **not an official Microsoft product** and is not supported by
-Microsoft. Recommendations are for planning only: validate workload, licensing and capacity before resizing any VM.
 Microsoft, Azure and related marks are trademarks of the Microsoft group of companies.
+
+### Disclaimer – Independent Assessment Tool
+
+**This tool is provided "AS IS," without warranties or guarantees of any kind.**
+
+This is an independently developed assessment tool and is **not an official Microsoft product or Microsoft-supported solution**. Microsoft does not provide support, maintenance, warranties, or guarantees for this tool or its generated reports.
+
+Assessment results, Azure VM SKU recommendations, retirement timelines, and modernization guidance are provided for informational and planning purposes only. Findings may not reflect the latest Azure capabilities, regional availability, pricing, retirement announcements, or Microsoft documentation.
+
+**Before making production changes, users must independently validate:**
+
+- VM SKU compatibility and supported migration paths.
+- Regional SKU availability and subscription quotas.
+- Pricing and capacity requirements.
+- VM generation, disk controller, NVMe, and storage compatibility.
+- Redeployment, downtime, and migration requirements.
+- Official Azure retirement dates and Microsoft documentation.
+
+Users are solely responsible for validating assessment findings, evaluating potential operational impacts, and planning and executing changes within their environments.
+
+**Use of this tool and reliance on its outputs are at the user's own risk.**

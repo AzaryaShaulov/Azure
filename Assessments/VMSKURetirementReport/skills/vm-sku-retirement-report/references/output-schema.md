@@ -12,7 +12,7 @@ machine-readable result for Azure Workbooks, Power BI, Excel, Logic Apps, PowerS
   dataSource: "Live" | "Snapshot captured <yyyy-MM-dd HH:mm> UTC",
   pricingStatus: "Done" (all regions retrieved) | "Partial" (completed regions retained, failed/incomplete region discarded and remaining regions skipped) | "Unavailable" (no region completed) | "Skipped" (-SkipPricing),
   parameters: { SubscriptionId, Region, HorizonMonths, OfflineCatalog, QuotaSafetyPct, MaxCandidates, CheckModernization, IncludeRightsizing, IncludePricing (effective, true unless -SkipPricing), SkipPricing, IncludeOperatorAccount, KeepRawData, SaveSnapshot, FromSnapshot, HtmlIncludeOptionalModernization, HtmlMaxVmDetails, ... },
-  disclaimer,
+  disclaimer (standard short disclaimer; plain text with two paragraphs),
   catalog: { source: "Live" | "Cached (<utc>)", warning, sources: [ { Name, Url, Title, UpdatedAt, GitCommitId, RetrievedUtc } ], unmappedSeries: [...],
              nonVmSizeEntries: [ { Category, Name, Status, PlannedRetirementDate, GuideUrl, SourceUrl } ] },
   counts: { Vms, Nics, Disks, AdeExtensions, AdvisorRetirement, ServiceHealthRetirement },
@@ -133,6 +133,10 @@ use `cores`. `Scope` is one of:
   without credentials; access tokens are never stored and the signed-in account is masked.
 
 ## retirement-evidence.json
+
+Includes an additive top-level `disclaimer` property with the same standard short disclaimer as `assessment.json`.
+HTML and Markdown render one labeled section near the bottom. CSV schemas are unchanged and have no disclaimer
+rows or columns. Printed HTML/browser PDF includes the HTML section; there is no dedicated PDF output.
 
 Contents:
 

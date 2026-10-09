@@ -1,4 +1,4 @@
-﻿# Azure Virtual Desktop - Diagnostics, Insights, and Rich Email Alert Automation
+# Azure Virtual Desktop - Diagnostics, Insights, and Rich Email Alert Automation
 
 <!-- markdownlint-configure-file {"MD033": false} -->
 
@@ -87,8 +87,23 @@ Both Logic App deployment scripts auto-create the Office 365 API connection, but
 
 See `LICENSE` for details.
 
-## Disclaimer
+### Disclaimer – Independent Community Tools
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+**These tools are provided "AS IS," without warranties or guarantees of any kind.**
 
-These scripts are provided as-is under the MIT License. Always validate in a non-production environment before production rollout.
+These independently developed tools, scripts, dashboards and workbooks are **not an official Microsoft product or Microsoft-supported solution**. Microsoft does not provide support, maintenance, warranties, or guarantees for these tools or their outputs.
+
+Monitoring results, deployment guidance and any assessment or migration recommendations are provided for informational and planning purposes only. Findings may not reflect the latest Azure capabilities, regional availability, pricing, retirement announcements, or Microsoft documentation.
+
+**Before making production changes, users must independently validate, as applicable:**
+
+- VM SKU compatibility and supported migration paths.
+- Regional SKU availability and subscription quotas.
+- Pricing and capacity requirements.
+- VM generation, disk controller, NVMe, and storage compatibility.
+- Redeployment, downtime, and migration requirements.
+- Official Azure retirement dates and Microsoft documentation.
+
+Users are solely responsible for validating assessment findings, evaluating potential operational impacts, and planning and executing changes within their environments.
+
+**Use of these tools and reliance on its outputs are at the user's own risk.**

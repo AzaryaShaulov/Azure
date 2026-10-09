@@ -837,6 +837,16 @@ Describe 'Rightsizing stays separate' {
 }
 
 Describe 'Output writers (offline)' {
+    It 'includes the standard disclaimer when the detailed report has no assessment rows' {
+        $out = Join-Path $TestDrive 'empty-details.md'
+        $run = [pscustomobject]@{ AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'Test' }; Parameters = @{} }
+        Export-DetailedReportMarkdown -Path $out -Assessments @() -Run $run
+        $md = Get-Content $out -Raw
+        $md | Should -Match '_No retirement-affected VMs were found._'
+        ([regex]::Matches($md, '(?m)^## Disclaimer\r?$')).Count | Should -Be 1
+        $md | Should -Match 'not an official Microsoft product and is not supported or endorsed by Microsoft'
+        $md.TrimEnd() | Should -Match 'before implementing production changes\.$'
+    }
     It 'writes CSV / JSON / Markdown / HTML for a small synthetic estate' {
         $out = Join-Path $TestDrive 'out'; New-Item -ItemType Directory $out | Out-Null
         $as = @(

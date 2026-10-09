@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Standardized independent-tool and AS IS disclaimers in repository READMEs and assessment documentation.
+  Generated HTML/Markdown reports include one labeled disclaimer near the bottom; both JSON outputs carry the
+  same wording. CSV structures and assessment calculations are unchanged.
+
 ## [1.1.2] - 2026-10-08
 
 ### Added

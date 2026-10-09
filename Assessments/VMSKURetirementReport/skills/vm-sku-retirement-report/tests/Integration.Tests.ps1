@@ -34,6 +34,35 @@ Describe 'End-to-end assessment (mock Azure)' {
             (Get-Content (Join-Path $Out $name) -Raw) | Should -Match '\[Source repository\]\(https://github.com/AzaryaShaulov/Azure\)'
         }
     }
+    It 'includes one standard disclaimer in all supported report formats' {
+            $warranty = 'This assessment and its recommendations are provided "AS IS," without warranties or guarantees.'
+            $independence = 'This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.'
+            $validation = 'Findings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.'
+            $expected = "$warranty $independence`n`n$validation"
+            foreach ($file in Get-ChildItem $Out -Filter '*.html') {
+                $html = Get-Content $file.FullName -Raw
+                $html | Should -Match '<h2>Disclaimer</h2>'
+                ([regex]::Matches($html, 'class="callout disclaimer"')).Count | Should -Be 1
+                $html.IndexOf('class="callout disclaimer"') | Should -BeLessThan $html.IndexOf('<footer>')
+                $plain = [Net.WebUtility]::HtmlDecode(($html -replace '<[^>]+>', ' '))
+                $plain | Should -Match ([regex]::Escape($warranty))
+                $plain | Should -Match ([regex]::Escape($independence))
+                $plain | Should -Match ([regex]::Escape($validation))
+            }
+            foreach ($name in 'executive-summary.md', 'detailed-report.md') {
+                $md = Get-Content (Join-Path $Out $name) -Raw
+                ([regex]::Matches($md, '(?m)^## Disclaimer\r?$')).Count | Should -Be 1
+                $md | Should -Match ([regex]::Escape("**$warranty** $independence"))
+                $md.TrimEnd() | Should -Match ([regex]::Escape($validation) + '$')
+            }
+            foreach ($name in 'assessment.json', 'retirement-evidence.json') {
+                $j = Get-Content (Join-Path $Out $name) -Raw | ConvertFrom-Json -Depth 40
+                $j.disclaimer.Replace("`r`n", "`n") | Should -Be $expected
+            }
+            foreach ($name in 'vm-assessment.csv', 'candidates.csv', 'quota-impact.csv') {
+                (Get-Content (Join-Path $Out $name) -Raw) | Should -Not -Match 'without warranties or guarantees|Disclaimer'
+            }
+    }
     It 'keeps operator details out of the shared outputs by default' {
         (Get-Content (Join-Path $Out 'assessment.json') -Raw | ConvertFrom-Json).signedInAccount | Should -Be 'a****@contoso.example'
         $runLog = Get-Content (Join-Path $Out 'run.log') -Raw
