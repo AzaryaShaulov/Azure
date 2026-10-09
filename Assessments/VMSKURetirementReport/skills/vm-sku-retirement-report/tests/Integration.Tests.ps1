@@ -9,7 +9,11 @@ BeforeAll {
     $script:Out = Join-Path $TestDrive 'run'
     $mockDir = Join-Path $PSScriptRoot 'mock'
     $env:PATH = "$mockDir$([System.IO.Path]::PathSeparator)$env:PATH"
-    $script:Log = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$Out' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+    # Retail pricing is on by default; these shims keep it offline (fixture prices, or a blocked API).
+    $prices = Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json'
+    $script:PricesShim = "function global:Invoke-RestMethod { param([string]`$Uri, [int]`$TimeoutSec) if (`$Uri -like 'https://prices.azure.com/*') { return (Get-Content -LiteralPath '$prices' -Raw | ConvertFrom-Json) }; throw `"Test is offline; blocked request to `$Uri`" }"
+    $script:BlockedPricesShim = "function global:Invoke-RestMethod { param([string]`$Uri, [int]`$TimeoutSec) throw `"Test is offline; blocked request to `$Uri`" }"
+    $script:Log = & pwsh -NoProfile -Command "$PricesShim; `$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$Out' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
     $script:Rows = if (Test-Path (Join-Path $Out 'vm-assessment.csv')) { Import-Csv (Join-Path $Out 'vm-assessment.csv') } else { @() }
     $script:ByVm = @{}; foreach ($r in $Rows) { $ByVm[$r.VM] = $r }
 }
@@ -78,7 +82,7 @@ Describe 'End-to-end assessment (mock Azure)' {
         $sub | Should -Not -BeNullOrEmpty
         (Get-Content $sub.FullName -Raw) | Should -Match 'Tenant summary'
     }
-    It 'lists only VMs with an announced retirement date and a required action in the HTML, under Overview' {
+    It 'lists only VMs on End of Life or retired sizes that need action in the HTML, under Overview' {
         $html = Get-Content (Get-ChildItem $Out -Filter 'contoso-prod-*.html').FullName -Raw
         $html | Should -Match '<h2>VMs with Retiring SKUs</h2>'
         $html | Should -Match '<h2>VMs with Retiring SKUs details</h2>'
@@ -92,13 +96,23 @@ Describe 'End-to-end assessment (mock Azure)' {
         $html | Should -Not -Match "id='track-modernization'"
         $html | Should -Match "<span class='toc-group toc-retirement'><span class='toc-group-label'>Retirement</span>"
         $html | Should -Match "class='track-tile track-tile-retirement' href='#track-retirement'"
-        $retiring = @($Rows | Where-Object { $_.AffectedByRetirement -eq 'Yes' -and $_.RetirementDate -and $_.Action -ne 'No Action Required' })
+        $retiring = @($Rows | Where-Object { $_.AffectedByRetirement -eq 'Yes' -and $_.LifecycleStage -in 'End of Life', 'Retired' -and $_.Action -ne 'No Action Required' })
         $excluded = @($Rows | Where-Object { $_.VM -notin $retiring.VM })
         $retiring.Count | Should -BeGreaterThan 0
         $excluded.Count | Should -BeGreaterThan 0
         foreach ($r in $retiring) { $html | Should -Match ">$([regex]::Escape($r.VM))<" }
         foreach ($r in $excluded) { $html | Should -Not -Match ">$([regex]::Escape($r.VM))<" }
         $Rows.Count | Should -Be 7
+    }
+    It 'reports the Microsoft lifecycle stage (End of Life / Retired) for every VM' {
+        $ByVm['vm-ds3v2'].LifecycleStage | Should -Be 'End of Life'
+        $ByVm['vm-d4sv3'].LifecycleStage | Should -Be 'End of Life'
+        $ByVm['vm-nc6'].LifecycleStage | Should -Be 'Retired'
+        $ByVm['vm-d4sv5'].LifecycleStage | Should -Be 'Not End of Life'
+        $html = Get-Content (Get-ChildItem $Out -Filter 'contoso-prod-*.html').FullName -Raw
+        $html | Should -Match "<span class='badge b-orange'>End of Life</span>"
+        $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list'
+        (Get-Content (Join-Path $Out 'detailed-report.md') -Raw) | Should -Match 'Microsoft Lifecycle Stage'
     }
     It 'collapses the cross-vendor section and links Microsoft Learn upgrade and SCSI to NVMe guidance' {
         foreach ($page in @(Get-ChildItem $Out -Filter '*.html')) {
@@ -120,6 +134,24 @@ Describe 'End-to-end assessment (mock Azure)' {
         $ByVm['vm-ds3v2'].NewerGenerationIfConverted | Should -Match '^Standard_D4s_v6'
         $sub = Get-ChildItem $Out -Filter 'contoso-prod-*.html'
         (Get-Content $sub.FullName -Raw) | Should -Not -Match "id='modernization'"
+        # The v6/v7 status is hidden in the Recommended size column when the check was not run.
+        $vmTable = [regex]::Match((Get-Content $sub.FullName -Raw), "(?s)<table class='vm-table'>.*?</table>").Value
+        $vmTable | Should -Not -BeNullOrEmpty
+        $vmTable | Should -Not -Match 'Not Evaluated|v6/v7:'
+    }
+    It 'includes retail PAYGO pricing by default' {
+        $j = Get-Content (Join-Path $Out 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        $j.pricingStatus | Should -Be 'Done'
+        $j.parameters.IncludePricing | Should -BeTrue
+        $j.parameters.SkipPricing | Should -BeFalse
+        $ByVm['vm-ds3v2'].CurrentMonthlyUSD | Should -Not -BeNullOrEmpty
+        $ByVm['vm-ds3v2'].TargetMonthlyUSD | Should -Not -BeNullOrEmpty
+        $html = Get-Content (Get-ChildItem $Out -Filter 'contoso-prod-*.html').FullName -Raw
+        $html | Should -Match "<td class='num nowrap'>\`$\d+ &rarr; \`$\d+</td>"
+    }
+    It 'rejects -IncludePricing together with -SkipPricing' {
+        $log = & pwsh -NoProfile -Command "& '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -IncludePricing -SkipPricing" 2>&1 | Out-String
+        (($log -replace '\s*\|\s*', ' ') -replace '\s+', ' ') | Should -Match '-IncludePricing and -SkipPricing cannot be used together'
     }
 }
 
@@ -127,8 +159,17 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
     BeforeAll {
         $mockDir = Join-Path $PSScriptRoot 'mock'
         $script:ModernOut = Join-Path $TestDrive 'modernization'
-        $script:ModernLog = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' --check-modernization -OutputPath '$ModernOut' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+        $script:ModernLog = & pwsh -NoProfile -Command "$BlockedPricesShim; `$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' --check-modernization -OutputPath '$ModernOut' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
         $script:ModernRows = if (Test-Path (Join-Path $ModernOut 'vm-assessment.csv')) { Import-Csv (Join-Path $ModernOut 'vm-assessment.csv') } else { @() }
+    }
+
+    It 'completes with one warning and no prices when the Retail Prices API is unreachable' {
+        $ModernLog | Should -Match 'Outputs:'
+        $flat = ($ModernLog -replace '\s*\|\s*', ' ') -replace '\s+', ' '
+        ([regex]::Matches($flat, 'Retail pricing unavailable')).Count | Should -Be 1
+        $flat | Should -Match 'Use -SkipPricing to skip this step'
+        (Get-Content (Join-Path $ModernOut 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).pricingStatus | Should -Be 'Unavailable'
+        @($ModernRows | Where-Object { $_.CurrentMonthlyUSD -or $_.TargetMonthlyUSD }).Count | Should -Be 0
     }
 
     It 'accepts the exact double-dash flag and records the opt-in parameter' {
@@ -187,6 +228,7 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $html | Should -Match "<span class='toc-group toc-modernization'><span class='toc-group-label'>Modernization</span>"
         $html | Should -Match "class='track-tile track-tile-modernization' href='#track-modernization'"
         $html | Should -Match "class='target-cell retirement-target-cell'"
+        [regex]::Match($html, "(?s)<table class='vm-table'>.*?</table>").Value | Should -Match 'v6/v7: '
         $html | Should -Not -Match '<script'
     }
 }
@@ -196,10 +238,10 @@ Describe 'Snapshot capture and replay (mock Azure)' {
         $mockDir = Join-Path $PSScriptRoot 'mock'
         $script:Script = Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1'
         $script:Capture = Join-Path $TestDrive 'capture'
-        $script:CaptureLog = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$Script' -SaveSnapshot -OutputPath '$Capture' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
-        # Replay runs with no Azure CLI on PATH at all, proving that no Azure call is made.
+        $script:CaptureLog = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$Script' -SaveSnapshot -SkipPricing -OutputPath '$Capture' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+        # Replay runs with no Azure CLI on PATH at all, proving that no Azure call is made (-SkipPricing: fully offline).
         $script:NoAz = { param([string]$ArgText)
-            $cmd = "`$env:PATH = ((`$env:PATH -split [regex]::Escape([string][System.IO.Path]::PathSeparator)) | Where-Object { `$_ -and -not (Test-Path (Join-Path `$_ 'az.cmd')) -and -not (Test-Path (Join-Path `$_ 'az.ps1')) -and -not (Test-Path (Join-Path `$_ 'az')) }) -join [System.IO.Path]::PathSeparator; if (Get-Command az -ErrorAction SilentlyContinue) { throw 'az still on PATH' }; & '$Script' $ArgText"
+            $cmd = "`$env:PATH = ((`$env:PATH -split [regex]::Escape([string][System.IO.Path]::PathSeparator)) | Where-Object { `$_ -and -not (Test-Path (Join-Path `$_ 'az.cmd')) -and -not (Test-Path (Join-Path `$_ 'az.ps1')) -and -not (Test-Path (Join-Path `$_ 'az')) }) -join [System.IO.Path]::PathSeparator; if (Get-Command az -ErrorAction SilentlyContinue) { throw 'az still on PATH' }; & '$Script' -SkipPricing $ArgText"
             & pwsh -NoProfile -Command $cmd 2>&1 | Out-String }
         $script:Replay = Join-Path $TestDrive 'replay'
         $script:ReplayLog = & $NoAz "-FromSnapshot '$Capture' --check-modernization -OutputPath '$Replay' -OfflineCatalog -ThrottleLimit 2"

@@ -9,6 +9,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Microsoft lifecycle stage per VM (`LifecycleStage`: Retired, End of Life, Not End of Life, Unknown) in the CSV, JSON,
+  Markdown and HTML. Every series on the Microsoft End of Life list is reported as **End of Life**, with a link to the list,
+  and listed in the HTML for modernization or SKU migration even before Microsoft publishes a date.
 - `-SaveSnapshot` / `-FromSnapshot`: record a run's Azure reads and replay them later with different options (for example
   `--check-modernization`) without calling Azure. Snapshots contain no access tokens and mask the signed-in account; reports
   and `assessment.json` (`dataSource`) show when data was replayed. Snapshots also store the Microsoft retirement
@@ -33,6 +36,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- VM detail cards label their badges (*Confidence: MEDIUM*, *Readiness: Ready*). Hovering a badge lists the items to
+  validate first or explains the readiness value, and the legend now has a *Readiness* section.
+- Retail PAYGO pricing is on by default (the *PAYGO / month* column, `CurrentMonthlyUSD` / `TargetMonthlyUSD`); use the
+  new `-SkipPricing` to turn it off. `-IncludePricing` is still accepted. If `prices.azure.com` is unreachable the run
+  warns once, continues without prices and records `pricingStatus: "Unavailable"` in `assessment.json`.
 - Subscription pages separate *Part 1 - Required: Retirement remediation* (orange) from *Part 2 - Optional: v6/v7
   Modernization* (purple) with banners, coloured card edges, grouped navigation, Overview tiles, tinted target columns
   and a print page break before Part 2.
@@ -70,6 +78,9 @@ First public release.
 
 ### Added
 
+- Microsoft lifecycle stage per VM (`LifecycleStage`: Retired, End of Life, Not End of Life, Unknown) in the CSV, JSON,
+  Markdown and HTML. Every series on the Microsoft End of Life list is reported as **End of Life**, with a link to the list,
+  and listed in the HTML for modernization or SKU migration even before Microsoft publishes a date.
 - `vm-sku-retirement-report` agent skill (`skills/vm-sku-retirement-report/SKILL.md`), compatible with GitHub Copilot,
   Claude Code and other Agent Skills clients, and runnable directly from PowerShell 7.2+.
 - **Retirement evidence** fetched live from Microsoft Learn (*retirements and capacity restrictions*, *End of Life

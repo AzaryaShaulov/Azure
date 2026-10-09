@@ -209,7 +209,8 @@ function Get-ProcessorInfo {
 function Get-RetailPrices {
     <#
     .SYNOPSIS
-        Pay-as-you-go hourly retail prices (USD) for the given SKUs in a region. Informational only.
+        Pay-as-you-go hourly retail prices (USD) for the given SKUs in a region. Informational only. Throws when the API
+        cannot be reached at all; a failure after the first page returns the prices collected so far.
     .OUTPUTS
         Hashtable "skuName|Linux" / "skuName|Windows" -> hourly price.
     #>
@@ -219,11 +220,15 @@ function Get-RetailPrices {
     $url = "https://prices.azure.com/api/retail/prices?`$filter=serviceName eq 'Virtual Machines' and armRegionName eq '$Region' and priceType eq 'Consumption'"
     $page = 0
     while ($url -and $page -lt 200) {
-        $resp = $null
+        $resp = $null; $lastError = $null
         for ($i = 1; $i -le 3 -and -not $resp; $i++) {
-            try { $resp = Invoke-RestMethod -Uri $url -TimeoutSec 60 } catch { Start-Sleep -Seconds (2 * $i) }
+            try { $resp = Invoke-RestMethod -Uri $url -TimeoutSec 60 }
+            catch { $lastError = $_.Exception.Message; if ($i -lt 3) { Start-Sleep -Seconds (2 * $i) } }
         }
-        if (-not $resp) { break }
+        if (-not $resp) {
+            if ($page -eq 0) { throw "Retail Prices API (prices.azure.com) not reachable: $lastError" }
+            break
+        }
         foreach ($it in $resp.Items) {
             if ($it.unitOfMeasure -ne '1 Hour' -or -not $it.armSkuName) { continue }
             if ($it.skuName -match 'Spot|Low Priority') { continue }

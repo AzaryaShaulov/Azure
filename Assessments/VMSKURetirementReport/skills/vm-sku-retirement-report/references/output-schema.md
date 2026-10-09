@@ -10,7 +10,8 @@ machine-readable result for Azure Workbooks, Power BI, Excel, Logic Apps, PowerS
   schemaVersion: "1.0", tool: "VMSKURetirementReport", generatedUtc, asOfDate, tenant: { Id, Name },
   signedInAccount (masked, e.g. "j****@contoso.com", unless -IncludeOperatorAccount),
   dataSource: "Live" | "Snapshot captured <yyyy-MM-dd HH:mm> UTC",
-  parameters: { SubscriptionId, Region, HorizonMonths, OfflineCatalog, QuotaSafetyPct, MaxCandidates, CheckModernization, IncludeRightsizing, IncludeOperatorAccount, KeepRawData, SaveSnapshot, FromSnapshot, HtmlIncludeOptionalModernization, HtmlMaxVmDetails, ... },
+  pricingStatus: "Done" | "Unavailable" (Retail Prices API not reachable) | "Skipped" (-SkipPricing),
+  parameters: { SubscriptionId, Region, HorizonMonths, OfflineCatalog, QuotaSafetyPct, MaxCandidates, CheckModernization, IncludeRightsizing, IncludePricing (effective, true unless -SkipPricing), SkipPricing, IncludeOperatorAccount, KeepRawData, SaveSnapshot, FromSnapshot, HtmlIncludeOptionalModernization, HtmlMaxVmDetails, ... },
   disclaimer,
   catalog: { source: "Live" | "Cached (<utc>)", warning, sources: [ { Name, Url, Title, UpdatedAt, GitCommitId, RetrievedUtc } ], unmappedSeries: [...],
              nonVmSizeEntries: [ { Category, Name, Status, PlannedRetirementDate, GuideUrl, SourceUrl } ] },
@@ -99,9 +100,10 @@ Strategy = { RetirementRequired, RetirementUnconfirmed, RetirementTarget: Candid
 | Quota and readiness | `QuotaStatus`, `QuotaFamily`, `QuotaMinIncreaseFamily`, `QuotaMinIncreaseRegional`, `DeploymentReadiness`, `Confidence`, `Action`, `NextStep`, `Wave` |
 | Alternatives | `AlternativeSku`, `AlternativeScore`, `AlternativeReason`, `ThirdCandidateSku`, `NewerGenerationIfConverted`, `NoCandidateReason`, `VendorChangeReason` |
 | Explanation | `MaterialDifferences`, `ValidationItems` |
-| Optional | `RightsizingStatus`, `RightsizingSuggestedSku`, `CurrentMonthlyUSD`, `TargetMonthlyUSD` |
+| Optional | `RightsizingStatus`, `RightsizingSuggestedSku`, `CurrentMonthlyUSD`, `TargetMonthlyUSD` (pricing is on by default; empty with `-SkipPricing`, when the Retail Prices API is unreachable or when no list price exists) |
 | Evidence | `MicrosoftSource`, `AnnouncementUrl`, `MigrationGuideUrl` |
 | Data quality | `DQ_RetirementDate`, `DQ_CpuVendor`, `DQ_RegionalAvailability`, `DQ_Quota`, `DQ_PhysicalCapacity`, `LifecycleNotes` |
+| Microsoft lifecycle stage (appended) | `LifecycleStage` |
 | Retirement vs modernization (appended) | `RetirementTargetSku`, `RetirementTargetGeneration`, `RetirementQuotaStatus`, `ModernizationTargetSku`, `ModernizationTargetGeneration`, `ModernizationTargetSource`, `ModernizationPath`, `ModernizationComplexity`, `ModernizationReadiness`, `ModernizationQuotaStatus`, `ModernizationPeakQuotaStatus`, `MigrationQuotaModel`, `RecommendedMigrationPath`, `ModernizationValidationItems` |
 
 Columns are written in the order listed; the retirement-vs-modernization group is appended after `LifecycleNotes`, so
@@ -157,6 +159,7 @@ Contents:
 | Wave | Wave 1 - Urgent, Wave 2 - Near Term, Wave 3 - Planned, Beyond Horizon, Review - Unconfirmed, Wave 4 - Modernization, None |
 | Data quality | Verified, Partially Verified, Unable to Verify, Not Evaluated |
 | RetirementQuotaStatus, ModernizationQuotaStatus, ModernizationPeakQuotaStatus, PeakStatus | Same values as QuotaStatus |
+| LifecycleStage | Retired, End of Life (Microsoft-announced retirement; includes every series on the End of Life list), Not End of Life (Current or Extended; Microsoft defines these per VM family), Unknown |
 | ModernizationTargetSource | Selected (modernization candidate), Primary (v6/v7 recommendation), QuotaBlocked (v6/v7 option blocked by aggregate quota), Convertible (`NewerGenerationIfConverted`, blocked only by Gen1 and/or SCSI) |
 | ModernizationPath | Already Modern, Direct Resize, SCSI to NVMe + Resize, Gen1 Modernization + Resize, Gen1 + NVMe + Resize, Redeploy / Rebuild Review, No Validated Modern Target |
 | ModernizationComplexity | None, Low, Medium, High, Unknown |

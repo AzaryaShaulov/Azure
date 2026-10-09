@@ -2,9 +2,10 @@
   "schemaVersion": "1.0",
   "tool": "VMSKURetirementReport",
   "toolVersion": "1.1.0",
-  "generatedUtc": "2026-10-08T20:15:01.8069446Z",
+  "generatedUtc": "2026-10-08T22:12:01.8898832Z",
   "asOfDate": "2026-10-05",
   "dataSource": "Live",
+  "pricingStatus": "Done",
   "tenant": {
     "Id": "22222222-2222-2222-2222-222222222222",
     "Name": "Contoso (Sample)"
@@ -21,6 +22,7 @@
     "IncludeRightsizing": false,
     "RightsizingLookbackDays": 30,
     "IncludePricing": true,
+    "SkipPricing": false,
     "CheckModernization": true,
     "IncludeOperatorAccount": false,
     "KeepRawData": false,
@@ -594,7 +596,8 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
+        "LifecycleStage": "End of Life"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-ds3v2",
@@ -660,6 +663,7 @@
         "AnnouncementUrl": "https://azure.microsoft.com/updates?id=485569",
         "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
         "PreviousGenStatus": "End of Life",
+        "LifecycleStage": "End of Life",
         "RecommendedTargets": [
           "dsv5",
           "ddsv5",
@@ -2156,7 +2160,8 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
+        "LifecycleStage": "End of Life"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-dealloc",
@@ -2222,6 +2227,7 @@
         "AnnouncementUrl": "https://azure.microsoft.com/updates?id=485569",
         "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
         "PreviousGenStatus": "End of Life",
+        "LifecycleStage": "End of Life",
         "RecommendedTargets": [
           "dsv5",
           "ddsv5",
@@ -3718,7 +3724,8 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "InPlace",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
+        "LifecycleStage": "End of Life"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-d4sv3",
@@ -3784,6 +3791,7 @@
         "AnnouncementUrl": null,
         "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
         "PreviousGenStatus": "End of Life",
+        "LifecycleStage": "End of Life",
         "RecommendedTargets": [
           "dv5",
           "dsv5",
@@ -5055,7 +5063,8 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
+        "LifecycleStage": "End of Life"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-zonal",
@@ -5121,6 +5130,7 @@
         "AnnouncementUrl": null,
         "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
         "PreviousGenStatus": "End of Life",
+        "LifecycleStage": "End of Life",
         "RecommendedTargets": [
           "dv5",
           "dsv5",
@@ -6393,7 +6403,8 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "InPlace",
         "RecommendedMigrationPath": "Optional modernization to Standard_D4s_v6 (requires SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness)."
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
+        "LifecycleStage": "Not End of Life"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-d4sv5",
@@ -6459,6 +6470,7 @@
         "AnnouncementUrl": null,
         "MigrationGuideUrl": null,
         "PreviousGenStatus": null,
+        "LifecycleStage": "Not End of Life",
         "RecommendedTargets": [],
         "GuideDifferences": [],
         "SizeTargets": [],
@@ -6931,7 +6943,8 @@
         "ModernizationPeakQuotaStatus": null,
         "MigrationQuotaModel": null,
         "RecommendedMigrationPath": "No validated retirement target - manual review",
-        "ModernizationValidationItems": ""
+        "ModernizationValidationItems": "",
+        "LifecycleStage": "Retired"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-nc6",
@@ -6997,6 +7010,7 @@
         "AnnouncementUrl": null,
         "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/ncv3-retirement",
         "PreviousGenStatus": null,
+        "LifecycleStage": "Retired",
         "RecommendedTargets": [],
         "GuideDifferences": [],
         "SizeTargets": [],
@@ -7208,7 +7222,8 @@
         "ModernizationPeakQuotaStatus": null,
         "MigrationQuotaModel": null,
         "RecommendedMigrationPath": "Retire to Standard_B2s_v2; no validated v6/v7 target",
-        "ModernizationValidationItems": ""
+        "ModernizationValidationItems": "",
+        "LifecycleStage": "End of Life"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-b2ms",
@@ -7274,6 +7289,7 @@
         "AnnouncementUrl": "https://azure.microsoft.com/updates?id=500682",
         "MigrationGuideUrl": "https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide",
         "PreviousGenStatus": "End of Life",
+        "LifecycleStage": "End of Life",
         "RecommendedTargets": [
           "bsv2",
           "basv2",

@@ -34,7 +34,11 @@
 .PARAMETER IncludeRightsizing
     Pull Azure Monitor CPU / memory metrics for VMs with an action and flag potential rightsizing (separate column only).
 .PARAMETER IncludePricing
-    Add informational pay-as-you-go monthly prices (retail API, USD, 730 h). Never used for ranking.
+    Kept for compatibility: retail pricing is now on by default. Informational pay-as-you-go monthly prices (public
+    Retail Prices API, USD, 730 h); never used for ranking.
+.PARAMETER SkipPricing
+    Do not add pay-as-you-go monthly prices. Use this when https://prices.azure.com is not reachable or for a fully
+    offline -FromSnapshot replay.
 .PARAMETER CheckModernization
     Evaluate every VM for a suitable v7 or v6 SKU. The exact CLI spelling --check-modernization is also accepted.
     This is assessment-only and never changes Azure resources.
@@ -59,8 +63,8 @@
     can change (for example --check-modernization, -HorizonMonths, -QuotaSafetyPct, -MaxCandidates); tenant, subscription
     and region scope come from the snapshot. -AsOfDate defaults to the capture's as-of date and the Microsoft retirement
     evidence captured with the snapshot is reused, so a replay reproduces the capture. A warning is shown when the
-    snapshot is more than 7 days old. No Azure CLI sign-in is needed; only -IncludePricing (public Retail Prices API) goes
-    online.
+    snapshot is more than 7 days old. No Azure CLI sign-in is needed; only retail pricing (public Retail Prices API) goes
+    online. Add -SkipPricing for a fully offline replay.
 .PARAMETER HtmlIncludeOptionalModernization
     Also list VMs whose action is 'Modernization Optional' (older generations without an announced retirement) in the HTML
     VM tables, details and modernization view. By default the HTML lists only VMs with an announced retirement date and a
@@ -72,7 +76,7 @@
 .EXAMPLE
     pwsh ./Invoke-VMSKURetirementReport.ps1
 .EXAMPLE
-    pwsh ./Invoke-VMSKURetirementReport.ps1 -SubscriptionId 00000000-0000-0000-0000-000000000000 -Region eastus2 -IncludeRightsizing -IncludePricing
+    pwsh ./Invoke-VMSKURetirementReport.ps1 -SubscriptionId 00000000-0000-0000-0000-000000000000     -Region eastus2 -IncludeRightsizing
 .EXAMPLE
     pwsh ./Invoke-VMSKURetirementReport.ps1 -SaveSnapshot -OutputPath C:\Reports\vm-sku\capture
     pwsh ./Invoke-VMSKURetirementReport.ps1 -FromSnapshot C:\Reports\vm-sku\capture --check-modernization -OfflineCatalog -OutputPath C:\Reports\vm-sku\replay
@@ -90,6 +94,7 @@ param(
     [switch]$IncludeRightsizing,
     [ValidateRange(7, 93)][int]$RightsizingLookbackDays = 30,
     [switch]$IncludePricing,
+    [switch]$SkipPricing,
     [Alias('check-modernization')][switch]$CheckModernization,
     [switch]$SkipHtml,
     [ValidateRange(1, 16)][int]$ThrottleLimit = 6,
@@ -120,6 +125,9 @@ foreach ($arg in @($RemainingArguments)) {
         throw "Unknown argument '$arg'."
     }
 }
+if ($IncludePricing -and $SkipPricing) { throw '-IncludePricing and -SkipPricing cannot be used together. Retail pricing is on by default; use -SkipPricing to turn it off.' }
+$pricingEnabled = -not $SkipPricing
+$pricingStatus = if ($pricingEnabled) { 'Done' } else { 'Skipped' }
 
 $skillRoot = Split-Path $PSScriptRoot -Parent
 foreach ($m in 'Common', 'Retirement', 'SkuCatalog', 'Inventory', 'Scoring', 'Candidates', 'Quota', 'Rightsizing', 'Assessment', 'Output') {
@@ -364,11 +372,17 @@ try {
     }
 
     # -- Optional: pricing --
-    if ($IncludePricing) {
+    if ($pricingEnabled) {
         Write-Phase 'Retail pricing (informational, PAYGO USD)'
         foreach ($rg in ($assessments | Group-Object { $_.Vm.Region })) {
             $skuSet = @($rg.Group | ForEach-Object { $_.Vm.SkuName; if ($_.Candidates -and $_.Candidates.Primary) { $_.Candidates.Primary.SkuName; if ($_.Candidates.Secondary) { $_.Candidates.Secondary.SkuName } } } | Sort-Object -Unique)
-            $prices = Get-RetailPrices -Region $rg.Name -SkuNames $skuSet
+            try { $prices = Get-RetailPrices -Region $rg.Name -SkuNames $skuSet }
+            catch {
+                # One unreachable-API warning instead of retrying every region; the report completes without prices.
+                Write-Warning "Retail pricing unavailable, PAYGO columns left blank: $($_.Exception.Message) Use -SkipPricing to skip this step."
+                $pricingStatus = 'Unavailable'
+                break
+            }
             foreach ($a in $rg.Group) {
                 $os = if ($a.Vm.OsType -eq 'Windows') { 'Windows' } else { 'Linux' }
                 $cur = $prices["$($a.Vm.SkuName.ToLowerInvariant())|$os"]
@@ -379,10 +393,8 @@ try {
                 }
             }
         }
-        Write-PhaseDone
+        Write-PhaseDone $(if ($pricingStatus -eq 'Done') { '' } else { 'unavailable' })
     }
-
-    # -- Outputs --
     Write-Phase 'Writing outputs'
     $summary = New-AssessmentSummary -Assessments $assessments.ToArray() -SubscriptionsScanned $subs.Count
     $run = [pscustomobject]@{
@@ -390,9 +402,10 @@ try {
         Tenant = [pscustomobject]@{ Id = $tenantId; Name = $tenantName }; Account = $accountDisplay
         DataSource = if ($snapshot) { "Snapshot captured $snapshotCaptured" } else { 'Live' }
         SnapshotAgeDays = if ($snapshot) { $snapshotAgeDays } else { $null }
+        PricingStatus = $pricingStatus
         Parameters = [ordered]@{
             TenantId = $tenantId; SubscriptionId = $SubscriptionId; Region = $Region; HorizonMonths = $HorizonMonths; OfflineCatalog = [bool]$OfflineCatalog; QuotaSafetyPct = $QuotaSafetyPct
-            MaxCandidates = $MaxCandidates; IncludeRightsizing = [bool]$IncludeRightsizing; RightsizingLookbackDays = $RightsizingLookbackDays; IncludePricing = [bool]$IncludePricing
+            MaxCandidates = $MaxCandidates; IncludeRightsizing = [bool]$IncludeRightsizing; RightsizingLookbackDays = $RightsizingLookbackDays; IncludePricing = $pricingEnabled; SkipPricing = [bool]$SkipPricing
             CheckModernization = [bool]$CheckModernization; IncludeOperatorAccount = [bool]$IncludeOperatorAccount; KeepRawData = [bool]$KeepRawData
             SaveSnapshot = [bool]$SaveSnapshot; FromSnapshot = [bool]$FromSnapshot
             HtmlIncludeOptionalModernization = [bool]$HtmlIncludeOptionalModernization; HtmlMaxVmDetails = $HtmlMaxVmDetails

@@ -40,7 +40,7 @@ auditable wave plan in HTML, Markdown, CSV and JSON.
 | Recommendations | Primary, alternative and third candidates; optional v7/v6 modernization assessment; "newer generation if converted"; 0-100 compatibility score; HIGH / MEDIUM / LOW confidence |
 | Deployability | Region and zone availability, subscription SKU restrictions, family and regional quota with minimum and recommended increases |
 | Planning | Waves 1-3 (retirements by urgency) and Wave 4 (optional modernization); action and next-step per VM |
-| Extras | Optional rightsizing signal from Azure Monitor (never changes the recommendation) and PAYGO price comparison |
+| Extras | PAYGO price comparison (on by default, `-SkipPricing` to turn off) and an optional rightsizing signal from Azure Monitor (never changes the recommendation) |
 | Outputs | Responsive HTML report, executive summary and per-VM detail (Markdown), CSV for Excel / Power BI, versioned JSON |
 
 <table>
@@ -358,7 +358,8 @@ double-dash form accepted is `--check-modernization`.
 | `-MaxCandidates` | `3` | Recommendations per VM: `1` primary only, `2` + alternative, `3` + third |
 | `-IncludeRightsizing` | off | Azure Monitor CPU/memory signal (separate column, never changes the recommendation) |
 | `-RightsizingLookbackDays` | `30` | Telemetry window (7-93) |
-| `-IncludePricing` | off | Retail PAYGO monthly price comparison (informational) |
+| `-IncludePricing` | on | Retail PAYGO monthly price comparison (informational). Pricing is on by default; the switch is kept for existing scripts |
+| `-SkipPricing` | off | Turn off retail pricing (for example when `prices.azure.com` is blocked, or for a fully offline `-FromSnapshot` replay) |
 | `--check-modernization` | off | Evaluate every VM for a suitable same-vendor and same-architecture v7 SKU, then v6, while retaining the existing recommendation as fallback |
 | `-OfflineCatalog` | off | Use the cached Microsoft catalog instead of fetching Microsoft Learn |
 | `-AuthTimeoutSec` | `60` | Fail fast with `az login` guidance if the CLI token has expired |
@@ -368,7 +369,7 @@ double-dash form accepted is `--check-modernization`.
 | `-IncludeOperatorAccount` | off | Record the full signed-in account in the console, `run.log` and `assessment.json` (masked by default) |
 | `-KeepRawData` | off | Also write the raw VM inventory and Resource SKU responses to `data/` for audit |
 | `-SaveSnapshot` | off | Record every Azure read of the run to `<OutputPath>/snapshot` so it can be replayed later (no tokens; account masked) |
-| `-FromSnapshot` | - | Replay a run folder captured with `-SaveSnapshot` without calling Azure; scope, as-of date and Microsoft evidence come from the snapshot; warns when it is more than 7 days old |
+| `-FromSnapshot` | - | Replay a run folder captured with `-SaveSnapshot` without calling Azure (only retail pricing goes online; add `-SkipPricing` for a fully offline replay); scope, as-of date and Microsoft evidence come from the snapshot; warns when it is more than 7 days old |
 | `-HtmlIncludeOptionalModernization` | off | Also list optional-modernization VMs (older generations without an announced retirement) in the HTML |
 | `-HtmlMaxVmDetails` | `250` | Maximum expandable per-VM detail blocks per subscription page (`0` = no limit); every VM stays in the tables, CSV, JSON and Markdown |
 
@@ -387,7 +388,7 @@ peak (side-by-side) demand, and each subscription page gains a *v6/v7 Modernizat
 
 | File | Purpose |
 |---|---|
-| `index.html`, `<subscription>-<id>.html` | Browsable report: summary, waves, quota, *Part 1 - Required: Retirement remediation* (*VMs with Retiring SKUs* and their details) and, with `--check-modernization`, *Part 2 - Optional: v6/v7 Modernization*, as colour-coded parts; Microsoft Learn upgrade-path and SCSI to NVMe guidance, reference sections. Lists only VMs with an announced retirement date and a required action |
+| `index.html`, `<subscription>-<id>.html` | Browsable report: summary, waves, quota, *Part 1 - Required: Retirement remediation* (*VMs with Retiring SKUs* and their details) and, with `--check-modernization`, *Part 2 - Optional: v6/v7 Modernization*, as colour-coded parts; Microsoft Learn upgrade-path and SCSI to NVMe guidance, reference sections. Lists only VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action, each labelled with its Microsoft lifecycle stage |
 | `executive-summary.md` | Estate counts, waves, groupings, quota actions |
 | `detailed-report.md` | Per affected VM: configuration, evidence, recommendation, differences, validation items |
 | `vm-assessment.csv` | One row per VM (Excel / Power BI) |

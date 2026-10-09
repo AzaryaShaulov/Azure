@@ -6,7 +6,7 @@
 |---|---|
 | Tenant | Contoso (Sample) (`22222222-2222-2222-2222-222222222222`) |
 | Assessment date (as of) | 2026-10-05 |
-| Generated (UTC) | 2026-10-08T20:15:01.8069446Z |
+| Generated (UTC) | 2026-10-08T22:12:01.8898832Z |
 | Retirement evidence | Cached (2026-10-06 00:44 UTC) - Microsoft Learn |
 | Source: RetiredList | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) (updated 09/27/2026 11:03:00, retrieved 10/06/2026 00:44:07) |
 | Source: PreviousGen | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list) (updated 09/26/2026 06:04:00, retrieved 10/06/2026 00:44:07) |
@@ -50,27 +50,27 @@ Waves 1-3 contain only VMs with Microsoft-confirmed or announced retirement date
 
 ### Wave 1 - Urgent (1 VMs)
 
-| CurrentSku | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
-|---|---|---|---|---|---|---|---|
-| Standard\_NC6s\_v3 | Already Retired | 2025-09-30 | - | 1 | 0 | 0 | 1 |
+| CurrentSku | LifecycleStage | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
+|---|---|---|---|---|---|---|---|---|
+| Standard\_NC6s\_v3 | Retired | Already Retired | 2025-09-30 | - | 1 | 0 | 0 | 1 |
 
 ### Wave 2 - Near Term (2 VMs)
 
-| CurrentSku | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
-|---|---|---|---|---|---|---|---|
-| Standard\_DS3\_v2 | Confirmed Retirement | 2028-05-01 | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
+| CurrentSku | LifecycleStage | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
+|---|---|---|---|---|---|---|---|---|
+| Standard\_DS3\_v2 | End of Life | Confirmed Retirement | 2028-05-01 | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
 
 ### Wave 3 - Planned (1 VMs)
 
-| CurrentSku | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
-|---|---|---|---|---|---|---|---|
-| Standard\_B2ms | Confirmed Retirement | 2028-11-15 | Standard\_B2s\_v2 | 1 | 0 | 0 | 1 |
+| CurrentSku | LifecycleStage | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
+|---|---|---|---|---|---|---|---|---|
+| Standard\_B2ms | End of Life | Confirmed Retirement | 2028-11-15 | Standard\_B2s\_v2 | 1 | 0 | 0 | 1 |
 
 ### Beyond Horizon (2 VMs)
 
-| CurrentSku | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
-|---|---|---|---|---|---|---|---|
-| Standard\_D4s\_v3 | Confirmed Retirement | 2029-11-15 | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
+| CurrentSku | LifecycleStage | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
+|---|---|---|---|---|---|---|---|---|
+| Standard\_D4s\_v3 | End of Life | Confirmed Retirement | 2029-11-15 | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
 
 ## Groupings (VMs with an action)
 

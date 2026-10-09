@@ -29,6 +29,19 @@ VMs that run on a dedicated host, but never matched to VM sizes.
 Modernization-guide targets are series keys (e.g. `ddsv5`) or, for phrases such as *"v6 and v7 D-family series"*,
 family/version keys (`d-family-v6`, `d-family-v7`) that admit every D-family size of that generation.
 
+### Microsoft lifecycle stage
+
+Every VM also gets the Microsoft lifecycle stage ([VM lifecycle overview](https://learn.microsoft.com/azure/virtual-machines/sizes/lifecycle/lifecycle-overview)):
+
+| Stage | Rule | Recommended action (Microsoft) |
+|---|---|---|
+| Retired | Evidence class *Already Retired* | Migrate now |
+| End of Life | Retirement announced (*Confirmed Retirement* or *Retirement Announced*), or the series is on the [End of Life list](https://learn.microsoft.com/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list) | Plan modernization or SKU migration before the retirement date |
+| Not End of Life | No announced retirement (Current or Extended; Microsoft assigns these per VM family) | None required |
+| Unknown | *Unable to Confirm* | Manual review |
+
+The HTML report lists VMs in the Retired and End of Life stages that need action, with the stage shown as a badge.
+
 ### Evidence classes
 
 | Class | Rule |
@@ -478,9 +491,11 @@ A VM is flagged *Potential Rightsizing Opportunity* when:
 A half-size in the primary series is suggested. The result is reported in separate columns and **never** changes the
 primary recommendation.
 
-## 11. Pricing (optional)
+## 11. Pricing (on by default)
 
-With `-IncludePricing`, prices come from the Retail Prices API: pay-as-you-go hourly x 730, by OS, in USD.
+Prices come from the public Retail Prices API: pay-as-you-go hourly x 730, by OS, in USD. Use `-SkipPricing` to turn
+pricing off (`-IncludePricing` is still accepted). If the API cannot be reached, the run warns once, continues without
+prices and records `pricingStatus: "Unavailable"`.
 
 - Informational only; never used for ranking.
 - Excludes EA/MCA discounts, reservations, savings plans and Azure Hybrid Benefit.

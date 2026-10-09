@@ -135,7 +135,7 @@ function global:Invoke-RestMethod {
     throw "Sample build is offline; blocked request to `$Uri"
 }
 "@
-    $cmd = "$offlineRest`n`$env:PATH = '$mock$sep' + `$env:PATH; & '$script' --check-modernization -OutputPath '$tmp' -OfflineCatalog -AsOfDate '$($script:SampleAsOfDate)' -IncludePricing -ThrottleLimit 2"
+    $cmd = "$offlineRest`n`$env:PATH = '$mock$sep' + `$env:PATH; & '$script' --check-modernization -OutputPath '$tmp' -OfflineCatalog -AsOfDate '$($script:SampleAsOfDate)' -ThrottleLimit 2"
     & pwsh -NoProfile -Command $cmd
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $tmp 'index.html'))) { throw 'Sample: generation failed.' }
     # Keep only portable report artifacts; run.log and data/ contain machine / user specific details.

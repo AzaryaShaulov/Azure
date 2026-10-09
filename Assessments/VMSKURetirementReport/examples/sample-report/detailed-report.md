@@ -47,6 +47,7 @@ Tenant: **Contoso (Sample)** (`22222222-2222-2222-2222-222222222222`) | As of: *
 | Microsoft Retirement Source | - |
 | Announcement | Unknown |
 | Migration Guide | - |
+| Microsoft Lifecycle Stage | Not End of Life |
 | Evidence Classification | No Retirement Announced |
 | Data Quality | Verified |
 
@@ -130,6 +131,7 @@ No Action Required. Next step: Manual Review Required.
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | Unknown |
 | Migration Guide | \[link\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/ncv3-retirement) |
+| Microsoft Lifecycle Stage | Retired |
 | Evidence Classification | Already Retired |
 | Data Quality | Partially Verified |
 
@@ -218,6 +220,7 @@ Immediate Migration Required. Next step: Manual Review Required.
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | \[2025-03-31\](https://azure.microsoft.com/updates?id=485569) |
 | Migration Guide | \[link\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide) |
+| Microsoft Lifecycle Stage | End of Life |
 | Evidence Classification | Confirmed Retirement |
 | Data Quality | Partially Verified |
 
@@ -351,6 +354,7 @@ Migration Required Within 24 Months. Next step: Request Quota Increase. Resize S
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | \[2025-03-31\](https://azure.microsoft.com/updates?id=485569) |
 | Migration Guide | \[link\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide) |
+| Microsoft Lifecycle Stage | End of Life |
 | Evidence Classification | Confirmed Retirement |
 | Data Quality | Partially Verified |
 
@@ -484,6 +488,7 @@ Migration Required Within 24 Months. Next step: Request Quota Increase. Resize S
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | \[2025-10-15\](https://azure.microsoft.com/updates?id=500682) |
 | Migration Guide | \[link\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide) |
+| Microsoft Lifecycle Stage | End of Life |
 | Evidence Classification | Confirmed Retirement |
 | Data Quality | Partially Verified |
 
@@ -615,6 +620,7 @@ Migration Required Within 36 Months. Next step: Manual Review Required. Resize S
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | Unknown |
 | Migration Guide | \[link\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide) |
+| Microsoft Lifecycle Stage | End of Life |
 | Evidence Classification | Confirmed Retirement |
 | Data Quality | Partially Verified |
 
@@ -748,6 +754,7 @@ Plan Migration. Next step: Request Quota Increase. Resize Standard_D4s_v3 -> Sta
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | Unknown |
 | Migration Guide | \[link\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirement/retired-sizes-modernization-guide) |
+| Microsoft Lifecycle Stage | End of Life |
 | Evidence Classification | Confirmed Retirement |
 | Data Quality | Partially Verified |
 

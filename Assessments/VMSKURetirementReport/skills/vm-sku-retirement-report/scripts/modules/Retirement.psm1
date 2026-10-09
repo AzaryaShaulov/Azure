@@ -455,6 +455,25 @@ function Get-RetirementUrgency {
     return 'More than 36 Months'
 }
 
+function Get-LifecycleStage {
+    <#
+    .SYNOPSIS
+        Microsoft VM lifecycle stage for a lifecycle result: Retired, End of Life, Not End of Life or Unknown.
+    .DESCRIPTION
+        Microsoft defines four stages (Current, Extended, End of Life, Retired); End of Life means a retirement has been
+        announced (https://learn.microsoft.com/azure/virtual-machines/sizes/lifecycle/lifecycle-overview). Current and
+        Extended depend on the VM family, so sizes without an announced retirement are reported as 'Not End of Life'
+        rather than guessed.
+    #>
+    param([Parameter(Mandatory)]$Lifecycle)
+    $previous = if ($Lifecycle.PSObject.Properties.Name -contains 'PreviousGenStatus') { $Lifecycle.PreviousGenStatus } else { $null }
+    switch ($Lifecycle.EvidenceClass) {
+        'Already Retired' { return 'Retired' }
+        { $_ -in 'Confirmed Retirement', 'Retirement Announced' } { return 'End of Life' }
+        'Unable to Confirm' { return 'Unknown' }
+        default { if ($previous -eq 'End of Life') { return 'End of Life' } else { return 'Not End of Life' } }
+    }
+}
 function Resolve-SkuLifecycle {
     <#
     .SYNOPSIS
@@ -473,7 +492,7 @@ function Resolve-SkuLifecycle {
         SkuName = $SkuName; SeriesKey = $info.SeriesKey; LearnSeriesName = $null
         EvidenceClass = 'No Retirement Announced'; RetirementStatus = 'No Retirement Announced'
         AnnouncementDate = $null; RetirementDate = $null; MonthsRemaining = $null; Urgency = 'No Retirement Announced'
-        SourceUrl = $null; AnnouncementUrl = $null; MigrationGuideUrl = $null; PreviousGenStatus = $null
+        SourceUrl = $null; AnnouncementUrl = $null; MigrationGuideUrl = $null; PreviousGenStatus = $null; LifecycleStage = $null
         RecommendedTargets = @(); GuideDifferences = @(); SizeTargets = @(); Notes = @()
         CatalogSource = $CatalogSource; DataQuality = 'Verified'
     }
@@ -481,7 +500,7 @@ function Resolve-SkuLifecycle {
         $result.EvidenceClass = 'Unable to Confirm'; $result.RetirementStatus = 'Unable to Confirm'
         $result.Urgency = 'Unable to Determine'; $result.DataQuality = 'Unable to Verify'
         $result.Notes = @("VM size name '$SkuName' does not follow the Azure naming convention; cannot match to Microsoft lifecycle data.")
-        return [pscustomobject]$result
+        $result.LifecycleStage = Get-LifecycleStage -Lifecycle ([pscustomobject]$result); return [pscustomobject]$result
     }
     $unmappedHit = @($Catalog.unmappedSeries | Where-Object { (ConvertTo-NormalizedSeriesName $_.SeriesName) -eq $info.SeriesKey })
     if (-not $entry) {
@@ -490,7 +509,7 @@ function Resolve-SkuLifecycle {
             $result.Urgency = 'Unable to Determine'; $result.DataQuality = 'Unable to Verify'
             $result.Notes = @("Microsoft Learn lists series '$($unmappedHit[0].SeriesName)' ($($unmappedHit[0].Source): $($unmappedHit[0].Status)) which has no SKU mapping in series-map.json. Add a mapping to classify.")
         }
-        return [pscustomobject]$result
+        $result.LifecycleStage = Get-LifecycleStage -Lifecycle ([pscustomobject]$result); return [pscustomobject]$result
     }
     $result.LearnSeriesName = ($entry.learnNames -join ' / ')
     $result.RecommendedTargets = @($entry.recommendedTargets)
@@ -550,9 +569,9 @@ function Resolve-SkuLifecycle {
     $result.Urgency = Get-RetirementUrgency -RetirementDate $date -AsOf $AsOf -EvidenceClass $result.EvidenceClass
     if ($CatalogSource -ne 'Live' -and $result.DataQuality -eq 'Verified') { $result.DataQuality = 'Partially Verified'; $notes.Add("Retirement evidence from cached catalog: $CatalogSource.") }
     $result.Notes = $notes.ToArray()
-    return [pscustomobject]$result
+    $result.LifecycleStage = Get-LifecycleStage -Lifecycle ([pscustomobject]$result); return [pscustomobject]$result
 }
 
 Export-ModuleMember -Function ConvertTo-NormalizedSeriesName, Get-LearnHtmlTables, Get-LearnPageMetadata, Get-SeriesMap, Resolve-SeriesKeys, `
     ConvertFrom-RetiredSizesHtml, ConvertFrom-PreviousGenHtml, ConvertTo-TargetSeriesKey, ConvertFrom-MigrationGuideHtml, New-RetirementCatalog, Get-RetirementCatalog, `
-    Get-UnmappedSeriesNames, Get-NonVmSizeEntries, Find-CatalogSeries, Get-RetirementUrgency, Resolve-SkuLifecycle
+    Get-UnmappedSeriesNames, Get-NonVmSizeEntries, Find-CatalogSeries, Get-RetirementUrgency, Get-LifecycleStage, Resolve-SkuLifecycle

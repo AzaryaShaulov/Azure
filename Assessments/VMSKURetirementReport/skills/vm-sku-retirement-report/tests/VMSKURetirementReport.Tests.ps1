@@ -744,18 +744,41 @@ Describe 'Retirement target vs modernization target' {
     }
 }
 
+Describe 'Microsoft lifecycle stage' {
+    It 'maps <Evidence> to <Stage>' -ForEach @(
+        @{ Evidence = 'Already Retired'; Previous = $null; Stage = 'Retired' }
+        @{ Evidence = 'Confirmed Retirement'; Previous = $null; Stage = 'End of Life' }
+        @{ Evidence = 'Retirement Announced'; Previous = 'End of Life'; Stage = 'End of Life' }
+        @{ Evidence = 'Modernization Recommended'; Previous = 'Previous Generation'; Stage = 'Not End of Life' }
+        @{ Evidence = 'No Retirement Announced'; Previous = $null; Stage = 'Not End of Life' }
+        @{ Evidence = 'Unable to Confirm'; Previous = $null; Stage = 'Unknown' }
+    ) {
+        Get-LifecycleStage -Lifecycle ([pscustomobject]@{ EvidenceClass = $Evidence; PreviousGenStatus = $Previous }) | Should -Be $Stage
+    }
+    It 'classifies a series on the Microsoft End of Life list as End of Life' {
+        $lc = Resolve-SkuLifecycle -SkuName 'Standard_DS3_v2' -Catalog $Catalog -AsOf $AsOf
+        $lc.LifecycleStage | Should -Be 'End of Life'
+        (ConvertTo-AssessmentRow (Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'))).LifecycleStage | Should -Be 'End of Life'
+    }
+}
 Describe 'HTML VM scope' {
     It 'lists retiring VMs by default and optional modernization only when requested' {
         InModuleScope Output {
-            $retiring = [pscustomobject]@{ AffectedByRetirement = 'Yes'; Lifecycle = [pscustomobject]@{ RetirementDate = '2028-05-01' }; Action = 'Plan Migration' }
-            $optional = [pscustomobject]@{ AffectedByRetirement = 'No'; Lifecycle = [pscustomobject]@{ RetirementDate = $null }; Action = 'Modernization Optional' }
-            $current = [pscustomobject]@{ AffectedByRetirement = 'No'; Lifecycle = [pscustomobject]@{ RetirementDate = $null }; Action = 'No Action Required' }
-            $undated = [pscustomobject]@{ AffectedByRetirement = 'Yes'; Lifecycle = [pscustomobject]@{ RetirementDate = $null }; Action = 'Plan Migration' }
+            $vm = { param($Affected, $Evidence, $Date, $Action) [pscustomobject]@{ AffectedByRetirement = $Affected; Lifecycle = [pscustomobject]@{ EvidenceClass = $Evidence; PreviousGenStatus = $null; RetirementDate = $Date }; Action = $Action } }
+            $retiring = & $vm 'Yes' 'Confirmed Retirement' '2028-05-01' 'Plan Migration'
+            $retired = & $vm 'Yes' 'Already Retired' '2025-09-30' 'Immediate Migration Required'
+            $endOfLifeNoDate = & $vm 'Yes' 'Retirement Announced' $null 'Manual Review Required'
+            $optional = & $vm 'No' 'Modernization Recommended' $null 'Modernization Optional'
+            $current = & $vm 'No' 'No Retirement Announced' $null 'No Action Required'
+            $unconfirmed = & $vm 'Unknown' 'Unable to Confirm' $null 'Manual Review Required'
             Test-HtmlListedVm -Assessment $retiring | Should -BeTrue
+            Test-HtmlListedVm -Assessment $retired | Should -BeTrue
+            # End of Life means Microsoft announced the retirement, so these VMs are listed even before a date is published.
+            Test-HtmlListedVm -Assessment $endOfLifeNoDate | Should -BeTrue
             Test-HtmlListedVm -Assessment $optional | Should -BeFalse
             Test-HtmlListedVm -Assessment $optional -IncludeOptional | Should -BeTrue
             Test-HtmlListedVm -Assessment $current -IncludeOptional | Should -BeFalse
-            Test-HtmlListedVm -Assessment $undated -IncludeOptional | Should -BeFalse
+            Test-HtmlListedVm -Assessment $unconfirmed -IncludeOptional | Should -BeFalse
         }
     }
 }
@@ -1176,5 +1199,21 @@ Describe 'HTML anchors and encoding' {
         $html | Should -Match "href='#vm-rg-west-app01'"
         $html | Should -Match 'zone 1&lt;b&gt;'
         $html | Should -Not -Match 'zone 1<b>'
+    }
+    It 'labels the confidence and readiness badges, explains them on hover and encodes the hover text' {
+        InModuleScope Output {
+            $badge = New-Badge 'MEDIUM' -Label 'Confidence: MEDIUM' -Title "It's <b>"
+            $badge | Should -Be "<span class='badge b-yellow' title='It&#39;s &lt;b&gt;'>Confidence: MEDIUM</span>"
+            New-Badge 'Ready' | Should -Be "<span class='badge b-green'>Ready</span>"
+            $tip = Get-ConfidenceTooltip ([pscustomobject]@{ Level = 'LOW'; LowReasons = @('CPU vendor change required'); ValidationItems = @('Temp Disk: target has no temp disk') })
+            $tip | Should -Match '^Confidence in the recommended size: LOW\. Validate first:'
+            $tip | Should -Match '- Blocker: CPU vendor change required'
+            $tip | Should -Match '- Temp Disk: target has no temp disk'
+            Get-ConfidenceTooltip ([pscustomobject]@{ Level = 'HIGH'; LowReasons = @(); ValidationItems = @() }) | Should -Match 'Everything verified'
+        }
+        $html = Get-Content (Get-ChildItem (Join-Path $TestDrive 'anchors') -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
+        $html | Should -Match "<span class='badge b-\w+' title='Confidence in the recommended size: \w+\.[^']*'>Confidence: (HIGH|MEDIUM|LOW)</span>"
+        $html | Should -Match "<span class='badge b-\w+' title='Readiness of the recommended size: [^']+'>Readiness: [^<]+</span>"
+        $html | Should -Match 'Readiness: can the target be deployed today\?'
     }
 }

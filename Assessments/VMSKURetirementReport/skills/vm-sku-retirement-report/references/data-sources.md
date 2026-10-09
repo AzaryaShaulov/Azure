@@ -13,7 +13,7 @@ All calls are read-only.
 | Size capabilities and restrictions | Compute SKUs REST `GET /subscriptions/<s>/providers/Microsoft.Compute/skus?$filter=location eq '<r>'` with a subscription-scoped token (fallback: `az vm list-skus --all`) | Each subscription/region needing recommendations, plus one per remaining region for capabilities | Reader |
 | Quota | `az vm list-usage --location <r> --subscription <s>` | Same pairs as above | Reader |
 | Utilization (optional) | Azure Monitor `metrics:getBatch` (`Percentage CPU`, `Available Memory Bytes`) | Running VMs with an action | Monitoring Reader |
-| Prices (optional) | `https://prices.azure.com/api/retail/prices` | Public | None |
+| Prices (default; `-SkipPricing` to skip) | `https://prices.azure.com/api/retail/prices` | Public | None |
 
 ## Performance notes
 

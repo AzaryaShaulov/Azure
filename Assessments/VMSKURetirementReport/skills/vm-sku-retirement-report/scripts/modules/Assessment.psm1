@@ -41,6 +41,7 @@ function New-VmAssessment {
         # Size missing from the regional Resource SKU list for this subscription: may be retired/unlisted - do not guess.
         $lc = $Lifecycle.PSObject.Copy()
         $lc.EvidenceClass = 'Unable to Confirm'; $lc.RetirementStatus = 'Unable to Confirm'; $lc.Urgency = 'Unable to Determine'; $lc.DataQuality = 'Unable to Verify'
+        $lc | Add-Member -NotePropertyName LifecycleStage -NotePropertyValue 'Unknown' -Force
         $lc.Notes = @($Lifecycle.Notes) + "Size is not returned by the Resource SKUs API for $($Vm.Region) in this subscription and is not in the Microsoft retirement lists; it may be retired, unlisted or restricted. Manual confirmation required."
     }
     $advisorNotes = @()
@@ -631,6 +632,7 @@ function ConvertTo-AssessmentRow {
         MigrationQuotaModel     = $st.MigrationQuotaModel
         RecommendedMigrationPath = $st.RecommendedMigrationPath
         ModernizationValidationItems = (@($st.ValidationItems) -join ' | ')
+        LifecycleStage          = Get-LifecycleStage -Lifecycle $A.Lifecycle
     }
 }
 

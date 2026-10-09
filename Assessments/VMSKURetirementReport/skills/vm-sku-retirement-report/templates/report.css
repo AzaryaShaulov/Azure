@@ -180,7 +180,8 @@ details.vm[open] > summary::before { transform: rotate(90deg); }
 details.vm[open] > summary { border-bottom: 1px solid var(--border); }
 .vm-name { font-weight: 700; font-size: 1.08rem; }
 .vm-move { color: var(--text-2); }
-.vm-badges { margin-left: auto; display: flex; gap: 6px; }
+.vm-badges { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.badge[title] { cursor: help; }
 .vm-body { padding: 18px 22px 22px; }
 dl.facts { display: grid; grid-template-columns: 190px 1fr; gap: 10px 20px; margin: 0 0 18px; }
 dl.facts dt { font-weight: 650; color: var(--text-2); }
@@ -388,6 +389,8 @@ thead th { white-space: normal; }
     --retire: #ff9a5c; --retire-soft: #3a2214; --retire-tint: #2a1b12;
     --modern: #b99cf0; --modern-soft: #2a2140; --modern-tint: #221b33;
   }
+  tbody tr:nth-child(even) { background: var(--surface-2); }
+  tbody tr:hover { background: var(--accent-soft); }
 }
 .track { margin: 28px 0 8px; }
 .track-banner { display: flex; gap: 16px; align-items: flex-start; border-radius: var(--radius); padding: 18px 22px; margin: 0 0 16px; border: 1px solid; border-left-width: 8px; }

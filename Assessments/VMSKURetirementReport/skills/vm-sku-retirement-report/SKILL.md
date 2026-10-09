@@ -48,7 +48,8 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
 
 1. **Confirm scope with the user**: tenant, subscriptions (default: all enabled in the signed-in tenant), regions,
    whether to check every VM for v7/v6 modernization (`--check-modernization`), and whether to include rightsizing
-   telemetry (`-IncludeRightsizing`) and PAYGO prices (`-IncludePricing`).
+   telemetry (`-IncludeRightsizing`). PAYGO prices are included by default; add `-SkipPricing` when
+   `prices.azure.com` is not reachable or prices are not wanted.
 2. **Preflight**: `az account show` - confirm the tenant is the one the user means. If not signed in, ask the user to
    run `az login --tenant <tenant>` (interactive; never automate or handle credentials). The script checks the token
    first and fails within `-AuthTimeoutSec` (default 60) with the exact `az login` command when a cached token has
@@ -61,7 +62,7 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
    pwsh <skill-dir>/scripts/Invoke-VMSKURetirementReport.ps1
    # scoped / optional extras
    pwsh <skill-dir>/scripts/Invoke-VMSKURetirementReport.ps1 `
-       -TenantId <tenant-id> -SubscriptionId <id1>,<id2> -Region eastus2 --check-modernization -IncludeRightsizing -IncludePricing
+       -TenantId <tenant-id> -SubscriptionId <id1>,<id2> -Region eastus2        --check-modernization -IncludeRightsizing
    ```
 
    Key parameters: `-TenantId`, `-AuthTimeoutSec 60`, `-HorizonMonths 36` (12-120; dated retirements this far out or
@@ -97,7 +98,7 @@ operator's account is masked (`j****@contoso.com`) unless `-IncludeOperatorAccou
 | `quota-impact.csv` | Aggregated demand per subscription/region/family and regional vCPUs, in scopes `Retirement`, `Retirement+Modernization` and (with `--check-modernization`) `Modernization` with steady-state and peak demand |
 | `assessment.json` | Versioned structured document (schema in [output-schema.md](references/output-schema.md)) |
 | `retirement-evidence.json` | Exact Microsoft evidence used (URLs, git commit, retrieval time) + Advisor/Service Health signals |
-| `index.html` + `<subscription>-<id>.html` | Browsable report: summary cards and plain-language bottom line, waves, quota, *VMs with Retiring SKUs* (table and details, directly under Overview), optional v6/v7 modernization view, Microsoft Learn upgrade-path and SCSI to NVMe guidance, and collapsed reference sections (Cross-Vendor Migration Warnings, SKU families, CPU Vendor from SKU Name, Known Limitations). HTML VM lists include only VMs with an announced retirement date and a required action; CSV/JSON include every VM. Styling lives in `templates/report.css` |
+| `index.html` + `<subscription>-<id>.html` | Browsable report: summary cards and plain-language bottom line, waves, quota, *VMs with Retiring SKUs* (table and details, directly under Overview), optional v6/v7 modernization view, Microsoft Learn upgrade-path and SCSI to NVMe guidance, and collapsed reference sections (Cross-Vendor Migration Warnings, SKU families, CPU Vendor from SKU Name, Known Limitations). HTML VM lists include only VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action, labelled with the Microsoft lifecycle stage; CSV/JSON include every VM. Styling lives in `templates/report.css` |
 | `run.log` | Console transcript with a minimal header (no local user or machine name); the account is masked unless `-IncludeOperatorAccount` |
 | `data/` | Only with `-KeepRawData`: raw VM inventory and Resource SKU responses for audit |
 | `snapshot/` | Only with `-SaveSnapshot`: recorded Azure responses and `snapshot.json` manifest for `-FromSnapshot` replay (no tokens, account masked; confidential) |
