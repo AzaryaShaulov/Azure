@@ -35,7 +35,7 @@ function New-VmAssessment {
     )
     $rec = if ($RegionCatalog) { $RegionCatalog[$Vm.SkuName.ToLowerInvariant()] } else { $null }
     $proc = Get-ProcessorInfo -SkuName $Vm.SkuName -ProcessorCatalog $ProcessorCatalog -SkuRecord $rec
-    $current = New-CurrentProfile -SkuName $Vm.SkuName -SkuRecord $rec -ProcessorInfo $proc
+    $current = New-CurrentProfile -SkuName $Vm.SkuName -SkuRecord $rec -ProcessorInfo $proc -VmGeneration ([string]$Vm.HyperVGeneration)
     $lc = $Lifecycle
     if ($lc.EvidenceClass -eq 'No Retirement Announced' -and $RegionCatalog -and -not $rec) {
         # Size missing from the regional Resource SKU list for this subscription: may be retired/unlisted - do not guess.
@@ -400,11 +400,53 @@ function Get-ModernizationTargetInfo {
     }
 }
 
+function Get-TargetDifferences {
+    <#
+    .SYNOPSIS
+        Attribute comparison of the current size against one target. Reuses the differences computed during candidate
+        selection and computes them only for targets that were not ranked (for example a convertible newer generation).
+    #>
+    param([Parameter(Mandatory)]$Current, $Target)
+    if (-not $Target) { return @() }
+    $names = @($Target.PSObject.Properties.Name)
+    if ($names -contains 'Differences' -and $Target.Differences) { return @($Target.Differences) }
+    if ($names -notcontains 'Record' -or -not $Target.Record) { return @() }
+    return @(Get-MaterialDifferences -Current $Current -Candidate $Target.Record -CandidateProc ([pscustomobject]@{ Vendor = $Target.CpuVendor; Architecture = $Target.CpuArchitecture; Processors = $Target.Processors }))
+}
+
+function New-TargetComparison {
+    <#
+    .SYNOPSIS
+        One row per attribute: the current value and the result for the retirement target and the modernization target.
+    #>
+    param($RetirementDifferences, $ModernizationDifferences)
+    $ret = @($RetirementDifferences | Where-Object { $_ })
+    $mod = @($ModernizationDifferences | Where-Object { $_ })
+    $attributes = New-Object System.Collections.Generic.List[string]
+    foreach ($d in @($ret) + @($mod)) { if (-not $attributes.Contains([string]$d.Attribute)) { $attributes.Add([string]$d.Attribute) } }
+    foreach ($attribute in $attributes) {
+        $r = $ret | Where-Object Attribute -eq $attribute | Select-Object -First 1
+        $m = $mod | Where-Object Attribute -eq $attribute | Select-Object -First 1
+        $base = if ($r) { $r } else { $m }
+        [pscustomobject]@{
+            Attribute = $attribute
+            Current = $base.Current
+            RetirementTarget = if ($r) { $r.Target } else { $null }
+            RetirementChange = if ($r) { $r.Assessment } else { $null }
+            ModernizationTarget = if ($m) { $m.Target } else { $null }
+            ModernizationChange = if ($m) { $m.Assessment } else { $null }
+            RetirementNote = if ($r) { [string]$r.Note } else { '' }
+            ModernizationNote = if ($m) { [string]$m.Note } else { '' }
+        }
+    }
+}
+
 function Get-TargetStrategy {
     <#
     .SYNOPSIS
         Single source of truth for the retirement target, the strategic modernization target, the migration path,
-        complexity, modernization readiness and modernization validation items. Output only renders this object.
+        complexity, modernization readiness, modernization validation items and the current-vs-target attribute
+        comparison. Output only renders this object.
     #>
     param([Parameter(Mandatory)]$Assessment)
     $a = $Assessment; $c = $a.Candidates
@@ -477,6 +519,7 @@ function Get-TargetStrategy {
     else { 'Ready' }
 
     $retSku = if ($retTarget) { $retTarget.SkuName } else { $null }
+    $comparison = @(New-TargetComparison -RetirementDifferences (Get-TargetDifferences -Current $a.Current -Target $retTarget) -ModernizationDifferences (Get-TargetDifferences -Current $a.Current -Target $t))
     $conversion = if ($info.RedeployReview) { ' (redeploy review required)' }
     elseif ($info.RequiresGenerationChange -and $info.RequiresNvmeConversion) { ' (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)' }
     elseif ($info.RequiresGenerationChange) { ' (requires Gen1 to Trusted launch upgrade)' }
@@ -523,6 +566,7 @@ function Get-TargetStrategy {
         ModernizationReadiness = $status
         ValidationItems = $items.ToArray()
         RecommendedMigrationPath = $migrationPath
+        TargetComparison = $comparison
     }
 }
 
@@ -633,6 +677,7 @@ function ConvertTo-AssessmentRow {
         RecommendedMigrationPath = $st.RecommendedMigrationPath
         ModernizationValidationItems = (@($st.ValidationItems) -join ' | ')
         LifecycleStage          = Get-LifecycleStage -Lifecycle $A.Lifecycle
+        ModernizationMaterialDifferences = if ($st.ModernizationTargetSku -and -not $st.AlreadyModern) { (@(@($st.TargetComparison) | Where-Object { $_.ModernizationChange -in 'Changed', 'Reduced', 'Improved' }) | ForEach-Object { "$($_.Attribute): $($_.Current) -> $($_.ModernizationTarget)" }) -join '; ' } else { '' }
     }
 }
 
@@ -684,4 +729,4 @@ function New-AssessmentSummary {
     }
 }
 
-Export-ModuleMember -Function Test-NeedsCandidates, New-VmAssessment, Update-VmAction, Complete-VmAssessment, Resolve-ModernizationQuotaChoices, Get-ModernizationTargetInfo, Get-TargetStrategy, Get-TimeRemainingText, ConvertTo-AssessmentRow, New-AssessmentSummary
+Export-ModuleMember -Function Test-NeedsCandidates, New-VmAssessment, Update-VmAction, Complete-VmAssessment, Resolve-ModernizationQuotaChoices, Get-ModernizationTargetInfo, Get-TargetDifferences, New-TargetComparison, Get-TargetStrategy, Get-TimeRemainingText, ConvertTo-AssessmentRow, New-AssessmentSummary

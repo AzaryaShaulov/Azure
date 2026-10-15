@@ -5,11 +5,80 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-12
+
 ### Changed
 
+- **One table and one card per VM.** The *VMs with Retiring SKUs* table and each VM card now carry the required
+  retirement target and, with `--check-modernization`, the optional v6/v7 target, path and blockers, so each VM is
+  rendered once instead of four times (the sample subscription page is about 15% smaller). The table gains the
+  retirement date, stage, material changes, next step, readiness and confidence for every VM; its disk-capability
+  column is replaced by the material changes and the card's comparison table.
+- The *Current size*, *Retirement target* and *Modernization target* columns of that table use the same layout, one
+  attribute per line: Vendor (CPU vendor), vCPU, vRAM, VM Gen (Gen1 or Gen2) and Disk controller (SCSI or NVMe). For a
+  target the VM Gen and Disk controller lines list what the size supports, followed by its score and quota status (and
+  the modernization status).
+- *Material changes* and *Next step* use the same *Label: value* lines instead of coloured pills: one
+  `Attribute: current -> target` line per difference, and *Readiness* and *Confidence* lines. The *Action* line
+  (for example *Migration Required Within 24 Months* or *Plan Migration*) is no longer repeated in *Next step*; a VM that
+  needs no action shows *No action required*. The severity colour is on the text, so the value is readable without it.
+  The *Retirement target* column is 20% wider.
+- VM cards are shorter by default. The facts summary (Microsoft status, action, recommended size, targets, path,
+  quota, candidate series), *Assessment explanations* and *Mandatory requirement checks* are shown only with the
+  new `-ExtendedDetails` switch, and the sizes table lists only the Primary, Secondary and Third sizes (headed
+  *Recommended sizes*, with a note of how many more were evaluated); `-ExtendedDetails` lists every evaluated size
+  (*Sizes evaluated*, no longer capped at eight). The badge hover text still carries the explanations.
+- The blue *Bottom line* box and the information callouts on the index and subscription pages are slimmer: a thin accent
+  edge, smaller radius, tighter padding and smaller type.
+- The tenant index no longer has a *Quota Actions* section (quota actions stay on each subscription page, and the bottom
+  line points there), and its *Migration Waves* section is collapsed by default.
+- The README checksum verification step now prints a green `Verified: SHA-256 checksum matches (<hash>)` line when the
+  package checksum matches; a mismatch still stops with *Package checksum verification failed.*
+- README *Option A* and *Option B* are collapsed sections that expand on select, so the two ways to run the tool are
+  easier to scan.
+- The badge legend above the *VMs with Retiring SKUs* table is one slim panel (a row each for Microsoft status,
+  confidence, readiness and score, with the badges inline) instead of four tall cards, about 60% shorter at typical
+  widths. The caveat that neither *Ready* nor *HIGH* guarantees a successful resize stays visible; the longer
+  explanation is in a collapsed *More about confidence and readiness* note that is expanded when printed.
+- The card's *Current vs target size* table compares the current size with the retirement target and the modernization
+  target (Attribute, Current, Retirement target, Modernization target, Note), and now also renders for convertible
+  modernization targets. One compatibility-gate table (a result column per target) and one sizes-evaluated table replace
+  the duplicated per-track tables.
+- The *Current vs target size* table in each VM card is compact (smaller type and padding, sized to its content instead
+  of the full card width). The *Upgrade and Modernization Scenarios* section (formerly *Upgrade Path and SCSI to NVMe
+  Guidance*) is collapsed and now combines the upgrade
+  sequence, the former *Migration Path Examples* (now recommended steps with an example for each path) and the Microsoft
+  Learn links. *Cross-Vendor Migration Warnings*, *SKU Family Quick Reference*, *CPU Vendor from SKU Name* and *Known
+  Limitations* use slimmer headers, tighter rows and smaller callouts.
+- Removed the *Part 2 - Optional: v6/v7 Modernization* band, its overview tile and navigation group, and the *v6/v7
+  Generation Modernization Paths* section (action groups, contextual guidance and path examples). The v6/v7 target, path
+  and blockers stay in the table and cards; the overview tile and band now read *Required* without a part number.
+- The per-VM modernization table and its extended rows are removed from the HTML.
+- One quota table with steady-state and peak demand replaces the separate quota-impact table. A `Retirement+Modernization`
+  row that repeats its `Retirement` row is shown once in the HTML; `quota-impact.csv` keeps every scope.
+- `detailed-report.md` renders the same current-vs-target comparison and uses the modernization readiness, target and path
+  instead of the earlier status text that could contradict the target.
+- Contradictory wording removed: the table no longer shows *v6/v7: No suitable modern SKU found* next to a convertible
+  v6/v7 target. Readiness and confidence are labelled as relating to the retirement target.
 - Standardized independent-tool and AS IS disclaimers in repository READMEs and assessment documentation.
   Generated HTML/Markdown reports include one labeled disclaimer near the bottom; both JSON outputs carry the
   same wording. CSV structures and assessment calculations are unchanged.
+
+### Added
+
+- `-ExtendedDetails` (HTML only): adds the confidence and readiness explanations, the mandatory requirement checks and
+  every evaluated size to each VM card. Recorded in `assessment.json` under `parameters`.
+- A *Gen1 VMs* card on the tenant index and on every subscription page: the number of VMs on Hyper-V generation 1, out
+  of the VMs in that scope.
+- `strategy.TargetComparison` in `assessment.json`: one row per attribute with the retirement and modernization target
+  results, computed once and used by the HTML and Markdown reports.
+- `ModernizationMaterialDifferences`, appended as the last `vm-assessment.csv` column. All 87 earlier columns keep their
+  names and positions.
+- The CSV overlapping columns (aliases) are documented in the output schema.
+
+### Fixed
+
+- Facts, legend items and badges no longer overflow the page at 320 px; table header SKU boxes are readable.
 
 ## [1.1.2] - 2026-10-08
 
@@ -154,6 +223,7 @@ First public release.
 - `.github/copilot-instructions.md` with strict read-only rules for agents that access an Azure tenant.
 
 [Unreleased]: https://github.com/AzaryaShaulov/Azure/commits/main/Assessments/VMSKURetirementReport
-[1.1.2]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.1.2.zip
+[1.2.0]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.0.zip
+[1.1.2]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist
 [1.1.0]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist
 [1.0.0]: https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport/dist

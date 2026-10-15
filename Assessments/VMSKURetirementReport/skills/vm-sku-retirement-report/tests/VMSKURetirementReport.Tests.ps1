@@ -741,6 +741,50 @@ Describe 'Retirement target vs modernization target' {
         $row.ModernizationPath | Should -BeNullOrEmpty
         $row.MigrationQuotaModel | Should -BeNullOrEmpty
         $row.NewerGenerationIfConverted | Should -Match '^Standard_D4s_v6'
+        $row.ModernizationMaterialDifferences | Should -BeNullOrEmpty
+    }
+    It 'compares the current size with both targets, including a convertible target that was never ranked' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1') -CheckModernization
+        $a.Strategy.ModernizationTargetSource | Should -Be 'Convertible'
+        @($a.Candidates.FutureGeneration.Differences | Where-Object { $_ }).Count | Should -Be 0
+        $rows = @($a.Strategy.TargetComparison)
+        $rows.Count | Should -BeGreaterThan 10
+        $controller = $rows | Where-Object Attribute -eq 'Disk Controller'
+        $controller.RetirementChange | Should -Be 'Same'
+        $controller.ModernizationTarget | Should -Be 'NVMe'
+        $controller.ModernizationChange | Should -Be 'Changed'
+        $controller.RetirementNote | Should -BeNullOrEmpty
+        $controller.ModernizationNote | Should -Match 'NVMe only'
+        @($rows | Where-Object { -not $_.ModernizationChange }).Count | Should -Be 0
+        @($rows | Where-Object { -not $_.RetirementChange }).Count | Should -Be 0
+        $row = ConvertTo-AssessmentRow $a
+        $row.ModernizationMaterialDifferences | Should -Match 'Disk Controller: SCSI -> NVMe'
+        @($row.PSObject.Properties.Name)[-1] | Should -Be 'ModernizationMaterialDifferences'
+    }
+    It 'keeps the retirement comparison without -CheckModernization and leaves the modernization columns empty' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
+        $rows = @($a.Strategy.TargetComparison)
+        $rows.Count | Should -BeGreaterThan 10
+        @($rows | Where-Object { $_.ModernizationChange -or $_.ModernizationTarget }).Count | Should -Be 0
+        @($rows | Where-Object { -not $_.RetirementChange }).Count | Should -Be 0
+    }
+    It 'reuses ranked differences, computes missing ones and builds one merged comparison' {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
+        $primary = $a.Candidates.Primary
+        $primary.Differences | Should -Not -BeNullOrEmpty
+        @(Get-TargetDifferences -Current $a.Current -Target $primary).Count | Should -Be @($primary.Differences).Count
+        @(Get-TargetDifferences -Current $a.Current -Target $null).Count | Should -Be 0
+        @(Get-TargetDifferences -Current $a.Current -Target ([pscustomobject]@{ Differences = $null; Record = $null })).Count | Should -Be 0
+        $unranked = $a.Candidates.Candidates | Where-Object { -not $_.Differences } | Select-Object -First 1
+        @(Get-TargetDifferences -Current $a.Current -Target $unranked).Count | Should -BeGreaterThan 10
+        $merged = @(New-TargetComparison -RetirementDifferences @([pscustomobject]@{ Attribute = 'vCPU'; Current = 4; Target = 4; Assessment = 'Same'; Note = 'a' }) -ModernizationDifferences @([pscustomobject]@{ Attribute = 'vCPU'; Current = 4; Target = 8; Assessment = 'Improved'; Note = 'b' }, [pscustomobject]@{ Attribute = 'Memory (GB)'; Current = 16; Target = 32; Assessment = 'Improved'; Note = '' }))
+        $merged.Count | Should -Be 2
+        $merged[0].RetirementTarget | Should -Be 4
+        $merged[0].ModernizationTarget | Should -Be 8
+        $merged[0].RetirementNote | Should -Be 'a'
+        $merged[0].ModernizationNote | Should -Be 'b'
+        $merged[1].RetirementChange | Should -BeNullOrEmpty
+        $merged[1].ModernizationChange | Should -Be 'Improved'
     }
 }
 
@@ -873,7 +917,12 @@ Describe 'Output writers (offline)' {
         $json = Get-Content (Join-Path $out 'assessment.json') -Raw | ConvertFrom-Json -Depth 30
         $json.schemaVersion | Should -Be '1.0'
         @($json.vms).Count | Should -Be 3
-        (Get-Content (Join-Path $out 'detailed-report.md') -Raw) | Should -Match 'PRIMARY RECOMMENDATION'
+        $mdText = Get-Content (Join-Path $out 'detailed-report.md') -Raw
+        $mdText | Should -Match 'PRIMARY RECOMMENDATION'
+        # Without -CheckModernization the comparison covers the retirement target only.
+        $mdText | Should -Match '\*\*CURRENT VS TARGET SIZE\*\*'
+        $mdText | Should -Match '\| Attribute \| Current \| Retirement target \| Note \|'
+        $mdText | Should -Not -Match 'Modernization target|MODERNIZATION ASSESSMENT|MATERIAL DIFFERENCES'
         $idx = Get-Content (Join-Path $out 'index.html') -Raw
         foreach ($sec in 'Cross-Vendor Migration Warnings', 'SKU Family Quick Reference', 'CPU Vendor from SKU Name', 'Known Limitations', 'Bottom line') { $idx | Should -Match ([regex]::Escape($sec)) }
         $idx | Should -Match 'Dsv\d|Dasv\d'
@@ -978,7 +1027,7 @@ Describe 'HTML report safety' {
         }
     }
 
-    It 'shows disk capability comparisons in one frame-safe column' {
+    It 'shows material changes and the full comparison instead of a disk capability column' {
         $out = Join-Path $TestDrive 'capabilities'; New-Item -ItemType Directory $out | Out-Null
         $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
         $sum = New-AssessmentSummary -Assessments @($a) -SubscriptionsScanned 1
@@ -986,18 +1035,48 @@ Describe 'HTML report safety' {
         Export-HtmlReports -OutDir $out -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $sum -Assessments @($a) -QuotaImpact $null -CatalogResult ([pscustomobject]@{ Catalog = $Catalog; Source = 'Live'; Warning = $null }) -ProcessorCatalog $Proc
         $html = Get-Content (Get-ChildItem $out -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
 
-        $html | Should -Match '<th>Current size</th>'
-        $html | Should -Match '<th>Recommended size</th>'
-        $html | Should -Match '<th>Disk capabilities</th>'
-        $html | Should -Not -Match 'cap-group|cap-detail|cap-subheader'
-        ([regex]::Matches($html, "class='cap-summary'")).Count | Should -Be 1
-        foreach ($label in 'Temp', 'Controller', 'IOPS', 'MBps') { $html | Should -Match "class='cap-label'>$label</span>" }
+        $html | Should -Match "<th rowspan='2'>Current size</th>"
+        $html | Should -Match '<th>Microsoft status</th>'
+        $html | Should -Match '<th>Retirement target</th>'
+        $html | Should -Match '<th>Material changes</th>'
+        $html | Should -Match '<th>Next step</th>'
+        $html | Should -Not -Match "<th>Disk capabilities</th>|<th>Recommended size</th>|cap-summary|capability-summary|cap-label"
+        $html | Should -Not -Match "Optional &middot; v6/v7 modernization|<th>Modernization target</th>"
+        $html | Should -Match "class='group-head group-required'"
+        $html | Should -Not -Match "class='chips'"
         $html | Should -Match '@media \(max-width: 1200px\)'
-        $html | Should -Match '\.vm-table \{ table-layout: fixed; width: 100%;'
-        $html | Should -Match '\.vm-table th:nth-child\(2\), \.vm-table td:nth-child\(2\) \{ min-width: 172px; \}'
-        $html | Should -Match '\.vm-table th:nth-child\(2\) \{ width: 15\.7%; \}'
-        $html | Should -Match '\.vm-table th:nth-child\(4\).*min-width: 150px;'
-        $html | Should -Match '\.vm-table th:nth-child\(5\).*min-width: 195px;'
+        $html | Should -Match '\.vm-table \{ min-width: 1260px;'
+        $html | Should -Match '\.vm-table td\.retirement-target-cell \{ width: 195px; min-width: 195px;'
+        $html | Should -Match '\.vm-table td:nth-child\(3\), \.vm-table td:nth-child\(6\) \{ min-width: 125px; \}'
+        $html | Should -Not -Match '\.vm-table th, \.vm-table td \{ overflow-wrap: anywhere;'
+        $html | Should -Match '\.vm-table thead th\.group-required'
+        $html | Should -Match '<h3>Current vs target size</h3><div class=.table-wrap compact.><table class=.comparison-table.>'
+        $html | Should -Match '\.table-wrap\.compact \{ width: fit-content; max-width: 100%; \}'
+        ([regex]::Matches($html, "<tr class='vm-summary-row'>")).Count | Should -Be 1
+        ([regex]::Matches([regex]::Match($html, "(?s)<tr class='vm-summary-row'>.*?</tr>").Value, '<td[ >]')).Count | Should -Be 7
+        # Current size and retirement target use the same layout: size, then Vendor, vCPU, vRAM, VM Gen and Disk controller on separate lines.
+        $cells = [regex]::Matches([regex]::Match($html, "(?s)<tr class='vm-summary-row'>.*?</tr>").Value, '(?s)<td[^>]*>.*?</td>')
+        $rec = $a.Candidates.Primary.Record
+        $targetGens = (@($rec.HyperVGenerations) | ForEach-Object { $_ -replace '^V', 'Gen' }) -join ', '
+        $specOrder = { param($vendor, $vcpu, $mem, $gen, $ctl) "(?s)Vendor:</span> $vendor</div>.*?vCPU:</span> $vcpu vCPU</div>.*?vRAM:</span> $mem GB</div>.*?VM Gen:</span> $gen</div>.*?Disk controller:</span> $ctl</div>" }
+        $cells[1].Value | Should -Match "<code>Standard_(<wbr>)?DS3_v2</code><div class='spec'>"
+        $cells[1].Value | Should -Match (& $specOrder $a.Current.Vendor $a.Current.vCPUs $a.Current.MemoryGB 'Gen1' ($a.Vm.DiskControllerType))
+        $cells[3].Value | Should -Match "<code>Standard_(<wbr>)?D4ds_v5</code><div class='spec'>"
+        $cells[3].Value | Should -Match (& $specOrder $a.Candidates.Primary.CpuVendor $a.Candidates.Primary.vCPUs $a.Candidates.Primary.MemoryGB $targetGens (@($rec.DiskControllerTypes) -join ', '))
+        $cells[3].Value | Should -Match "Score:</span> \d+</div>"
+        $cells[3].Value | Should -Match "Quota:</span> <span class='tone-\w+'>"
+        $cells[1].Value + $cells[3].Value | Should -Not -Match "<span class='badge"
+        # Material changes: one "Attribute: current -> target" line each, coloured by severity, no pills.
+        $arrow = [char]0x2192
+        $cells[4].Value | Should -Not -Match "class='badge|class='chips"
+        $cells[4].Value | Should -Match "<div class='spec' title='[^']+'><span class='spec-label'>Disk IOPS:</span> <span class='tone-red'>12800 $arrow 6400</span></div>"
+        $cells[4].Value | Should -Match "<span class='spec-label'>Data disks:</span> <span class='tone-red'>16 $arrow 8</span>"
+        # Next step: Readiness and Confidence lines in the same style, with the colour on the value. The Action line is not repeated here.
+        $cells[5].Value | Should -Not -Match "class='badge"
+        $cells[5].Value | Should -Not -Match "spec-label'>Action:|Migration Required Within 24 Months|Plan Migration"
+        $cells[5].Value | Should -Match "<span class='spec-label'>Readiness:</span> <span class='tone-\w+'>[^<]+</span>"
+        $expectedTone = @{ HIGH = 'green'; MEDIUM = 'yellow'; LOW = 'red' }[$a.Confidence.Level]
+        $cells[5].Value | Should -Match "<span class='spec-label'>Confidence:</span> <span class='tone-$expectedTone'>$($a.Confidence.Level)</span>"
         $html | Should -Match ([regex]::Escape("$($a.Current.TempDiskGB) GB"))
         $html | Should -Match ([regex]::Escape(($a.Current.DiskControllerTypes -join ', ')))
         $html | Should -Match ([regex]::Escape([string]$a.Current.UncachedDiskIOPS))
@@ -1027,11 +1106,20 @@ Describe 'HTML report safety' {
         $html | Should -Match '\.quota-table \.quota-usage \{ min-width: 112px;'
         $html | Should -Not -Match 'Readiness and Confidence'
         $html | Should -Not -Match "id='readiness'|href='#readiness'"
-        $html | Should -Match "<section id='quota'"
         $html | Should -Match "<section id='subscriptions'"
-        $html.IndexOf("<section id='quota'") | Should -BeLessThan $html.IndexOf("<section id='subscriptions'")
-        $html.IndexOf("href='#quota'") | Should -BeLessThan $html.IndexOf("href='#subscriptions'")
-        foreach ($id in 'sku-families', 'cpu-vendor', 'limitations') {
+        # The tenant index carries no quota table; quota actions live on the subscription pages.
+        $html | Should -Not -Match "id='quota'|href='#quota'|<h2>Quota Actions</h2>|<table class='quota-table'>"
+        # Migration Waves is collapsed by default and still comes before Subscriptions.
+        $html | Should -Match "<details id='waves' class='card collapsible-section'>"
+        $html | Should -Not -Match "<details id='waves'[^>]+open"
+        $html | Should -Not -Match "<section id='waves'"
+        $html.IndexOf("<details id='waves'") | Should -BeLessThan $html.IndexOf("<section id='subscriptions'")
+        $html.IndexOf("href='#waves'") | Should -BeLessThan $html.IndexOf("href='#subscriptions'")
+        $html | Should -Match "<div class='kpis kpis-index'>"
+        $html | Should -Match '@media \(min-width: 900px\) and \(max-width: 1450px\) \{ \.kpis-index \{ grid-template-columns: repeat\(5,'
+        # Gen1 VMs card: the test VM is Hyper-V generation 1 (1 of 1 VM).
+        $html | Should -Match "<div class='kpi kpi-yellow'><div class='kpi-label'>Gen1 VMs</div><div class='kpi-value'>1</div><div class='kpi-hint'>of 1 VM</div></div>"
+        foreach ($id in 'upgrade-guidance', 'cross-vendor', 'sku-families', 'cpu-vendor', 'limitations') {
             $html | Should -Match "<details id='$id' class='card collapsible-section'>"
             $html | Should -Not -Match "<details id='$id'[^>]+open"
         }
@@ -1157,7 +1245,7 @@ Describe 'Planning horizon and candidate count' {
 }
 
 Describe 'Per-subscription quota actions' {
-    It 'shows each subscription only its own quota actions and keeps the tenant-wide table on the index' {
+    It 'shows each subscription only its own quota actions and keeps quota off the tenant index' {
         $out = Join-Path $TestDrive 'sub-quota'; New-Item -ItemType Directory $out | Out-Null
         $a1 = Invoke-TestAssessment (New-TestVm -Name 'vm-a' -Sku 'Standard_DS3_v2' -Gen 'V1')
         $vmB = New-TestVm -Name 'vm-b' -Sku 'Standard_DS3_v2' -Gen 'V1'; $vmB.SubscriptionId = 's2'
@@ -1188,8 +1276,145 @@ Describe 'Per-subscription quota actions' {
         $sub2 | Should -Not -Match 'Sub1 DDSv5'
 
         $idx = Get-Content (Join-Path $out 'index.html') -Raw
-        $idx | Should -Match 'Sub1 DDSv5 Family vCPUs'
-        $idx | Should -Match '<th>Subscription</th>'
+        # Quota actions are per subscription; the tenant index has no quota section, table or navigation link.
+        $idx | Should -Not -Match "id='quota'|href='#quota'|<h2>Quota Actions</h2>|<table class='quota-table'>"
+        $idx | Should -Not -Match 'Sub1 DDSv5'
+        # Both VMs are Gen1: the Gen1 VMs card shows 2 on the index and 1 on each subscription page.
+        $idx | Should -Match "<div class='kpi-label'>Gen1 VMs</div><div class='kpi-value'>2</div><div class='kpi-hint'>of 2 VMs</div>"
+        $sub1 | Should -Match "<div class='kpi-label'>Gen1 VMs</div><div class='kpi-value'>1</div><div class='kpi-hint'>of 1 VM</div>"
+        $sub2 | Should -Match "<div class='kpi-label'>Gen1 VMs</div><div class='kpi-value'>1</div><div class='kpi-hint'>of 1 VM</div>"
+    }
+}
+
+Describe 'Gen1 VM count and size layout' {
+    It 'counts only Hyper-V generation 1 VMs' {
+        InModuleScope Output {
+            $vm = { param($gen) [pscustomobject]@{ Vm = [pscustomobject]@{ HyperVGeneration = $gen } } }
+            Get-Gen1VmCount -Assessments @((& $vm 'V1'), (& $vm 'V2'), (& $vm 'V1'), (& $vm $null)) | Should -Be 2
+            Get-Gen1VmCount -Assessments @() | Should -Be 0
+        }
+    }
+    It 'formats VM generations and lists the size attributes on separate lines' {
+        InModuleScope Output {
+            Format-VmGeneration 'V1' | Should -Be 'Gen1'
+            Format-VmGeneration @('V1', 'V2') | Should -Be 'Gen1, Gen2'
+            Format-VmGeneration $null | Should -Be 'Unknown'
+            $html = New-SizeSpecHtml -SkuName 'Standard_D4s_v3' -Vendor 'AMD' -Vcpu 4 -MemoryGb 16 -Generation 'V2' -Controller @('SCSI', 'NVMe')
+            $html | Should -Match '^<code>Standard_D4s_v3</code>'
+            ([regex]::Matches($html, "<div class='spec'>")).Count | Should -Be 5
+            $html | Should -Match "Vendor:</span> AMD</div>.*vCPU:</span> 4 vCPU</div>.*vRAM:</span> 16 GB</div>.*VM Gen:</span> Gen2</div>.*Disk controller:</span> SCSI, NVMe</div>"
+            $unknown = New-SizeSpecHtml -SkuName 'Standard_X'
+            ([regex]::Matches($unknown, '</span> Unknown</div>')).Count | Should -Be 5
+        }
+    }
+    It 'maps status values to text colour classes the same way the badges are coloured' {
+        InModuleScope Output {
+            Get-ToneClass 'LOW' | Should -Be 'tone-red'
+            Get-ToneClass 'Migration Required Within 24 Months' | Should -Be 'tone-orange'
+            Get-ToneClass 'Manual Review Required' | Should -Be 'tone-yellow'
+            Get-ToneClass 'Plan Migration' | Should -Be 'tone-purple'
+            Get-ToneClass 'Ready' | Should -Be 'tone-green'
+            Get-ToneClass 'Intel' | Should -Be ''
+            Get-ToneClass 'Something else' | Should -Be ''
+            Get-ToneClass '' | Should -Be ''
+            New-SpecLineHtml -Label 'Quota' -Value 'Quota OK' -Tone 'tone-green' | Should -Be "<div class='spec'><span class='spec-label'>Quota:</span> <span class='tone-green'>Quota OK</span></div>"
+            New-SpecLineHtml -Label 'Score' -Value '93' | Should -Be "<div class='spec'><span class='spec-label'>Score:</span> 93</div>"
+            New-SpecLineHtml -Label 'X' -Value 'y' -Title "a'b" | Should -Match "title='a&#39;b'"
+        }
+    }
+    It 'lists material changes as one coloured Attribute: current -> target line each, capped with a +N more line' {
+        InModuleScope Output {
+            $change = { param($attr, $cur, $tgt, $kind, $note = '') [pscustomobject]@{ Attribute = $attr; Current = $cur; RetirementTarget = $tgt; RetirementChange = $kind; RetirementNote = $note } }
+            $strategy = [pscustomobject]@{ RetirementTarget = [pscustomobject]@{ SkuName = 'x' }; TargetComparison = @(
+                    (& $change 'Uncached Disk IOPS' 12800 6400 'Reduced')
+                    (& $change 'Temp / Local Disk' '28 GB' 'None' 'Changed' 'Temp disk removed - validate pagefile')
+                    (& $change 'Hyper-V Generation' 'V1,V2' 'V2' 'Changed' 'Gen2 only')
+                    (& $change 'Disk Controller' 'SCSI,NVMe' 'SCSI,NVMe,Other' 'Changed')
+                    (& $change 'Processor' 'a' 'b' 'Changed')
+                    (& $change 'Max NICs' 4 2 'Reduced')
+                    (& $change 'Max Data Disks' 16 8 'Reduced')
+                    (& $change 'vCPU' 4 4 'Same')) }
+            $html = Get-MaterialChangeLinesHtml -Assessment ([pscustomobject]@{ Strategy = $strategy }) -Max 3
+            $arrow = [string][char]0x2192
+            $html | Should -Match "<span class='spec-label'>Disk IOPS:</span> <span class='tone-red'>12800 $arrow 6400</span>"
+            $html | Should -Match "<span class='spec-label'>Temp disk:</span> <span class='tone-yellow'>28 GB $arrow None</span>"
+            $html | Should -Match "<span class='spec-label'>VM Gen:</span> <span class='tone-yellow'>Gen1, Gen2 $arrow Gen2</span>"
+            # Disk Controller without a note and Processor are not material; the fourth shown item is cut off by -Max.
+            $html | Should -Not -Match 'Disk controller:|Processor|NICs:'
+            $html | Should -Match "<div class='spec muted'>\+2 more</div>"
+            $html | Should -Not -Match "badge|chips"
+            Get-MaterialChangeLinesHtml -Assessment ([pscustomobject]@{ Strategy = [pscustomobject]@{ RetirementTarget = $null; TargetComparison = @() } }) | Should -Match 'ndash'
+            Get-MaterialChangeLinesHtml -Assessment ([pscustomobject]@{ Strategy = [pscustomobject]@{ RetirementTarget = [pscustomobject]@{ SkuName = 'x' }; TargetComparison = @((& $change 'vCPU' 4 4 'Same')) } }) | Should -Match '>None<'
+        }
+    }
+    It 'shows subscription names with the ID underneath when a name map is supplied, and the ID otherwise' {
+        InModuleScope Output {
+            $row = [pscustomobject]@{ Scope = 'Retirement'; SubscriptionId = 'AAAA-1111'; Region = 'eastus2'; QuotaName = 'standardddsv5family'; QuotaDisplayName = 'DDSv5'; CurrentUsage = 95; Limit = 100
+                RequiredVcpu = 16; MinimumIncrease = 11; RecommendedIncrease = 15; Status = 'Quota Increase Required' }
+            $named = New-QuotaActionsHtml -Rows @($row) -SubscriptionNames @{ 'aaaa-1111' = 'Contoso Prod' }
+            $named | Should -Match "<th>Subscription</th>"
+            $named | Should -Match "<span class='strong'>Contoso Prod</span><div class='sub'>AAAA-1111</div>"
+            (New-QuotaActionsHtml -Rows @($row)) | Should -Match "<td class='sub'>AAAA-1111</td>"
+            (New-QuotaActionsHtml -Rows @($row) -HideSubscription) | Should -Not -Match '<th>Subscription</th>'
+        }
+    }
+}
+
+Describe 'Quota table display' {
+    It 'shows identical Retirement and Retirement+Modernization rows once, and keeps a differing optional scope' {
+        InModuleScope Output {
+            $row = { param($scope, $region, $required, $status = 'Quota Increase Required')
+                [pscustomobject]@{ Scope = $scope; SubscriptionId = 's1'; Region = $region; QuotaName = 'standardddsv5family'; QuotaDisplayName = 'DDSv5 Family vCPUs'; CurrentUsage = 95; Limit = 100
+                    RequiredVcpu = $required; MinimumIncrease = $required - 5; RecommendedIncrease = $required; Status = $status; VmCount = 2 } }
+            $rows = @((& $row 'Retirement' 'eastus2' 16), (& $row 'Retirement+Modernization' 'eastus2' 16), (& $row 'Retirement' 'westus2' 8), (& $row 'Retirement+Modernization' 'westus2' 12))
+            $shown = @(Get-QuotaDisplayRows -Rows $rows)
+            $shown.Count | Should -Be 3
+            @($shown | Where-Object { $_.Region -eq 'eastus2' }).Count | Should -Be 1
+            @($shown | Where-Object { $_.Region -eq 'westus2' }).Scope | Should -Be 'Retirement', 'Retirement+Modernization'
+            $rows.Count | Should -Be 4
+            $html = New-QuotaActionsHtml -Rows $rows
+            ([regex]::Matches($html, '<tr><td>')).Count | Should -Be 3
+            $html | Should -Match 'Identical scopes are shown once'
+        }
+    }
+    It 'points the tenant bottom line to the subscription reports for quota actions' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1') -QuotaStatus 'Quota Increase Required'
+        InModuleScope Output -Parameters @{ A = $a } {
+            @(Get-BottomLine -Assessments @($A) -TenantView) -join ' ' | Should -Match 'need a vCPU quota increase first \(see Quota Actions in the subscription reports\)'
+            @(Get-BottomLine -Assessments @($A)) -join ' ' | Should -Match 'need a vCPU quota increase first \(see Quota Actions\)'
+        }
+    }
+    It 'adds peak demand only when it differs, lists peak-only actions and keeps Modernization planning rows' {
+        InModuleScope Output {
+            $base = { param($scope, $name, $required, $peak, $status, $peakStatus, $model = 'InPlace')
+                [pscustomobject]@{ Scope = $scope; SubscriptionId = 's1'; Region = 'eastus2'; QuotaName = $name; QuotaDisplayName = "$name vCPUs"; CurrentUsage = 40; Limit = 50
+                    RequiredVcpu = $required; MinimumIncrease = 0; RecommendedIncrease = 0; Status = $status; VmCount = 3; SteadyStateRequiredVcpu = $required
+                    PeakMigrationRequiredVcpu = $peak; PeakMinimumIncrease = 6; PeakRecommendedIncrease = 9; PeakStatus = $peakStatus; MigrationQuotaModel = $model; SideBySideVmCount = 2 } }
+            $same = @((& $base 'Retirement' 'cores' 4 4 'Quota OK' 'Quota OK'), (& $base 'Retirement' 'standardbsv2family' 4 4 'Quota Increase Required' 'Quota Increase Required'))
+            $htmlSame = New-QuotaActionsHtml -Rows $same
+            $htmlSame | Should -Not -Match 'Peak needed'
+            $htmlSame | Should -Match 'standardbsv2family vCPUs'
+            $htmlSame | Should -Not -Match '>cores vCPUs<'
+
+            $peak = @((& $base 'Retirement' 'cores' 4 4 'Quota OK' 'Quota OK'), (& $base 'Modernization' 'cores' 4 12 'Quota OK' 'Quota Increase Required' 'Mixed'), (& $base 'Modernization' 'standarddsv6family' 8 8 'Quota OK' 'Quota OK'))
+            $shown = @(Get-QuotaDisplayRows -Rows $peak)
+            $shown.Count | Should -Be 2
+            @($shown.Scope | Select-Object -Unique) | Should -Be 'Modernization'
+            $html = New-QuotaActionsHtml -Rows $peak
+            $html | Should -Match "<th class='num'>Peak needed</th>"
+            $html | Should -Match "class='sub'>Mixed \(2 side-by-side\)"
+            $html | Should -Match "<div class='sub peak'>peak 6</div>"
+            $html | Should -Match "Peak: <span"
+            $html | Should -Not -Match 'No quota increase is needed'
+        }
+    }
+    It 'says so when nothing needs action and tolerates rows without peak fields' {
+        InModuleScope Output {
+            $ok = [pscustomobject]@{ Scope = 'Retirement'; SubscriptionId = 's1'; Region = 'eastus2'; QuotaName = 'cores'; QuotaDisplayName = 'cores'; CurrentUsage = 1; Limit = 100; RequiredVcpu = 4; MinimumIncrease = 0; RecommendedIncrease = 0; Status = 'Quota OK' }
+            @(Get-QuotaDisplayRows -Rows @($ok)).Count | Should -Be 0
+            New-QuotaActionsHtml -Rows @($ok) | Should -Match 'No quota increase is needed'
+            New-QuotaActionsHtml -Rows @() | Should -Match 'No quota increase is needed'
+        }
     }
 }
 
@@ -1304,12 +1529,81 @@ Describe 'HTML anchors and encoding' {
         $html = Get-Content (Get-ChildItem (Join-Path $TestDrive 'anchors') -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
         $html | Should -Match "<span class='badge b-\w+' title='Confidence in the recommended size: \w+\.[^']*'>Confidence: (HIGH|MEDIUM|LOW)</span>"
         $html | Should -Match "<span class='badge b-\w+' title='Readiness of the recommended size: [^']+'>Readiness: [^<]+</span>"
-        $html | Should -Match 'Readiness: checked platform prerequisites'
+        $html | Should -Match '<dt>Readiness<span class="legend-sub">checked platform prerequisites</span></dt>'
+        $html | Should -Match '<dt>Confidence<span class="legend-sub">in the recommended size</span></dt>'
         $html | Should -Match 'Neither <em>Ready</em> nor <em>HIGH</em> guarantees hardware allocation or a successful resize'
         $html | Should -Not -Match 'can be deployed now|Can be resized in a change window|Everything verified'
-        $html | Should -Match 'select, tap, or use Enter/Space'
-        $html | Should -Match '<h3>Assessment explanations</h3>'
-        $html | Should -Match '<dd class="assessment-explanation">Confidence in the recommended size:'
-        $html | Should -Match '<dd class="assessment-explanation">Readiness of the recommended size:'
+        $html | Should -Match 'Hover over a confidence or readiness badge for its explanation'
+        $html | Should -Match '<code>-ExtendedDetails</code>'
+        # The arrows that show the upgrade sequence in the card header are bold green.
+        $html | Should -Match "<span class='move-arrow'>&rarr;</span>"
+        $html | Should -Match '\.move-arrow \{ color: #16a34a; font-weight: 900;'
+        # The legend is one compact panel: a row per topic (status, confidence, readiness, score), a visible caveat and a
+        # collapsed note, instead of four tall cards.
+        $legend = [regex]::Match($html, '(?s)<div class="legend">.*?</details>\s*</div>').Value
+        $legend | Should -Not -BeNullOrEmpty
+        ([regex]::Matches($legend, '<div class="legend-row">')).Count | Should -Be 4
+        $legend | Should -Match '<dt>Microsoft status</dt>'
+        $legend | Should -Match '<dt>Score \(0&ndash;100\)</dt>'
+        $legend | Should -Match '<p class="legend-note">'
+        $legend | Should -Match '<details class="legend-more"><summary>'
+        $legend | Should -Not -Match '<details class="legend-more"[^>]*open'
+        $legend | Should -Not -Match '<h3>'
+        $html | Should -Not -Match 'legend-list'
+        foreach ($status in 'Retired', 'End of Life', 'Confirmed Retirement', 'Modernization Recommended', 'No Retirement Announced', 'HIGH', 'MEDIUM', 'LOW', 'Ready', 'Quota Increase Required', 'Capacity Validation Required', 'Manual Review Required', 'SKU Restricted', 'Regional Limitation') {
+            $legend | Should -Match ("<span class='badge b-\w+'>" + [regex]::Escape($status) + '</span>')
+        }
+        $legend | Should -Match 'href=.https://learn\.microsoft\.com/[^>]+>End of Life list</a>'
+        $html | Should -Match '\.legend-row \{ display: grid; grid-template-columns: 150px'
+        $html | Should -Match '\.legend-row \{ grid-template-columns: minmax\(0, 1fr\); \}'
+        $html | Should -Match 'details\.legend-more::details-content \{ content-visibility: visible; display: block; \}'
+        # By default the card carries neither the long explanations nor the gate table; those need -ExtendedDetails.
+        $html | Should -Not -Match '<h3>Assessment explanations</h3>'
+        $html | Should -Not -Match '<dd class="assessment-explanation">'
+        $html | Should -Not -Match '<h3>Mandatory requirement checks</h3>'
+        $html | Should -Not -Match '<h3>Sizes evaluated</h3>'
+        $html | Should -Match '<h3>Recommended sizes</h3>'
+    }
+    It 'shows explanations, requirement checks and every evaluated size only with -ExtendedDetails' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
+        $sum = New-AssessmentSummary -Assessments @($a) -SubscriptionsScanned 1
+        $render = {
+            param($extended)
+            $out = Join-Path $TestDrive "extended-$extended"; New-Item -ItemType Directory $out | Out-Null
+            $run = [pscustomobject]@{ GeneratedUtc = 'now'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'tenant' }; Account = 'x'; Parameters = @{ ExtendedDetails = $extended }; Counts = @{} }
+            Export-HtmlReports -OutDir $out -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $sum -Assessments @($a) -QuotaImpact $null -CatalogResult ([pscustomobject]@{ Catalog = $Catalog; Source = 'Live'; Warning = $null }) -ProcessorCatalog $Proc
+            Get-Content (Get-ChildItem $out -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
+        }
+        $sizeRows = { param($html, $heading) ([regex]::Matches(([regex]::Match($html, "(?s)<h3>$heading</h3>.*?</details>").Value), '<tr><td>')).Count }
+        $recommended = @(@($a.Candidates.Primary, $a.Candidates.Secondary, $a.Candidates.Third) | Where-Object { $_ } | ForEach-Object SkuName | Select-Object -Unique)
+        $all = @($a.Candidates.Candidates).Count
+
+        $default = & $render $false
+        & $sizeRows $default 'Recommended sizes' | Should -Be $recommended.Count
+        $default | Should -Not -Match '<h3>Assessment explanations</h3>|<h3>Mandatory requirement checks</h3>|<h3>Sizes evaluated</h3>'
+        $default | Should -Not -Match '<dl class="facts">|<dt>Recommended size</dt>|<dt>Candidate series</dt>'
+        if ($all -gt $recommended.Count) { $default | Should -Match "<p class='note'>\d+ more evaluated sizes? (is|are) shown when the report is generated with <code>-ExtendedDetails</code>" }
+
+        $extended = & $render $true
+        $extended | Should -Match '<h3>Assessment explanations</h3>'
+        $extended | Should -Match '<dt>Microsoft status</dt>'
+        $extended | Should -Match '<dt>Recommended size</dt>'
+        $extended | Should -Match '<dt>Candidate series</dt>'
+        $extended | Should -Match '<dd class="assessment-explanation">Confidence in the recommended size:'
+        $extended | Should -Match '<dd class="assessment-explanation">Readiness of the recommended size:'
+        $extended | Should -Match '<h3>Mandatory requirement checks</h3>'
+        & $sizeRows $extended 'Sizes evaluated' | Should -Be $all
+        $extended | Should -Not -Match '<h3>Recommended sizes</h3>|more evaluated sizes? (is|are) shown'
+    }
+}
+
+Describe 'Current Hyper-V generation in the comparison' {
+    It 'shows the VM''s own generation, and compares it with what the target supports' {
+        $v1 = Invoke-TestAssessment (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
+        $v2 = Invoke-TestAssessment (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V2')
+        $row = { param($a) @($(if ($a.Strategy) { $a.Strategy } else { Get-TargetStrategy -Assessment $a }).TargetComparison) | Where-Object Attribute -eq 'Hyper-V Generation' | Select-Object -First 1 }
+        (& $row $v1).Current | Should -Be 'V1'
+        (& $row $v2).Current | Should -Be 'V2'
+        (& $row $v2).RetirementChange | Should -Be 'Same'
     }
 }

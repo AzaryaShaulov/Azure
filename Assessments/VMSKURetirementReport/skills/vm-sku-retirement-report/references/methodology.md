@@ -369,8 +369,11 @@ columns are appended.
 `Retirement` and `Retirement+Modernization` model in-place resizes. Retirement (e.g. Dsv5) and modernization (e.g. Dsv7)
 demand are computed in separate scopes and never merged.
 
-The HTML modernization section renders the `Modernization` rows of `quota-impact.csv` and each VM's own steady/peak
-contribution; it does not recalculate quota.
+The HTML quota table renders the rows of `quota-impact.csv` and does not recalculate quota. A `Retirement+Modernization`
+row that repeats its `Retirement` row (same demand, increase and status) is shown once; the CSV keeps every scope. The
+table lists rows that need action in steady state or at peak, plus every `Modernization` row, and adds a *Peak needed*
+column (with the peak minimum increase and recommended request under the steady-state values) only when peak demand
+differs from steady-state demand.
 
 Peak quota is a **planning estimate**, not proof of deployable physical capacity. Validate the final migration method,
 target-family quota, regional vCPU quota and Azure capacity before execution.
@@ -456,36 +459,67 @@ primary + alternative + third.
 ### Modernization report presentation
 
 The HTML report lists only VMs affected by a Microsoft retirement announcement with a published retirement date and a
-required action (tenant *Migration Waves*, subscription *VMs with Retiring SKUs* and its details, and the modernization
-table). Optional modernization, unconfirmed and current-generation VMs remain in `vm-assessment.csv`, `assessment.json`
+required action (tenant *Migration Waves*, which is collapsed by default, and the subscription *VMs with Retiring SKUs*
+table and cards). Optional
+modernization, unconfirmed and current-generation VMs remain in `vm-assessment.csv`, `assessment.json`
 and the Markdown reports. `-HtmlIncludeOptionalModernization` also lists optional-modernization VMs (older generations
-without an announced retirement). `-HtmlMaxVmDetails` (default 250) caps the expandable per-VM detail blocks per page,
-in wave order, so very large subscriptions stay fast to open; the summary tables and every other output keep all VMs.
+without an announced retirement). `-HtmlMaxVmDetails` (default 250) caps the expandable per-VM cards per page,
+in wave order, so very large subscriptions stay fast to open; the summary table and every other output keep all VMs.
 Each page links the Microsoft Learn upgrade path, SCSI to NVMe conversion and Gen1 to Trusted launch guidance.
 
-Subscription pages are split into two colour-coded parts so customers can tell required work from optional work:
+Subscription pages have one colour-coded band, *Retirement remediation* (orange, required work):
 
-- **Part 1 - Required: Retirement remediation** (orange): *VMs with Retiring SKUs* and *VMs with Retiring SKUs details*.
-- **Part 2 - Optional: v6/v7 Modernization** (purple, only with `--check-modernization`): *v6/v7 Generation Modernization Paths*.
+- *VMs with Retiring SKUs* (one table) and *VMs with Retiring SKUs details* (one card per VM).
 
-Each part starts with a banner (part number, Required / Optional label, icon and short description) and every card in
-the part has a coloured left edge. The navigation groups the links under *Retirement* and *Modernization*, the
-Overview has a tile per part (VM count, earliest retirement date) linking to it, and the modernization table tints
-the retirement-target and modernization-target columns in the matching colours. Labels and icons carry the meaning as
-well as colour, the colours have dark-mode variants, and when printed Part 2 starts on a new page with colours kept.
+There is no separate modernization part: with `--check-modernization` the v6/v7 target, path and blockers are columns of
+the same table (grouped under *Optional - v6/v7 modernization*) and rows of each card's comparison.
 
-With `--check-modernization`, the **v6/v7 Generation Modernization Paths** section covers the same VMs as Part 1. It renders `Get-TargetStrategy` and the `Modernization` quota rows:
+The band starts with a banner (Required label, icon and short description) and every card in it has a coloured left
+edge. The navigation groups the *Retiring VMs* and *Details* links under *Retirement*, the Overview has a tile (VM count,
+earliest retirement date) linking to the band, and the table groups its columns under *Required - retirement
+remediation* and (with the flag) *Optional - v6/v7 modernization*. Labels and icons carry the meaning as well as colour,
+and the colours have dark-mode variants and are kept when printed.
 
-- KPIs: direct resize ready, NVMe conversion, Gen1 modernization, quota increase, redeploy/rebuild review, manual review,
-  already v6/v7;
-- a table of VMs that are not already modern: current SKU, retirement target, modernization target, path,
-  key blocker, modernization quota and readiness, each with an expandable detail row (current configuration, targets,
-  blockers, remediation, the VM's steady/peak quota contribution, validation checklist, gates, differences,
-  alternatives);
-- action groups (direct resize, SCSI -> NVMe, Gen1, redeploy, quota, manual review);
-- steady-state vs peak quota from the `Modernization` scope;
-- guidance shown only when a VM in the subscription has the matching condition or validation item;
-- migration-path examples taken from assessed VMs.
+**One table and one card per VM.** Retirement and modernization are two targets for the same VM, so they are shown
+together rather than in separate tables:
+
+- The table has one row per VM: VM, current size, Microsoft status with the retirement date, the retirement target
+  (recommended size) with its score and quota status, the material changes against the current size, the next step with
+  readiness and confidence, and the monthly price. The current size, the retirement target and (with
+  `--check-modernization`) the modernization target use the same layout, one attribute per line: *Vendor* (CPU vendor),
+  *vCPU*, *vRAM*, *VM Gen* (Gen1 or Gen2; for a target the generations it supports) and *Disk controller* (SCSI or NVMe;
+  for a target the controllers it supports); an attribute that is not reported shows *Unknown*. A target adds *Score* and
+  *Quota* lines (and the modernization target a *Status* line). *Material changes* lists one `Attribute: current -> target`
+  line per difference that needs attention, and *Next step* lists *Readiness* and *Confidence* the same way (the action
+  is already conveyed by the retirement date and the wave, so it is not repeated; a VM that needs no action shows
+  *No action required*).
+  Status values are coloured text on the same *Label: value* lines (red, orange, yellow, green or purple, as for badges),
+  so the value is always readable without the colour. With `--check-modernization`, two more columns show the v6/v7
+  target and the migration path with its blockers.
+- The card header shows the move `current -> retirement target [-> modernization target]` with the Confidence,
+  Readiness and Modernization badges (hover for their explanations). The card body lists the validation
+  items, a *Current vs target size* table (Attribute | Current | Retirement target | Modernization target | Note) and
+  *Recommended sizes*: only the Primary, Secondary and Third sizes (matched by size name). With `-ExtendedDetails`
+  (HTML only; scoring and the other outputs do not change) the card also has the facts summary (Microsoft status,
+  action, sizes, targets, path, quota, candidate series), *Assessment explanations*, one
+  *Mandatory requirement checks* table with a result column per target, and *Sizes evaluated* lists every candidate
+  instead of only the recommended ones.
+- The comparison comes from `Get-TargetStrategy` (`TargetComparison`), computed once from the material differences of each
+  target; HTML and `detailed-report.md` render it and do not recompute it. Notes that apply to one target only are
+  labelled with that target.
+- Readiness and confidence describe the retirement target, as the card says.
+
+The *Upgrade and Modernization Scenarios* section (collapsed) is one guide: the general upgrade sequence, recommended
+steps with an example for each migration path (Direct Resize, SCSI to NVMe + Resize, Gen1 + NVMe + Resize, Gen1
+Modernization + Resize, Redeploy / Rebuild Review) and the Microsoft Learn links. It is static reference text: the
+path, target and blockers for each VM come from `Get-TargetStrategy` and are shown in the table and the VM cards. The
+reference sections (cross-vendor warnings, SKU families, CPU vendor from the size name, known limitations) are collapsed
+and use compact tables.
+
+Quota (steady-state and peak) is in the single *Quota Actions* table on each subscription page. The tenant index has no
+quota table: its bottom line points to the subscription reports, and its subscription list shows how many VMs in each
+subscription need a quota increase. Both the tenant index and the subscription pages carry a *Gen1 VMs* card: the number
+of VMs reported on Hyper-V generation 1 in that scope (VMs that do not report a generation are not counted).
 
 Complexity is not displayed in the HTML or Markdown reports. The existing `ModernizationComplexity` CSV field and
 JSON strategy `Complexity` property are retained for compatibility with automation.

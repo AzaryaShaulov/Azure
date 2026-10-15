@@ -127,7 +127,7 @@ Describe 'End-to-end assessment (mock Azure)' {
         $html.IndexOf("id='overview'") | Should -BeLessThan $html.IndexOf("id='vms'")
         $html.IndexOf("id='vms'") | Should -BeLessThan $html.IndexOf("id='details'")
         $html.IndexOf("id='details'") | Should -BeLessThan $html.IndexOf("id='quota'")
-        # Part 1 (retirement) is a labelled band containing both retiring-VM sections; no Part 2 without --check-modernization.
+        # Part 1 (retirement) is a labelled band containing both retiring-VM sections; there is no modernization part.
         $html | Should -Match "<div class='track track-retirement' id='track-retirement'"
         $html.IndexOf("id='track-retirement'") | Should -BeLessThan $html.IndexOf("id='vms'")
         $html | Should -Not -Match "id='track-modernization'"
@@ -140,6 +140,23 @@ Describe 'End-to-end assessment (mock Azure)' {
         foreach ($r in $retiring) { $html | Should -Match ">$([regex]::Escape($r.VM))<" }
         foreach ($r in $excluded) { $html | Should -Not -Match ">$([regex]::Escape($r.VM))<" }
         $Rows.Count | Should -Be 7
+        # One merged table row and one detail card per listed VM; the required retirement date and stage are in the row.
+        $summaryRows = [regex]::Matches($html, "(?s)<tr class='vm-summary-row'>.*?</tr>")
+        $summaryRows.Count | Should -Be $retiring.Count
+        foreach ($row in $summaryRows) {
+            ([regex]::Matches($row.Value, '<td[ >]')).Count | Should -Be 7
+            $row.Value | Should -Match "<span class='badge b-(orange|red)'>(End of Life|Retired)</span>"
+        }
+        foreach ($r in @($retiring | Where-Object RetirementDate)) { $html | Should -Match ([regex]::Escape($r.RetirementDate)) }
+        ([regex]::Matches($html, '<details class="vm"')).Count | Should -Be $retiring.Count
+        $html | Should -Not -Match 'modernization-vm-detail|modernization-table|Optional &middot; v6/v7 modernization'
+    }
+    It 'keeps every existing vm-assessment.csv column in its original position and only appends new ones' {
+        $original = 'Subscription, SubscriptionId, ResourceGroup, VM, VmResourceId, Region, Zone, PowerState, OsType, HyperVGeneration, CurrentSku, CurrentSkuGeneration, VmFamily, CpuVendor, CpuArchitecture, vCPU, MemoryGB, AffectedByRetirement, EvidenceClass, RetirementStatus, RetirementDate, TimeRemaining, Urgency, RecommendedSku, RecommendedSkuGeneration, TargetCpuVendor, TargetCpuArchitecture, TargetvCPU, TargetMemoryGB, CompatibilityScore, ScoreBand, CpuVendorPreserved, CpuVendorChangeRequired, RegionAvailable, CurrentVcpu, CurrentMemoryGB, RecommendedVcpu, RecommendedMemoryGB, SkuRegionalAvailability, QuotaStatus, ModernizationStatus, RecommendationReason, QuotaFamily, QuotaMinIncreaseFamily, QuotaMinIncreaseRegional, DeploymentReadiness, Confidence, Action, NextStep, Wave, AlternativeSku, AlternativeScore, AlternativeReason, ThirdCandidateSku, NewerGenerationIfConverted, NoCandidateReason, VendorChangeReason, MaterialDifferences, ValidationItems, RightsizingStatus, RightsizingSuggestedSku, CurrentMonthlyUSD, TargetMonthlyUSD, MicrosoftSource, AnnouncementUrl, MigrationGuideUrl, DQ_RetirementDate, DQ_CpuVendor, DQ_RegionalAvailability, DQ_Quota, DQ_PhysicalCapacity, LifecycleNotes, RetirementTargetSku, RetirementTargetGeneration, RetirementQuotaStatus, ModernizationTargetSku, ModernizationTargetGeneration, ModernizationTargetSource, ModernizationPath, ModernizationComplexity, ModernizationReadiness, ModernizationQuotaStatus, ModernizationPeakQuotaStatus, MigrationQuotaModel, RecommendedMigrationPath, ModernizationValidationItems, LifecycleStage' -split ',\s*'
+        $original.Count | Should -Be 87
+        $header = @((Get-Content (Join-Path $Out 'vm-assessment.csv') -TotalCount 1) -replace '"', '' -split ',')
+        @($header[0..($original.Count - 1)]) | Should -Be $original
+        @($header[$original.Count..($header.Count - 1)]) | Should -Be @('ModernizationMaterialDifferences')
     }
     It 'reports the Microsoft lifecycle stage (End of Life / Retired) for every VM' {
         $ByVm['vm-ds3v2'].LifecycleStage | Should -Be 'End of Life'
@@ -151,11 +168,19 @@ Describe 'End-to-end assessment (mock Azure)' {
         $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list'
         (Get-Content (Join-Path $Out 'detailed-report.md') -Raw) | Should -Match 'Microsoft Lifecycle Stage'
     }
-    It 'collapses the cross-vendor section and links Microsoft Learn upgrade and SCSI to NVMe guidance' {
+    It 'collapses the guidance and reference sections and combines the upgrade path with example steps' {
         foreach ($page in @(Get-ChildItem $Out -Filter '*.html')) {
             $html = Get-Content $page.FullName -Raw
-            $html | Should -Match "<details id='cross-vendor'"
-            $html | Should -Match "id='upgrade-guidance'"
+            foreach ($id in 'upgrade-guidance', 'cross-vendor', 'sku-families', 'cpu-vendor', 'limitations') {
+                $html | Should -Match "<details id='$id' class='card collapsible-section'>"
+                $html | Should -Not -Match "<details id='$id'[^>]+open"
+            }
+            $html | Should -Match '<h3>Recommended steps by migration path</h3>'
+            $html | Should -Match 'Upgrade and Modernization Scenarios'
+            $html | Should -Not -Match 'Upgrade Path and SCSI to NVMe Guidance'
+            foreach ($path in 'Direct Resize', 'SCSI to NVMe \+ Resize', 'Gen1 \+ NVMe \+ Resize', 'Gen1 Modernization \+ Resize', 'Redeploy / Rebuild Review') { $html | Should -Match "<td class='path-name'>$path</td>" }
+            ([regex]::Matches($html, '<ol class=.steps.>')).Count | Should -Be 5
+            $html | Should -Not -Match 'Migration Path Examples'
             $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/nvme-linux'
             $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/migration/scsi-to-nvme-migration'
             $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/trusted-launch-existing-vm-gen-1'
@@ -233,7 +258,7 @@ function global:Start-Sleep { param([int]`$Seconds) }
         (Get-Content (Join-Path $out 'index.html') -Raw) | Should -Match ">${Status}</span>"
         $html = Get-Content (Get-ChildItem $out -Filter 'contoso-prod-*.html').FullName -Raw
         $failedVm = if ($FailedRegion -eq 'eastus2') { 'vm-ds3v2' } else { 'vm-d4sv3' }
-        $failedRow = [regex]::Match($html, "(?s)<tr><td><a[^>]+>$failedVm</a>.*?</tr>").Value
+        $failedRow = [regex]::Match($html, "(?s)<tr class='vm-summary-row'><td><a[^>]+>$failedVm</a>.*?</tr>").Value
         $failedRow | Should -Not -BeNullOrEmpty
         $failedRow | Should -Not -Match '\$\d'
     }
@@ -272,6 +297,19 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         (Get-Content (Join-Path $ModernOut 'detailed-report.md') -Raw) | Should -Match 'VM: vm-d4sv5'
     }
 
+    It 'renders the same three-way comparison in detailed-report.md' {
+        $md = Get-Content (Join-Path $ModernOut 'detailed-report.md') -Raw
+        $ds3 = [regex]::Match($md, '(?s)### VM: vm-ds3v2.*?(?=\r?\n---\r?\n)').Value
+        $ds3 | Should -Match '\*\*CURRENT VS TARGET SIZE\*\*'
+        $ds3 | Should -Match 'Retirement target: \*\*Standard\\_D4ds\\_v5\*\* \| Modernization target: \*\*Standard\\_D4s\\_v6\*\*'
+        $ds3 | Should -Match '\| Attribute \| Current \| Retirement target \| Modernization target \| Note \|'
+        $ds3 | Should -Match '\| Disk Controller \| SCSI \| SCSI \(Same\) \| NVMe \(Changed\) \| Modernization target: NVMe only \|'
+        $ds3 | Should -Match '\| Modernization Target \| Standard\\_D4s\\_v6 \|'
+        $ds3 | Should -Match '\| Modernization Readiness \| Convertible \|'
+        $ds3 | Should -Not -Match 'No suitable modern SKU|Not Evaluated'
+        $md | Should -Not -Match '\*\*MATERIAL DIFFERENCES\*\*'
+    }
+
     It 'separates the retirement target from the strategic modernization target' {
         $row = $ModernRows | Where-Object VM -eq 'vm-ds3v2'
         $row.RetirementTargetSku | Should -Be 'Standard_D4ds_v5'
@@ -299,32 +337,67 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
 
     It 'renders the modernization section from backend quota rows' {
         $html = Get-Content (Get-ChildItem $ModernOut -Filter 'contoso-prod-*.html').FullName -Raw
-        $html | Should -Match "id='modernization'"
-        $html | Should -Match 'v6/v7 Generation Modernization Paths'
+        $html | Should -Not -Match "id='modernization'|id='track-modernization'|track-tile-modernization|toc-modernization"
+        $html | Should -Not -Match 'v6/v7 Generation Modernization Paths|Migration Path Examples|Contextual Modernization Guidance|Part 2 &middot;|Part 1 &middot;'
         $html | Should -Not -Match 'v6/v7 Modernization Readiness|<th>Complexity</th>|<dt>Complexity</dt>| complexity</span>'
-        $modernTable = [regex]::Match($html, "(?s)<table class='modernization-table'>.*?</table>").Value
-        $modernTable | Should -Not -BeNullOrEmpty
-        ([regex]::Matches([regex]::Match($modernTable, '(?s)<thead>.*?</thead>').Value, '<th>')).Count | Should -Be 9
-        foreach ($row in [regex]::Matches($modernTable, "(?s)<tr class='modernization-summary-row'>.*?</tr>")) {
-            ([regex]::Matches($row.Value, '<td(?:>| )')).Count | Should -Be 9
-        }
-        $modernTable | Should -Match "colspan='9'"
+        $vmTable = [regex]::Match($html, "(?s)<table class='vm-table'>.*?</table>").Value
+        $vmTable | Should -Not -BeNullOrEmpty
+        $vmTable | Should -Match 'Optional &middot; v6/v7 modernization'
+        $headerRows = [regex]::Matches([regex]::Match($vmTable, '(?s)<thead>.*?</thead>').Value, '(?s)<tr>.*?</tr>')
+        $headerRows.Count | Should -Be 2
+        ([regex]::Matches($headerRows[1].Value, '<th>')).Count | Should -Be 6
+        $summaryRows = [regex]::Matches($vmTable, "(?s)<tr class='vm-summary-row'>.*?</tr>")
+        $summaryRows.Count | Should -Be 6
+        foreach ($row in $summaryRows) { ([regex]::Matches($row.Value, '<td[ >]')).Count | Should -Be 9 }
+        # Both tracks are in the same row: the required retirement date and the optional v6/v7 target and path.
+        $ds3 = @($summaryRows | Where-Object { $_.Value -match '>vm-ds3v2<' })[0].Value
+        $ds3 | Should -Match '2028-05-01'
+        $ds3 | Should -Match 'Standard_(<wbr>)?D4ds_v5'
+        $ds3 | Should -Match 'Standard_(<wbr>)?D4s_v6'
+        $ds3 | Should -Match 'Gen1 \+ NVMe \+ Resize'
+        $vmTable | Should -Not -Match 'v6/v7: |Not Evaluated'
+        $html | Should -Not -Match 'modernization-table|modernization-vm-detail|modernization-summary-row|Extended VM details|Top Evaluated Alternatives|Mandatory Compatibility Gates'
+        # One detail card per listed VM with a three-way comparison and one gates table with a result column per target.
+        ([regex]::Matches($html, '<details class="vm"')).Count | Should -Be $summaryRows.Count
+        ([regex]::Matches($html, '<h3>Current vs target size</h3>')).Count | Should -BeGreaterOrEqual 4
+        $html | Should -Match 'Modernization target <code>Standard_(<wbr>)?D4s_v6</code>'
+        $html | Should -Not -Match '<h3>Mandatory requirement checks</h3>|<h3>Assessment explanations</h3>|<h3>Sizes evaluated</h3>'
+        $html | Should -Match '<h3>Recommended sizes</h3>'
+        $html | Should -Not -Match "class='chips'"
+        # The modernization target cell uses the same layout as the current size and the retirement target.
+        $modernCell = [regex]::Match($ds3, "(?s)<td class='target-cell modernization-target-cell'>.*?</td>").Value
+        $modernCell | Should -Not -BeNullOrEmpty
+        $modernCell | Should -Match "<code>Standard_(<wbr>)?D4s_v6</code><div class='spec'>"
+        $modernCell | Should -Match 'Vendor:</span> Intel</div>.*?vCPU:</span> 4 vCPU</div>.*?vRAM:</span> 16 GB</div>.*?VM Gen:</span> Gen2</div>.*?Disk controller:</span> NVMe</div>'
+        $modernCell | Should -Match "<span class='spec-label'>Score:</span> \d+</div>"
+        $modernCell | Should -Match "<span class='spec-label'>Status:</span> <span class='tone-yellow'>Convertible</span>"
+        $modernCell | Should -Match "<span class='spec-label'>Quota:</span> <span class='tone-yellow'>Manual Validation Required</span>"
+        $modernCell | Should -Not -Match "class='badge|strategic"
+        $html | Should -Match "href='#vm-rg-app-vm-d4sv3'"
         @($ModernRows | Where-Object ModernizationComplexity).Count | Should -BeGreaterThan 0
         $json = Get-Content (Join-Path $ModernOut 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
         @($json.vms | Where-Object { $_.strategy.Complexity }).Count | Should -BeGreaterThan 0
-        $html | Should -Match "class='quota-table quota-impact-table'"
+        @($json.vms | Where-Object { @($_.strategy.TargetComparison).Count -gt 10 }).Count | Should -BeGreaterThan 0
+        ($ModernRows | Where-Object VM -eq 'vm-ds3v2').ModernizationMaterialDifferences | Should -Match 'Disk Controller: SCSI -> NVMe'
+        $html | Should -Match "class='quota-table'"
+        $html | Should -Not -Match 'quota-impact-table|Quota Impact: Steady State vs Peak Migration'
         $html | Should -Match 'Total Regional vCPUs'
+        $html | Should -Match '<th class=.num.>Peak needed</th>'
+        $html | Should -Match "class='sub'>Mixed \(3 side-by-side\)"
+        # Identical scopes are shown once in the HTML; quota-impact.csv keeps every scope.
+        $quotaCsv = Import-Csv (Join-Path $ModernOut 'quota-impact.csv')
+        @($quotaCsv | Where-Object Scope -eq 'Retirement+Modernization').Count | Should -BeGreaterThan 0
+        $quotaTable = [regex]::Match($html, "(?s)<table class='quota-table'>.*?</table>").Value
+        $quotaTable | Should -Not -Match '<td>Retirement\+Modernization'
+        ([regex]::Matches($quotaTable, '<tr><td>')).Count | Should -BeLessThan $quotaCsv.Count
         $html | Should -Match 'Upgrade Gen1 VMs to Trusted launch'
-        # Part 1 retirement and Part 2 modernization are separate, ordered, colour-coded bands with grouped navigation and tiles.
+        # The v6/v7 targets are columns of the one retirement table; there is no separate modernization part, band or section.
         $html.IndexOf("id='track-retirement'") | Should -BeLessThan $html.IndexOf("id='vms'")
-        $html.IndexOf("id='details'") | Should -BeLessThan $html.IndexOf("id='track-modernization'")
-        $html.IndexOf("id='track-modernization'") | Should -BeLessThan $html.IndexOf("id='modernization'")
-        $html | Should -Match 'Part 1 &middot; <strong>Required</strong>'
-        $html | Should -Match 'Part 2 &middot; <strong>Optional</strong>'
-        $html | Should -Match "<span class='toc-group toc-modernization'><span class='toc-group-label'>Modernization</span>"
-        $html | Should -Match "class='track-tile track-tile-modernization' href='#track-modernization'"
+        $html | Should -Match "<span class='track-part'><strong>Required</strong></span>"
+        $html | Should -Match "<span class='track-tile-part'>Required</span>"
+        $html | Should -Match "<span class='toc-group toc-retirement'><span class='toc-group-label'>Retirement</span>"
+        $html | Should -Not -Match "href='#modernization'|href='#track-modernization'"
         $html | Should -Match "class='target-cell retirement-target-cell'"
-        [regex]::Match($html, "(?s)<table class='vm-table'>.*?</table>").Value | Should -Match 'v6/v7: '
         $html | Should -Not -Match '<script'
     }
 }

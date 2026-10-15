@@ -69,6 +69,10 @@
     Also list VMs whose action is 'Modernization Optional' (older generations without an announced retirement) in the HTML
     VM tables, details and modernization view. By default the HTML lists only VMs with an announced retirement date and a
     required action. CSV, JSON and Markdown always include every VM.
+.PARAMETER ExtendedDetails
+    Show the full assessment in each HTML VM card: the facts summary, the confidence and readiness explanations, the mandatory requirement
+    checks, and every evaluated size. By default a card lists only the Primary, Secondary and Third recommended sizes.
+    HTML only; it does not change scoring, CSV, JSON or Markdown.
 .PARAMETER HtmlMaxVmDetails
     Maximum number of expandable per-VM detail blocks per subscription page (default 250, 0 = no limit), in wave order.
     Every VM stays in the summary tables, vm-assessment.csv, detailed-report.md and assessment.json; this only keeps very
@@ -105,6 +109,7 @@ param(
     [switch]$SaveSnapshot,
     [string]$FromSnapshot,
     [switch]$HtmlIncludeOptionalModernization,
+    [switch]$ExtendedDetails,
     [ValidateRange(0, 100000)][int]$HtmlMaxVmDetails = 250,
     [Parameter(ValueFromRemainingArguments = $true, DontShow = $true)][string[]]$RemainingArguments
 )
@@ -409,7 +414,7 @@ try {
             MaxCandidates = $MaxCandidates; IncludeRightsizing = [bool]$IncludeRightsizing; RightsizingLookbackDays = $RightsizingLookbackDays; IncludePricing = $pricingEnabled; SkipPricing = [bool]$SkipPricing
             CheckModernization = [bool]$CheckModernization; IncludeOperatorAccount = [bool]$IncludeOperatorAccount; KeepRawData = [bool]$KeepRawData
             SaveSnapshot = [bool]$SaveSnapshot; FromSnapshot = [bool]$FromSnapshot
-            HtmlIncludeOptionalModernization = [bool]$HtmlIncludeOptionalModernization; HtmlMaxVmDetails = $HtmlMaxVmDetails
+            HtmlIncludeOptionalModernization = [bool]$HtmlIncludeOptionalModernization; HtmlMaxVmDetails = $HtmlMaxVmDetails; ExtendedDetails = [bool]$ExtendedDetails
         }
         Counts = $inventory.Counts
     }

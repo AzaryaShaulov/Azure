@@ -10,7 +10,7 @@ function New-CurrentProfile {
         Builds the current-size profile from Resource SKU data (authoritative) or, when the size is no longer offered,
         from the size name (partial).
     #>
-    param([Parameter(Mandatory)][string]$SkuName, $SkuRecord, [Parameter(Mandatory)]$ProcessorInfo)
+    param([Parameter(Mandatory)][string]$SkuName, $SkuRecord, [Parameter(Mandatory)]$ProcessorInfo, [string]$VmGeneration)
     $info = Get-SkuNameInfo -SkuName $SkuName
     $known = [bool]$SkuRecord
     $vcpu = if ($known -and $SkuRecord.vCPUsAvailable) { $SkuRecord.vCPUsAvailable } elseif ($info.Constrained) { $info.Constrained } elseif ($info.Parsed) { $info.Size } else { $null }
@@ -32,6 +32,7 @@ function New-CurrentProfile {
         UncachedDiskIOPS      = if ($known) { $SkuRecord.UncachedDiskIOPS } else { $null }
         UncachedDiskMBps      = if ($known) { $SkuRecord.UncachedDiskMBps } else { $null }
         HyperVGenerations     = if ($known) { @($SkuRecord.HyperVGenerations) } else { @() }
+        VmGeneration          = $VmGeneration
         DiskControllerTypes   = if ($known) { @($SkuRecord.DiskControllerTypes) } else { @() }
         GPUs                  = if ($known) { $SkuRecord.GPUs } else { $null }
         Zones                 = if ($known) { @($SkuRecord.Zones) } else { @() }
@@ -171,7 +172,15 @@ function Get-MaterialDifferences {
     $tgtTemp = if ($null -eq $Candidate.HasTempDisk) { $null } elseif ($Candidate.HasTempDisk) { "$($Candidate.TempDiskGB) GB" } else { 'None' }
     & $cmp 'Temp / Local Disk' $curTemp $tgtTemp -note $(if ($Current.HasTempDisk -and -not $Candidate.HasTempDisk) { 'Temp disk removed - validate pagefile / tempdb / scratch usage' } else { '' })
     & $cmp 'Disk Controller' ($Current.DiskControllerTypes -join ',') ($Candidate.DiskControllerTypes -join ',') -note $(if (-not (@($Candidate.DiskControllerTypes) -contains 'SCSI')) { 'NVMe only' } else { '' })
-    & $cmp 'Hyper-V Generation' ($Current.HyperVGenerations -join ',') ($Candidate.HyperVGenerations -join ',') -note $(if (-not (@($Candidate.HyperVGenerations) -contains 'V1')) { 'Gen2 only' } else { '' })
+    $curGens = @($Current.HyperVGenerations)
+    $tgtGens = @($Candidate.HyperVGenerations)
+    $vmGen = if ($Current.PSObject.Properties.Name -contains 'VmGeneration') { [string]$Current.VmGeneration } else { '' }
+    if ($vmGen -and $tgtGens.Count) {
+        # The VM's own generation against what the target supports.
+        $genNote = if ($tgtGens -contains $vmGen) { '' } elseif (-not ($tgtGens -contains 'V1')) { 'Gen2 only' } else { '' }
+        $d.Add([pscustomobject]@{ Attribute = 'Hyper-V Generation'; Current = $vmGen; Target = ($tgtGens -join ','); Assessment = $(if ($tgtGens -contains $vmGen) { 'Same' } else { 'Changed' }); Note = $genNote })
+    }
+    else { & $cmp 'Hyper-V Generation' ($curGens -join ',') ($tgtGens -join ',') -note $(if (-not ($tgtGens -contains 'V1')) { 'Gen2 only' } else { '' }) }
     & $cmp 'Uncached Disk IOPS' $Current.UncachedDiskIOPS $Candidate.UncachedDiskIOPS -HigherIsBetter
     & $cmp 'Uncached Disk MBps' $Current.UncachedDiskMBps $Candidate.UncachedDiskMBps -HigherIsBetter
     & $cmp 'Max Data Disks' $Current.MaxDataDisks $Candidate.MaxDataDisks -HigherIsBetter

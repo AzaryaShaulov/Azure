@@ -11,7 +11,7 @@ description: >-
   For quota increase requests afterwards use azure-quotas; for general VM sizing/pricing use azure-compute.
 license: MIT
 metadata:
-  version: "1.1.2"
+  version: "1.2.0"
   requires: "PowerShell 7.2+, Azure CLI 2.60+ with the resource-graph extension, Reader role"
 ---
 
@@ -75,7 +75,8 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
    `-SaveSnapshot` (record the Azure data to `<OutputPath>/snapshot`) and `-FromSnapshot <run folder>` (re-run from a
    snapshot with different options and no Azure calls; prefer this when the user only wants another view of a recent run;
    it warns when the snapshot is more than 7 days old), `-HtmlIncludeOptionalModernization` (also list optional-modernization
-   VMs in the HTML) and `-HtmlMaxVmDetails 250` (cap per-VM HTML detail blocks; `0` = no limit).
+   VMs in the HTML), `-HtmlMaxVmDetails 250` (cap per-VM HTML cards; `0` = no limit) and `-ExtendedDetails` (HTML cards
+   also show the facts summary, the confidence/readiness explanations, the mandatory requirement checks and every evaluated size).
 4. **Report back** from `executive-summary.md` (counts, waves, quota actions) and point the user to `index.html`.
    Answer drill-down questions from `vm-assessment.csv` / `assessment.json`; quote the Microsoft source URL for any
    retirement claim.
@@ -94,13 +95,13 @@ operator's account is masked (`j****@contoso.com`) unless `-IncludeOperatorAccou
 | File | Purpose |
 |---|---|
 | `executive-summary.md` | Estate counts, migration waves, groupings, quota actions, data-quality notes |
-| `detailed-report.md` | Per affected/unconfirmed VM: current config, retirement evidence, primary + alternative, material differences, considerations, action, data quality |
+| `detailed-report.md` | Per affected/unconfirmed VM: current config, retirement evidence, primary + alternative, current-vs-target comparison (retirement target and, with `--check-modernization`, modernization target), considerations, action, data quality |
 | `vm-assessment.csv` | One row per VM - the primary assessment table (Power BI / Excel) |
 | `candidates.csv` | One row per VM x evaluated candidate, with score breakdown and rejection reasons |
 | `quota-impact.csv` | Aggregated demand per subscription/region/family and regional vCPUs, in scopes `Retirement`, `Retirement+Modernization` and (with `--check-modernization`) `Modernization` with steady-state and peak demand |
 | `assessment.json` | Versioned structured document (schema in [output-schema.md](references/output-schema.md)) |
 | `retirement-evidence.json` | Exact Microsoft evidence used (URLs, git commit, retrieval time) + Advisor/Service Health signals |
-| `index.html` + `<subscription>-<id>.html` | Browsable report: summary cards and plain-language bottom line, waves, quota, *VMs with Retiring SKUs* (table and details, directly under Overview), optional v6/v7 modernization view, Microsoft Learn upgrade-path and SCSI to NVMe guidance, and collapsed reference sections (Cross-Vendor Migration Warnings, SKU families, CPU Vendor from SKU Name, Known Limitations). HTML VM lists include only VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action, labelled with the Microsoft lifecycle stage; CSV/JSON include every VM. Styling lives in `templates/report.css` |
+| `index.html` + `<subscription>-<id>.html` | Browsable report: summary cards (including a Gen1 VMs count) and plain-language bottom line, waves (collapsed on the tenant index), *VMs with Retiring SKUs* (one table, with the current size, retirement target and modernization target laid out as Vendor / vCPU / vRAM / VM Gen / Disk controller, and one card per VM with a current-vs-target comparison, directly under Overview), an optional v6/v7 target and path as table columns, one quota table per subscription page (steady-state and peak), a collapsed upgrade guide (recommended steps per migration path with examples, SCSI to NVMe and Gen1 to Gen2, Microsoft Learn links), and collapsed reference sections (Cross-Vendor Migration Warnings, SKU families, CPU Vendor from SKU Name, Known Limitations). HTML VM lists include only VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action, labelled with the Microsoft lifecycle stage; CSV/JSON include every VM. Styling lives in `templates/report.css` |
 | `run.log` | Console transcript with a minimal header (no local user or machine name); the account is masked unless `-IncludeOperatorAccount` |
 | `data/` | Only with `-KeepRawData`: raw VM inventory and Resource SKU responses for audit |
 | `snapshot/` | Only with `-SaveSnapshot`: recorded Azure responses and `snapshot.json` manifest for `-FromSnapshot` replay (no tokens, account masked; confidential) |

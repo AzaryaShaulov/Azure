@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0",
   "tool": "VMSKURetirementReport",
-  "toolVersion": "1.1.2",
-  "generatedUtc": "2026-10-09T04:01:34.7663960Z",
+  "toolVersion": "1.2.0",
+  "generatedUtc": "2026-10-15T20:09:19.1652051Z",
   "asOfDate": "2026-10-05",
   "dataSource": "Live",
   "pricingStatus": "Done",
@@ -29,7 +29,8 @@
     "SaveSnapshot": false,
     "FromSnapshot": false,
     "HtmlIncludeOptionalModernization": false,
-    "HtmlMaxVmDetails": 250
+    "HtmlMaxVmDetails": 250,
+    "ExtendedDetails": false
   },
   "disclaimer": "This assessment and its recommendations are provided \"AS IS,\" without warranties or guarantees. This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.\n\nFindings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.",
   "catalog": {
@@ -597,7 +598,8 @@
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
         "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
-        "LifecycleStage": "End of Life"
+        "LifecycleStage": "End of Life",
+        "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Memory (GB): 14 -> 16; Temp / Local Disk: 28 GB -> None; Disk Controller: SCSI -> NVMe; Hyper-V Generation: V1 -> V2; Uncached Disk MBps: 192 -> 289; Max Data Disks: 16 -> 12; Max NICs: 4 -> 2"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-ds3v2",
@@ -890,7 +892,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -1104,7 +1106,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -1318,7 +1320,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -1853,7 +1855,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -2039,7 +2041,169 @@
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
           "Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
         ],
-        "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)"
+        "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
+        "TargetComparison": [
+          {
+            "Attribute": "CPU Vendor",
+            "Current": "Intel",
+            "RetirementTarget": "Intel",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "Intel",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "CPU Architecture",
+            "Current": "x64",
+            "RetirementTarget": "x64",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "x64",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Processor",
+            "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+            "RetirementTarget": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "vCPU",
+            "Current": 4,
+            "RetirementTarget": 4,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 4,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Memory (GB)",
+            "Current": 14.0,
+            "RetirementTarget": 16.0,
+            "RetirementChange": "Improved",
+            "ModernizationTarget": 16.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Temp / Local Disk",
+            "Current": "28 GB",
+            "RetirementTarget": "150 GB",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": "None",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+          },
+          {
+            "Attribute": "Disk Controller",
+            "Current": "SCSI",
+            "RetirementTarget": "SCSI",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "NVMe",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "NVMe only"
+          },
+          {
+            "Attribute": "Hyper-V Generation",
+            "Current": "V1",
+            "RetirementTarget": "V1,V2",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "V2",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "Gen2 only"
+          },
+          {
+            "Attribute": "Uncached Disk IOPS",
+            "Current": 12800.0,
+            "RetirementTarget": 6400.0,
+            "RetirementChange": "Reduced",
+            "ModernizationTarget": 12800.0,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk MBps",
+            "Current": 192.0,
+            "RetirementTarget": 144.0,
+            "RetirementChange": "Reduced",
+            "ModernizationTarget": 289.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max Data Disks",
+            "Current": 16.0,
+            "RetirementTarget": 8.0,
+            "RetirementChange": "Reduced",
+            "ModernizationTarget": 12.0,
+            "ModernizationChange": "Reduced",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max NICs",
+            "Current": 4.0,
+            "RetirementTarget": 2.0,
+            "RetirementChange": "Reduced",
+            "ModernizationTarget": 2.0,
+            "ModernizationChange": "Reduced",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Accelerated Networking",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Premium Storage",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Availability Zones",
+            "Current": "1,2,3",
+            "RetirementTarget": "1,2,3",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "1,2,3",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Network Bandwidth",
+            "Current": null,
+            "RetirementTarget": null,
+            "RetirementChange": "Unknown",
+            "ModernizationTarget": null,
+            "ModernizationChange": "Unknown",
+            "RetirementNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page",
+            "ModernizationNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+          }
+        ]
       },
       "readiness": "Quota Increase Required",
       "confidence": {
@@ -2161,7 +2325,8 @@
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
         "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
-        "LifecycleStage": "End of Life"
+        "LifecycleStage": "End of Life",
+        "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Memory (GB): 14 -> 16; Temp / Local Disk: 28 GB -> None; Disk Controller: SCSI -> NVMe; Hyper-V Generation: V1 -> V2; Uncached Disk MBps: 192 -> 289; Max Data Disks: 16 -> 12; Max NICs: 4 -> 2"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-dealloc",
@@ -2454,7 +2619,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -2668,7 +2833,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -2882,7 +3047,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -3417,7 +3582,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -3603,7 +3768,169 @@
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
           "Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
         ],
-        "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)"
+        "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
+        "TargetComparison": [
+          {
+            "Attribute": "CPU Vendor",
+            "Current": "Intel",
+            "RetirementTarget": "Intel",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "Intel",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "CPU Architecture",
+            "Current": "x64",
+            "RetirementTarget": "x64",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "x64",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Processor",
+            "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+            "RetirementTarget": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "vCPU",
+            "Current": 4,
+            "RetirementTarget": 4,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 4,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Memory (GB)",
+            "Current": 14.0,
+            "RetirementTarget": 16.0,
+            "RetirementChange": "Improved",
+            "ModernizationTarget": 16.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Temp / Local Disk",
+            "Current": "28 GB",
+            "RetirementTarget": "150 GB",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": "None",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+          },
+          {
+            "Attribute": "Disk Controller",
+            "Current": "SCSI",
+            "RetirementTarget": "SCSI",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "NVMe",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "NVMe only"
+          },
+          {
+            "Attribute": "Hyper-V Generation",
+            "Current": "V1",
+            "RetirementTarget": "V1,V2",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "V2",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "Gen2 only"
+          },
+          {
+            "Attribute": "Uncached Disk IOPS",
+            "Current": 12800.0,
+            "RetirementTarget": 6400.0,
+            "RetirementChange": "Reduced",
+            "ModernizationTarget": 12800.0,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk MBps",
+            "Current": 192.0,
+            "RetirementTarget": 144.0,
+            "RetirementChange": "Reduced",
+            "ModernizationTarget": 289.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max Data Disks",
+            "Current": 16.0,
+            "RetirementTarget": 8.0,
+            "RetirementChange": "Reduced",
+            "ModernizationTarget": 12.0,
+            "ModernizationChange": "Reduced",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max NICs",
+            "Current": 4.0,
+            "RetirementTarget": 2.0,
+            "RetirementChange": "Reduced",
+            "ModernizationTarget": 2.0,
+            "ModernizationChange": "Reduced",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Accelerated Networking",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Premium Storage",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Availability Zones",
+            "Current": "1,2,3",
+            "RetirementTarget": "1,2,3",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "1,2,3",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Network Bandwidth",
+            "Current": null,
+            "RetirementTarget": null,
+            "RetirementChange": "Unknown",
+            "ModernizationTarget": null,
+            "ModernizationChange": "Unknown",
+            "RetirementNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page",
+            "ModernizationNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+          }
+        ]
       },
       "readiness": "Quota Increase Required",
       "confidence": {
@@ -3725,7 +4052,8 @@
         "MigrationQuotaModel": "InPlace",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires SCSI to NVMe conversion)",
         "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
-        "LifecycleStage": "End of Life"
+        "LifecycleStage": "End of Life",
+        "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Temp / Local Disk: 32 GB -> None; Disk Controller: SCSI -> NVMe; Uncached Disk IOPS: 6400 -> 12800; Uncached Disk MBps: 96 -> 289; Max Data Disks: 8 -> 12"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-d4sv3",
@@ -4008,7 +4336,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V2",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -4222,7 +4550,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V2",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -4758,7 +5086,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V2",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -4943,7 +5271,169 @@
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
           "Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
         ],
-        "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires SCSI to NVMe conversion)"
+        "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires SCSI to NVMe conversion)",
+        "TargetComparison": [
+          {
+            "Attribute": "CPU Vendor",
+            "Current": "Intel",
+            "RetirementTarget": "Intel",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "Intel",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "CPU Architecture",
+            "Current": "x64",
+            "RetirementTarget": "x64",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "x64",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Processor",
+            "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+            "RetirementTarget": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "vCPU",
+            "Current": 4,
+            "RetirementTarget": 4,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 4,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Memory (GB)",
+            "Current": 16.0,
+            "RetirementTarget": 16.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 16.0,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Temp / Local Disk",
+            "Current": "32 GB",
+            "RetirementTarget": "150 GB",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": "None",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+          },
+          {
+            "Attribute": "Disk Controller",
+            "Current": "SCSI",
+            "RetirementTarget": "SCSI",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "NVMe",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "NVMe only"
+          },
+          {
+            "Attribute": "Hyper-V Generation",
+            "Current": "V2",
+            "RetirementTarget": "V1,V2",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "V2",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk IOPS",
+            "Current": 6400.0,
+            "RetirementTarget": 6400.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 12800.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk MBps",
+            "Current": 96.0,
+            "RetirementTarget": 144.0,
+            "RetirementChange": "Improved",
+            "ModernizationTarget": 289.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max Data Disks",
+            "Current": 8.0,
+            "RetirementTarget": 8.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 12.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max NICs",
+            "Current": 2.0,
+            "RetirementTarget": 2.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 2.0,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Accelerated Networking",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Premium Storage",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Availability Zones",
+            "Current": "1,2,3",
+            "RetirementTarget": "1,2,3",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "1,2,3",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Network Bandwidth",
+            "Current": null,
+            "RetirementTarget": null,
+            "RetirementChange": "Unknown",
+            "ModernizationTarget": null,
+            "ModernizationChange": "Unknown",
+            "RetirementNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page",
+            "ModernizationNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+          }
+        ]
       },
       "readiness": "Quota Increase Required",
       "confidence": {
@@ -5064,7 +5554,8 @@
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
         "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
-        "LifecycleStage": "End of Life"
+        "LifecycleStage": "End of Life",
+        "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Temp / Local Disk: 32 GB -> None; Disk Controller: SCSI -> NVMe; Hyper-V Generation: V1 -> V2; Uncached Disk IOPS: 6400 -> 12800; Uncached Disk MBps: 96 -> 289; Max Data Disks: 8 -> 12"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-zonal",
@@ -5347,7 +5838,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -5561,7 +6052,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -6097,7 +6588,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -6283,7 +6774,169 @@
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
           "Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
         ],
-        "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)"
+        "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
+        "TargetComparison": [
+          {
+            "Attribute": "CPU Vendor",
+            "Current": "Intel",
+            "RetirementTarget": "Intel",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "Intel",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "CPU Architecture",
+            "Current": "x64",
+            "RetirementTarget": "x64",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "x64",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Processor",
+            "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+            "RetirementTarget": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "vCPU",
+            "Current": 4,
+            "RetirementTarget": 4,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 4,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Memory (GB)",
+            "Current": 16.0,
+            "RetirementTarget": 16.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 16.0,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Temp / Local Disk",
+            "Current": "32 GB",
+            "RetirementTarget": "150 GB",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": "None",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "Temp disk removed - validate pagefile / tempdb / scratch usage"
+          },
+          {
+            "Attribute": "Disk Controller",
+            "Current": "SCSI",
+            "RetirementTarget": "SCSI",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "NVMe",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "NVMe only"
+          },
+          {
+            "Attribute": "Hyper-V Generation",
+            "Current": "V1",
+            "RetirementTarget": "V1,V2",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "V2",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "Gen2 only"
+          },
+          {
+            "Attribute": "Uncached Disk IOPS",
+            "Current": 6400.0,
+            "RetirementTarget": 6400.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 12800.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk MBps",
+            "Current": 96.0,
+            "RetirementTarget": 144.0,
+            "RetirementChange": "Improved",
+            "ModernizationTarget": 289.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max Data Disks",
+            "Current": 8.0,
+            "RetirementTarget": 8.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 12.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max NICs",
+            "Current": 2.0,
+            "RetirementTarget": 2.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": 2.0,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Accelerated Networking",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Premium Storage",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Availability Zones",
+            "Current": "1,2,3",
+            "RetirementTarget": "1,2,3",
+            "RetirementChange": "Same",
+            "ModernizationTarget": "1,2,3",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Network Bandwidth",
+            "Current": null,
+            "RetirementTarget": null,
+            "RetirementChange": "Unknown",
+            "ModernizationTarget": null,
+            "ModernizationChange": "Unknown",
+            "RetirementNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page",
+            "ModernizationNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+          }
+        ]
       },
       "readiness": "Quota Increase Required",
       "confidence": {
@@ -6404,7 +7057,8 @@
         "MigrationQuotaModel": "InPlace",
         "RecommendedMigrationPath": "Optional modernization to Standard_D4s_v6 (requires SCSI to NVMe conversion)",
         "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
-        "LifecycleStage": "Not End of Life"
+        "LifecycleStage": "Not End of Life",
+        "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Disk Controller: SCSI -> NVMe; Uncached Disk IOPS: 6400 -> 12800; Uncached Disk MBps: 144 -> 289; Max Data Disks: 8 -> 12"
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-d4sv5",
@@ -6823,7 +7477,169 @@
           "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).",
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness)."
         ],
-        "RecommendedMigrationPath": "Optional modernization to Standard_D4s_v6 (requires SCSI to NVMe conversion)"
+        "RecommendedMigrationPath": "Optional modernization to Standard_D4s_v6 (requires SCSI to NVMe conversion)",
+        "TargetComparison": [
+          {
+            "Attribute": "CPU Vendor",
+            "Current": "Intel",
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": "Intel",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "CPU Architecture",
+            "Current": "x64",
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": "x64",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Processor",
+            "Current": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": "Intel Xeon Platinum 8573C (Emerald Rapids)",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "vCPU",
+            "Current": 4,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": 4,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Memory (GB)",
+            "Current": 16.0,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": 16.0,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Temp / Local Disk",
+            "Current": "None",
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": "None",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Disk Controller",
+            "Current": "SCSI",
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": "NVMe",
+            "ModernizationChange": "Changed",
+            "RetirementNote": "",
+            "ModernizationNote": "NVMe only"
+          },
+          {
+            "Attribute": "Hyper-V Generation",
+            "Current": "V2",
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": "V2",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk IOPS",
+            "Current": 6400.0,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": 12800.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk MBps",
+            "Current": 144.0,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": 289.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max Data Disks",
+            "Current": 8.0,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": 12.0,
+            "ModernizationChange": "Improved",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max NICs",
+            "Current": 2.0,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": 2.0,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Accelerated Networking",
+            "Current": true,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Premium Storage",
+            "Current": true,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": true,
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Availability Zones",
+            "Current": "1,2,3",
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": "1,2,3",
+            "ModernizationChange": "Same",
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Network Bandwidth",
+            "Current": null,
+            "RetirementTarget": null,
+            "RetirementChange": null,
+            "ModernizationTarget": null,
+            "ModernizationChange": "Unknown",
+            "RetirementNote": "",
+            "ModernizationNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page"
+          }
+        ]
       },
       "readiness": "Manual Review Required",
       "confidence": {
@@ -6944,7 +7760,8 @@
         "MigrationQuotaModel": null,
         "RecommendedMigrationPath": "No validated retirement target - manual review",
         "ModernizationValidationItems": "",
-        "LifecycleStage": "Retired"
+        "LifecycleStage": "Retired",
+        "ModernizationMaterialDifferences": ""
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-nc6",
@@ -7098,7 +7915,8 @@
         "Complexity": "Unknown",
         "ModernizationReadiness": "Manual Review",
         "ValidationItems": null,
-        "RecommendedMigrationPath": "No validated retirement target - manual review"
+        "RecommendedMigrationPath": "No validated retirement target - manual review",
+        "TargetComparison": null
       },
       "readiness": "Manual Review Required",
       "confidence": {
@@ -7223,7 +8041,8 @@
         "MigrationQuotaModel": null,
         "RecommendedMigrationPath": "Retire to Standard_B2s_v2; no validated v6/v7 target",
         "ModernizationValidationItems": "",
-        "LifecycleStage": "End of Life"
+        "LifecycleStage": "End of Life",
+        "ModernizationMaterialDifferences": ""
       },
       "vm": {
         "Id": "/subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-b2ms",
@@ -7500,7 +8319,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -7704,7 +8523,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -8066,7 +8885,7 @@
             },
             {
               "Attribute": "Hyper-V Generation",
-              "Current": "V1,V2",
+              "Current": "V1",
               "Target": "V1,V2",
               "Assessment": "Same",
               "Note": ""
@@ -8149,7 +8968,169 @@
         "Complexity": "Unknown",
         "ModernizationReadiness": "Manual Review",
         "ValidationItems": null,
-        "RecommendedMigrationPath": "Retire to Standard_B2s_v2; no validated v6/v7 target"
+        "RecommendedMigrationPath": "Retire to Standard_B2s_v2; no validated v6/v7 target",
+        "TargetComparison": [
+          {
+            "Attribute": "CPU Vendor",
+            "Current": "Intel",
+            "RetirementTarget": "Intel",
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "CPU Architecture",
+            "Current": "x64",
+            "RetirementTarget": "x64",
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Processor",
+            "Current": "Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake)",
+            "RetirementTarget": "Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake)",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "vCPU",
+            "Current": 2,
+            "RetirementTarget": 2,
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Memory (GB)",
+            "Current": 8.0,
+            "RetirementTarget": 8.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Temp / Local Disk",
+            "Current": "16 GB",
+            "RetirementTarget": "None",
+            "RetirementChange": "Changed",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "Temp disk removed - validate pagefile / tempdb / scratch usage",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Disk Controller",
+            "Current": "SCSI",
+            "RetirementTarget": "SCSI",
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Hyper-V Generation",
+            "Current": "V1",
+            "RetirementTarget": "V1,V2",
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk IOPS",
+            "Current": 1920.0,
+            "RetirementTarget": 3750.0,
+            "RetirementChange": "Improved",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Uncached Disk MBps",
+            "Current": 22.0,
+            "RetirementTarget": 85.0,
+            "RetirementChange": "Improved",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max Data Disks",
+            "Current": 4.0,
+            "RetirementTarget": 4.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Max NICs",
+            "Current": 2.0,
+            "RetirementTarget": 2.0,
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Accelerated Networking",
+            "Current": false,
+            "RetirementTarget": true,
+            "RetirementChange": "Changed",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Premium Storage",
+            "Current": true,
+            "RetirementTarget": true,
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Availability Zones",
+            "Current": "1,2,3",
+            "RetirementTarget": "1,2,3",
+            "RetirementChange": "Same",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "",
+            "ModernizationNote": ""
+          },
+          {
+            "Attribute": "Network Bandwidth",
+            "Current": null,
+            "RetirementTarget": null,
+            "RetirementChange": "Unknown",
+            "ModernizationTarget": null,
+            "ModernizationChange": null,
+            "RetirementNote": "Not exposed by Resource SKUs API; see Microsoft Learn size page",
+            "ModernizationNote": ""
+          }
+        ]
       },
       "readiness": "Manual Review Required",
       "confidence": {

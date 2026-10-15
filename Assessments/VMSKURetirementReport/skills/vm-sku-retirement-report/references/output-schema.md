@@ -11,7 +11,7 @@ machine-readable result for Azure Workbooks, Power BI, Excel, Logic Apps, PowerS
   signedInAccount (masked, e.g. "j****@contoso.com", unless -IncludeOperatorAccount),
   dataSource: "Live" | "Snapshot captured <yyyy-MM-dd HH:mm> UTC",
   pricingStatus: "Done" (all regions retrieved) | "Partial" (completed regions retained, failed/incomplete region discarded and remaining regions skipped) | "Unavailable" (no region completed) | "Skipped" (-SkipPricing),
-  parameters: { SubscriptionId, Region, HorizonMonths, OfflineCatalog, QuotaSafetyPct, MaxCandidates, CheckModernization, IncludeRightsizing, IncludePricing (effective, true unless -SkipPricing), SkipPricing, IncludeOperatorAccount, KeepRawData, SaveSnapshot, FromSnapshot, HtmlIncludeOptionalModernization, HtmlMaxVmDetails, ... },
+  parameters: { SubscriptionId, Region, HorizonMonths, OfflineCatalog, QuotaSafetyPct, MaxCandidates, CheckModernization, IncludeRightsizing, IncludePricing (effective, true unless -SkipPricing), SkipPricing, IncludeOperatorAccount, KeepRawData, SaveSnapshot, FromSnapshot, HtmlIncludeOptionalModernization, HtmlMaxVmDetails, ExtendedDetails, ... },
   disclaimer (standard short disclaimer; plain text with two paragraphs),
   catalog: { source: "Live" | "Cached (<utc>)", warning, sources: [ { Name, Url, Title, UpdatedAt, GitCommitId, RetrievedUtc } ], unmappedSeries: [...],
              nonVmSizeEntries: [ { Category, Name, Status, PlannedRetirementDate, GuideUrl, SourceUrl } ] },
@@ -86,8 +86,19 @@ Strategy = { RetirementRequired, RetirementUnconfirmed, RetirementTarget: Candid
              RetirementQuotaStatus, ModernizationEnabled, AlreadyModern, ModernizationTarget: Candidate, ModernizationTargetSku,
              ModernizationTargetGeneration, ModernizationTargetSource, RequiresGenerationChange, RequiresNvmeConversion,
              RedeployReview, RedeployReason, MigrationQuotaModel, ModernizationQuotaStatus, ModernizationPeakQuotaStatus,
-             ModernizationPath, Complexity, ModernizationReadiness, ValidationItems[], RecommendedMigrationPath }
+             ModernizationPath, Complexity, ModernizationReadiness, ValidationItems[], RecommendedMigrationPath,
+             TargetComparison[] }
+
+TargetComparison = { Attribute, Current, RetirementTarget, RetirementChange, ModernizationTarget, ModernizationChange,
+                     RetirementNote, ModernizationNote }
 ```
+
+`TargetComparison` has one row per attribute (vCPU, memory, temp disk, disk controller, Hyper-V generation, IOPS, ...)
+with the result for the retirement target and for the modernization target (`*Change` is Same, Improved, Reduced,
+Changed or Unknown). It is computed once from the material differences of each target and is what the HTML card and
+`detailed-report.md` render. The modernization columns are empty when there is no strategic target (or the VM is already
+modern). Differences for a target that was not ranked as a candidate (for example a convertible newer generation) are
+computed for the comparison only; they are not added to that target's `materialDifferences`.
 
 ## vm-assessment.csv (one row per VM)
 
@@ -105,9 +116,20 @@ Strategy = { RetirementRequired, RetirementUnconfirmed, RetirementTarget: Candid
 | Data quality | `DQ_RetirementDate`, `DQ_CpuVendor`, `DQ_RegionalAvailability`, `DQ_Quota`, `DQ_PhysicalCapacity`, `LifecycleNotes` |
 | Microsoft lifecycle stage (appended) | `LifecycleStage` |
 | Retirement vs modernization (appended) | `RetirementTargetSku`, `RetirementTargetGeneration`, `RetirementQuotaStatus`, `ModernizationTargetSku`, `ModernizationTargetGeneration`, `ModernizationTargetSource`, `ModernizationPath`, `ModernizationComplexity`, `ModernizationReadiness`, `ModernizationQuotaStatus`, `ModernizationPeakQuotaStatus`, `MigrationQuotaModel`, `RecommendedMigrationPath`, `ModernizationValidationItems` |
+| Modernization differences (appended last) | `ModernizationMaterialDifferences` - changed, reduced or improved attributes of the modernization target against the current size (`Attribute: current -> target; ...`); empty without `--check-modernization`, without a target or when already v6/v7 |
 
-Columns are written in the order listed; the retirement-vs-modernization group is appended after `LifecycleNotes`, so
-existing column positions are unchanged.
+Columns are written in the order listed; the retirement-vs-modernization group is appended after `LifecycleNotes` and
+`ModernizationMaterialDifferences` is the last column, so existing column positions are unchanged. Columns are never
+renamed or removed within 1.x.
+
+**Overlapping columns.** Some columns carry the same value for most VMs (the CSV keeps both for compatibility):
+
+| Columns | Relationship |
+|---|---|
+| `vCPU` and `CurrentVcpu`; `MemoryGB` and `CurrentMemoryGB` | Identical aliases of the current size |
+| `TargetvCPU` / `TargetMemoryGB` and `RecommendedVcpu` / `RecommendedMemoryGB` | Same unless the VM is already modern (the `Recommended*` columns then show the current size) |
+| `RecommendedSku` / `RecommendedSkuGeneration` and `RetirementTargetSku` / `RetirementTargetGeneration` | `Recommended*` is the primary candidate (promoted to the v6/v7 target when a direct move passes all checks); `RetirementTarget*` is the retirement target and is empty for VMs not in retirement scope |
+| `RegionAvailable` and `SkuRegionalAvailability` | Same unless a modernization assessment exists, in which case `SkuRegionalAvailability` is the modernization target's availability |
 
 ## candidates.csv
 
@@ -122,6 +144,9 @@ use `cores`. `Scope` is one of:
 - `Retirement` - retirement-affected and unconfirmed VMs moving to their retirement target.
 - `Retirement+Modernization` - every VM with an action moving to `RecommendedSku` (retirement plus optional Wave 4 moves).
 - `Modernization` - only with `--check-modernization`: every VM with a strategic v6/v7 target, with steady-state and peak demand.
+
+The HTML quota table is a display view of these rows: a `Retirement+Modernization` row that repeats its `Retirement` row
+is shown once and rows that need no action are omitted (every `Modernization` row is kept). The CSV always keeps every row.
 
 ## snapshot/ (only with -SaveSnapshot)
 

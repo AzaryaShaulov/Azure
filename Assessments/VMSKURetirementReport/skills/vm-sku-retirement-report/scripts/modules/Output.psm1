@@ -319,6 +319,8 @@ function Export-DetailedReportMarkdown {
         [void]$sb.AppendLine()
         foreach ($a in $sub.Group) {
             $vm = $a.Vm; $cur = $a.Current; $lc = $a.Lifecycle; $p = if ($a.Candidates) { $a.Candidates.Primary } else { $null }; $s = if ($a.Candidates) { $a.Candidates.Secondary } else { $null }
+            $st = if ($a.Strategy) { $a.Strategy } else { Get-TargetStrategy -Assessment $a }
+            $comparison = New-TargetComparisonMarkdown -Strategy $st -CheckModernization:$checkModernization
             [void]$sb.AppendLine("### VM: $(ConvertTo-MarkdownText $vm.Name)")
             [void]$sb.AppendLine()
             [void]$sb.AppendLine("- **Subscription:** $(ConvertTo-MarkdownText $a.SubscriptionName) (``$(ConvertTo-MarkdownText $vm.SubscriptionId)``)")
@@ -355,9 +357,20 @@ function Export-DetailedReportMarkdown {
                 [void]$sb.AppendLine('**MODERNIZATION ASSESSMENT**')
                 [void]$sb.AppendLine()
                 [void]$sb.AppendLine("| Attribute | Value |`n|---|---|")
-                foreach ($pair in @(@('Status', $a.Modernization.Status), @('Recommended SKU', (& $v $a.Modernization.RecommendedSku)),
-                        @('Recommended SKU Generation', $(if ($a.Modernization.RecommendedGeneration) { "v$($a.Modernization.RecommendedGeneration)" } else { 'Unknown' })),
-                        @('Regional Availability', $a.Modernization.Availability), @('Quota Status', $a.QuotaStatus), @('Reason', $a.Modernization.Reason))) {
+                $modRows = New-Object System.Collections.Generic.List[object]
+                if ($st.ModernizationEnabled) {
+                    foreach ($pair in @(@('Modernization Target', (& $v $st.ModernizationTargetSku)), @('Modernization Target Generation', $(if ($st.ModernizationTargetGeneration) { "v$($st.ModernizationTargetGeneration)" } else { 'Unknown' })),
+                            @('Modernization Readiness', (& $v $st.ModernizationReadiness)), @('Recommended Path', (& $v $st.ModernizationPath)), @('Migration Path', (& $v $st.RecommendedMigrationPath)),
+                            @('Regional Availability', $a.Modernization.Availability), @('Retirement Target Quota', (& $v $st.RetirementQuotaStatus)), @('Modernization Target Quota', (& $v $st.ModernizationQuotaStatus)),
+                            @('Modernization Peak Quota', (& $v $st.ModernizationPeakQuotaStatus)))) { $modRows.Add($pair) }
+                    if (-not $st.ModernizationTargetSku -and -not $st.AlreadyModern) { $modRows.Add(@('Reason', $a.Modernization.Reason)) }
+                }
+                else {
+                    foreach ($pair in @(@('Status', $a.Modernization.Status), @('Recommended SKU', (& $v $a.Modernization.RecommendedSku)),
+                            @('Recommended SKU Generation', $(if ($a.Modernization.RecommendedGeneration) { "v$($a.Modernization.RecommendedGeneration)" } else { 'Unknown' })),
+                            @('Regional Availability', $a.Modernization.Availability), @('Quota Status', $a.QuotaStatus), @('Reason', $a.Modernization.Reason))) { $modRows.Add($pair) }
+                }
+                foreach ($pair in $modRows) {
                     [void]$sb.AppendLine("| $($pair[0]) | $(Format-MdCell $pair[1]) |")
                 }
                 [void]$sb.AppendLine()
@@ -383,13 +396,18 @@ function Export-DetailedReportMarkdown {
                 if ($a.Candidates.Third) { [void]$sb.AppendLine("- Third candidate: $($a.Candidates.Third.SkuName) (score $($a.Candidates.Third.Score); $($a.Candidates.Third.Variant))") }
                 if ($a.Candidates.FutureGeneration) { [void]$sb.AppendLine("- Newer generation if converted: $($a.Candidates.FutureGeneration.SkuName) - blocked by $($a.Candidates.FutureGeneration.FailedGates -join ', ')") }
                 [void]$sb.AppendLine()
-                [void]$sb.AppendLine('**MATERIAL DIFFERENCES**')
+                [void]$sb.AppendLine($(if ($comparison) { '**CURRENT VS TARGET SIZE**' } else { '**MATERIAL DIFFERENCES**' }))
                 [void]$sb.AppendLine()
-                [void]$sb.AppendLine((Format-MdTable -Rows @($p.Differences) -Columns 'Attribute', 'Current', 'Target', 'Assessment', 'Note'))
+                [void]$sb.AppendLine($(if ($comparison) { $comparison } else { Format-MdTable -Rows @($p.Differences) -Columns 'Attribute', 'Current', 'Target', 'Assessment', 'Note' }))
             }
             else {
                 [void]$sb.AppendLine("_No primary recommendation: $(if ($a.Candidates) { $a.Candidates.NoCandidateReason } else { 'size characteristics or region catalog unavailable' })_")
                 [void]$sb.AppendLine()
+                if ($comparison) {
+                    [void]$sb.AppendLine('**CURRENT VS TARGET SIZE**')
+                    [void]$sb.AppendLine()
+                    [void]$sb.AppendLine($comparison)
+                }
             }
             if ($a.Candidates -and $a.Candidates.VendorChangeRequired) { [void]$sb.AppendLine("> **CPU Vendor Change Required:** $($a.Candidates.VendorChangeReason)`n") }
             [void]$sb.AppendLine('**MIGRATION CONSIDERATIONS**')
@@ -529,29 +547,26 @@ function New-NavHtml {
 }
 
 function New-TrackHtml {
-    <# Wraps the sections of one part of a subscription page (retirement or modernization) in a labelled, colour-coded band. #>
-    param([Parameter(Mandatory)][ValidateSet('retirement', 'modernization')][string]$Tone, [Parameter(Mandatory)][string]$Part,
+    <# Wraps the sections of the retirement remediation part of a subscription page in a labelled, colour-coded band. #>
+    param([Parameter(Mandatory)][ValidateSet('retirement')][string]$Tone, [string]$Part,
         [Parameter(Mandatory)][string]$Label, [Parameter(Mandatory)][string]$Title, [string]$Description, [string]$Body)
     $e = { param($x) ConvertTo-HtmlEncoded $x }
-    $icon = if ($Tone -eq 'retirement') { '&#9888;' } else { '&#8599;' }
+    $icon = '&#9888;'
+    $heading = if ($Part) { "$(& $e $Part) &middot; <strong>$(& $e $Label)</strong>" } else { "<strong>$(& $e $Label)</strong>" }
     @"
 <div class='track track-$Tone' id='track-$Tone' role='region' aria-labelledby='track-$Tone-title'>
-<div class='track-banner'><span class='track-icon' aria-hidden='true'>$icon</span><div class='track-text'><span class='track-part'>$(& $e $Part) &middot; <strong>$(& $e $Label)</strong></span><div class='track-title' id='track-$Tone-title' role='heading' aria-level='2'>$(& $e $Title)</div>$(if ($Description) { "<p class='track-desc'>$Description</p>" })</div></div>
+<div class='track-banner'><span class='track-icon' aria-hidden='true'>$icon</span><div class='track-text'><span class='track-part'>$heading</span><div class='track-title' id='track-$Tone-title' role='heading' aria-level='2'>$(& $e $Title)</div>$(if ($Description) { "<p class='track-desc'>$Description</p>" })</div></div>
 $Body
 </div>
 "@
 }
 
 function New-TrackTilesHtml {
-    <# Overview tiles that introduce and link to the retirement part and (when enabled) the modernization part. #>
-    param([int]$RetiringCount, [string]$EarliestDate, [switch]$ShowModernization, [int]$ModernizationCount)
+    <# Overview tile that introduces and links to the retirement remediation part. #>
+    param([int]$RetiringCount, [string]$EarliestDate)
     $e = { param($x) ConvertTo-HtmlEncoded $x }
     $retHint = if ($RetiringCount -and $EarliestDate) { "Earliest retirement $(& $e $EarliestDate). Act before the dates shown." } elseif ($RetiringCount) { 'Act before the dates shown.' } else { 'No VMs on End of Life or retired sizes.' }
-    $tiles = @("<a class='track-tile track-tile-retirement' href='#track-retirement'><span class='track-tile-part'>Part 1 &middot; Required</span><span class='track-tile-value'>$RetiringCount</span><span class='track-tile-label'>VMs on End of Life or retired sizes</span><span class='track-tile-hint'>$retHint</span></a>")
-    if ($ShowModernization) {
-        $tiles += "<a class='track-tile track-tile-modernization' href='#track-modernization'><span class='track-tile-part'>Part 2 &middot; Optional</span><span class='track-tile-value'>$ModernizationCount</span><span class='track-tile-label'>VMs with a v6/v7 target</span><span class='track-tile-hint'>Longer-term moves to current generations. Plan when it suits.</span></a>"
-    }
-    "<div class='track-tiles'>$($tiles -join '')</div>"
+    "<div class='track-tiles'><a class='track-tile track-tile-retirement' href='#track-retirement'><span class='track-tile-part'>Required</span><span class='track-tile-value'>$RetiringCount</span><span class='track-tile-label'>VMs on End of Life or retired sizes</span><span class='track-tile-hint'>$retHint</span></a></div>"
 }
 
 # Microsoft Learn guidance for the upgrade path (URLs verified 2026-10-07).
@@ -603,39 +618,106 @@ function Get-RunParameter {
 }
 
 function New-UpgradeGuidanceHtml {
-    <# Microsoft Learn links for the retirement upgrade path, SCSI to NVMe conversion and Gen1 to Gen2. #>
+    <# One compact guide: the general upgrade sequence, recommended steps for each migration path with an example, and the Microsoft Learn links. #>
+    $e = { param($x) ConvertTo-HtmlEncoded $x }
+    $paths = @(
+        @{ Name = 'Direct Resize'; When = 'The target already supports the VM''s hardware generation and disk controller.'; Example = @('Standard_D4s_v5', 'Standard_D4s_v6')
+            Steps = @("Request target-family and regional vCPU quota ($(New-LearnLink 'SizesOverview' 'size list'))", 'Back up or snapshot the OS and data disks', "Resize in a change window; the VM restarts ($(New-LearnLink 'Resize' 'resize a VM'))", 'Validate the application, disks and networking') }
+        @{ Name = 'SCSI to NVMe + Resize'; When = 'The target supports NVMe only and the VM uses SCSI.'; Example = @('Standard_D4ds_v5', 'Standard_D4ds_v6'); Note = 'SCSI to NVMe'
+            Steps = @("Confirm the guest OS image supports NVMe ($(New-LearnLink 'NvmeOsImages' 'supported images'))", 'Test on a clone or snapshot first; reference Linux disks by UUID, not device name', "Convert the disk controller to NVMe and resize ($(New-LearnLink 'NvmeConvert' 'conversion steps'))", 'Check that every disk is visible, then validate the application') }
+        @{ Name = 'Gen1 + NVMe + Resize'; When = 'A Gen1, SCSI VM must move to a Gen2, NVMe-only size.'; Example = @('Standard_DS3_v2', 'Standard_D4s_v6'); Note = 'Gen1 + SCSI to Gen2 + NVMe'
+            Steps = @("Check the OS supports the Trusted launch upgrade ($(New-LearnLink 'Gen1TrustedLaunch' 'Gen1 upgrade')); if not, redeploy instead", 'Back up the VM; plan for a restart and MBR to GPT conversion', 'Upgrade to Gen2 (Trusted launch), then convert the disk controller to NVMe', 'Resize to the target and validate boot, disks and drivers (MANA networking)') }
+        @{ Name = 'Gen1 Modernization + Resize'; When = 'A Gen1 VM must move to a Gen2-only size; the controller stays SCSI.'; Example = @('Gen1 VM', 'Gen2-only size')
+            Steps = @('Check OS and size support for the Trusted launch upgrade', 'Back up the VM and plan the restart', "Upgrade Gen1 to Gen2 ($(New-LearnLink 'Generation2' 'Gen2 support'))", 'Resize to the target and validate') }
+        @{ Name = 'Redeploy / Rebuild Review'; When = 'The guest OS cannot be upgraded in place (for example Windows Server 2016, Debian, Azure Linux).'; Example = @('Gen1 VM (unsupported OS)', 'New Gen2 VM')
+            Steps = @('Build a new Gen2 VM on the target size from a supported image', 'Move data disks or restore from backup, then cut over', 'Keep the old VM until the workload is validated, then delete it') }
+    )
+    $rows = foreach ($p in $paths) {
+        $steps = ($p.Steps | ForEach-Object { "<li>$_</li>" }) -join ''
+        $note = if ($p.ContainsKey('Note')) { "<div class='sub'>$(& $e $p.Note)</div>" } else { '' }
+        "<tr><td class='path-name'>$(& $e $p.Name)</td><td>$(& $e $p.When)</td><td class='example'><code>$(& $e $p.Example[0])</code> &rarr; <code>$(& $e $p.Example[1])</code>$note</td><td><ol class='steps'>$steps</ol></td></tr>"
+    }
     $groups = @($script:LearnDocs.Values | Group-Object { $_.Topic })
     $order = 'Retirement', 'Resize', 'SCSI to NVMe', 'Gen1 to Gen2', 'Networking and temp disk'
-    $cards = foreach ($t in $order) {
+    $docs = foreach ($t in $order) {
         $g = $groups | Where-Object Name -eq $t
         if (-not $g) { continue }
-        $items = (@($g.Group) | ForEach-Object { "<li><a href='$(ConvertTo-HtmlEncoded $_.Url)' target='_blank'>$(ConvertTo-HtmlEncoded $_.Title)</a></li>" }) -join ''
-        "<div class='callout info'><h3>$(ConvertTo-HtmlEncoded $t)</h3><ul class='links'>$items</ul></div>"
+        $links = (@($g.Group) | ForEach-Object { "<a href='$(ConvertTo-HtmlEncoded $_.Url)' target='_blank'>$(ConvertTo-HtmlEncoded $_.Title)</a>" }) -join ' &middot; '
+        "<div class='doc-row'><dt>$(& $e $t)</dt><dd>$links</dd></div>"
     }
     @"
 <ol class='upgrade-steps'>
 <li><strong>Confirm the retirement</strong> and the Microsoft-recommended target series for each retiring size.</li>
 <li><strong>Check prerequisites</strong>: Gen1 VMs need the Trusted launch upgrade before a Gen2-only size; SCSI VMs need NVMe conversion before an NVMe-only size (validate guest OS support first).</li>
-<li><strong>Request quota</strong> for the target family and regional vCPUs (see Quota Actions).</li>
-<li><strong>Resize in a change window</strong>, then validate disks, networking (MANA), temp-disk usage and application health.</li>
+<li><strong>Request quota</strong> for the target family and regional vCPUs (see Quota Actions). Use peak demand when source and target must coexist.</li>
+<li><strong>Resize in a change window</strong>, then validate disks, networking (MANA), temp-disk usage (keep a <code>d</code> size if the workload needs local scratch) and application health.</li>
 </ol>
-<div class='grid-2'>$($cards -join '')</div>
+<h3>Recommended steps by migration path</h3>
+<div class='table-wrap'><table class='ref steps-table'><thead><tr><th>Path</th><th>When it applies</th><th>Example</th><th>Recommended steps</th></tr></thead><tbody>
+$($rows -join "`n")
+</tbody></table></div>
+<p class='note'>Examples are illustrative. The path, target and blockers for each VM are in the <em>VMs with Retiring SKUs</em> table and its details; guest readiness cannot be proven from Azure control-plane data, so always test before changing production.</p>
+<h3>Microsoft Learn</h3>
+<dl class='doc-links'>$($docs -join '')</dl>
 "@
 }
 
+function Get-QuotaDisplayRows {
+    <# Display only (quota-impact.csv keeps every scope): drops a Retirement+Modernization row that repeats its Retirement row, then keeps rows that need action in steady state or at peak plus every Modernization row. #>
+    param([AllowEmptyCollection()][object[]]$Rows)
+    $field = { param($r, $n) if ($r.PSObject.Properties.Name -contains $n) { $r.$n } else { $null } }
+    $compare = 'CurrentUsage', 'Limit', 'RequiredVcpu', 'MinimumIncrease', 'RecommendedIncrease', 'Status', 'VmCount', 'SteadyStateRequiredVcpu', 'PeakMigrationRequiredVcpu', 'PeakMinimumIncrease', 'PeakRecommendedIncrease', 'PeakStatus'
+    $keyOf = { param($r) (@('SubscriptionId', 'Region', 'QuotaName') | ForEach-Object { "$(& $field $r $_)" }) -join '|' }
+    $signature = { param($r) ($compare | ForEach-Object { "$(& $field $r $_)" }) -join '|' }
+    $all = @($Rows | Where-Object { $_ })
+    $retirement = @{}
+    foreach ($r in $all) { if ((& $field $r 'Scope') -eq 'Retirement') { $retirement[(& $keyOf $r)] = & $signature $r } }
+    $rank = @{ 'Retirement' = 0; 'Retirement+Modernization' = 1; 'Modernization' = 2 }
+    $kept = foreach ($r in $all) {
+        $scope = "$(& $field $r 'Scope')"
+        if ($scope -eq 'Retirement+Modernization' -and $retirement.ContainsKey((& $keyOf $r)) -and $retirement[(& $keyOf $r)] -eq (& $signature $r)) { continue }
+        $peakStatus = & $field $r 'PeakStatus'
+        if ($r.Status -ne 'Quota OK' -or ($peakStatus -and $peakStatus -ne 'Quota OK') -or $scope -eq 'Modernization') { $r }
+    }
+    @($kept | Sort-Object @{ e = { $s = "$(& $field $_ 'Scope')"; if ($rank.ContainsKey($s)) { $rank[$s] } else { 9 } } } -Stable)
+}
+
 function New-QuotaActionsHtml {
-    <# Quota rows that need action (status other than Quota OK). -HideSubscription drops the column on per-subscription pages. #>
-    param([AllowEmptyCollection()][object[]]$Rows, [switch]$HideSubscription)
+    <# One quota table for the retirement and modernization scopes, with steady-state and peak demand. -HideSubscription drops the column on per-subscription pages; otherwise it shows the subscription name (from -SubscriptionNames, keyed by lower-case ID) with the ID underneath. #>
+    param([AllowEmptyCollection()][object[]]$Rows, [switch]$HideSubscription, [hashtable]$SubscriptionNames = @{})
     $e = { param($x) ConvertTo-HtmlEncoded $x }
-    $need = @($Rows | Where-Object { $_ -and $_.Status -ne 'Quota OK' })
-    if ($need.Count -eq 0) { return "<div class='callout ok'>No quota increase is needed for the recommended moves. <span class='muted'>(Quota OK does not guarantee physical capacity.)</span></div>" }
+    $field = { param($r, $n) if ($r.PSObject.Properties.Name -contains $n) { $r.$n } else { $null } }
+    $has = { param($v) $null -ne $v -and "$v" -ne '' }
+    $dash = "<span class='muted'>&ndash;</span>"
+    $shown = @(Get-QuotaDisplayRows -Rows $Rows)
+    if ($shown.Count -eq 0) { return "<div class='callout ok'>No quota increase is needed for the recommended moves. <span class='muted'>(Quota OK does not guarantee physical capacity.)</span></div>" }
+    $needsAction = @($shown | Where-Object { $_.Status -ne 'Quota OK' -or ((& $field $_ 'PeakStatus') -and (& $field $_ 'PeakStatus') -ne 'Quota OK') }).Count
+    $okNote = if ($needsAction -eq 0) { "<div class='callout ok'>No quota increase is needed for the recommended moves. <span class='muted'>(Quota OK does not guarantee physical capacity.)</span></div>" } else { '' }
+    $showPeak = @($shown | Where-Object { $p = & $field $_ 'PeakMigrationRequiredVcpu'; (& $has $p) -and (& $has $_.RequiredVcpu) -and [int]$p -ne [int]$_.RequiredVcpu }).Count -gt 0
+    $hasModernization = @($shown | Where-Object { (& $field $_ 'Scope') -eq 'Modernization' }).Count -gt 0
     $subHead = if ($HideSubscription) { '' } else { '<th>Subscription</th>' }
-    $rowsHtml = ($need | ForEach-Object {
-            $subCell = if ($HideSubscription) { '' } else { "<td class='sub'>$(& $e $_.SubscriptionId)</td>" }
-            $usage = if ($null -eq $_.Limit -or "$($_.Limit)" -eq '') { "<span class='muted'>&ndash;</span>" } else { "$(& $e $_.CurrentUsage) / $(& $e $_.Limit)" }
-            "<tr><td>$(& $e $_.Scope)</td>$subCell<td>$(& $e $_.Region)</td><td>$(& $e $(if ($_.QuotaDisplayName) { $_.QuotaDisplayName } else { $_.QuotaName }))</td><td class='num quota-usage'>$usage</td><td class='num'>$(& $e $_.RequiredVcpu)</td><td class='num'><strong>$(& $e $_.MinimumIncrease)</strong></td><td class='num'>$(& $e $_.RecommendedIncrease)</td><td>$(New-Badge $_.Status)</td></tr>"
+    $peakHead = if ($showPeak) { "<th class='num'>Peak needed</th>" } else { '' }
+    # A peak figure is added under the steady-state one only when it differs.
+    $withPeak = { param($value, $peak, [switch]$Strong)
+        $main = if (& $has $value) { if ($Strong) { "<strong>$(& $e $value)</strong>" } else { & $e $value } } else { $dash }
+        if ((& $has $peak) -and (& $has $value) -and [int]$peak -ne [int]$value) { "$main<div class='sub peak'>peak $(& $e $peak)</div>" } else { $main }
+    }
+    $rowsHtml = ($shown | ForEach-Object {
+            $scope = "$(& $field $_ 'Scope')"
+            $model = & $field $_ 'MigrationQuotaModel'
+            $scopeSub = if ($scope -eq 'Modernization' -and $model -and $model -ne 'InPlace') { "<div class='sub'>$(& $e $model) ($(& $e (& $field $_ 'SideBySideVmCount')) side-by-side)</div>" } else { '' }
+            $subName = if ($SubscriptionNames.ContainsKey("$($_.SubscriptionId)".ToLowerInvariant())) { $SubscriptionNames["$($_.SubscriptionId)".ToLowerInvariant()] } else { $null }
+            $subCell = if ($HideSubscription) { '' } elseif ($subName) { "<td><span class='strong'>$(& $e $subName)</span><div class='sub'>$(& $e $_.SubscriptionId)</div></td>" } else { "<td class='sub'>$(& $e $_.SubscriptionId)</td>" }
+            $usage = if ($null -eq $_.Limit -or "$($_.Limit)" -eq '') { $dash } else { "$(& $e $_.CurrentUsage) / $(& $e $_.Limit)" }
+            $peakValue = & $field $_ 'PeakMigrationRequiredVcpu'
+            $peakCell = if ($showPeak) { "<td class='num$(if ((& $has $peakValue) -and (& $has $_.RequiredVcpu) -and [int]$peakValue -ne [int]$_.RequiredVcpu) { ' peak' })'>$(if (& $has $peakValue) { & $e $peakValue } else { $dash })</td>" } else { '' }
+            $peakStatus = & $field $_ 'PeakStatus'
+            $statusCell = New-Badge $_.Status
+            if ($peakStatus -and $peakStatus -ne $_.Status) { $statusCell += "<div class='sub'>Peak: $(New-Badge $peakStatus)</div>" }
+            "<tr><td>$(& $e $scope)$scopeSub</td>$subCell<td>$(& $e $_.Region)</td><td>$(& $e $(if ($_.QuotaDisplayName) { $_.QuotaDisplayName } else { $_.QuotaName }))</td><td class='num quota-usage'>$usage</td><td class='num'>$(& $e $_.RequiredVcpu)</td>$peakCell<td class='num'>$(& $withPeak $_.MinimumIncrease (& $field $_ 'PeakMinimumIncrease') -Strong)</td><td class='num'>$(& $withPeak $_.RecommendedIncrease (& $field $_ 'PeakRecommendedIncrease'))</td><td>$statusCell</td></tr>"
         }) -join "`n"
-    "<div class='table-wrap'><table class='quota-table'><thead><tr><th>Scope</th>$subHead<th>Region</th><th>Quota</th><th class='num quota-usage'>Used / limit</th><th class='num'>Needed</th><th class='num'>Min. increase</th><th class='num'>Recommended request</th><th>Status</th></tr></thead><tbody>$rowsHtml</tbody></table></div><p class='note'><em>Retirement</em> scope covers required migrations to their retirement target; <em>Retirement+Modernization</em> also includes optional Wave 4 moves; <em>Modernization</em> (only with <code>--check-modernization</code>) covers the strategic v6/v7 targets.</p>"
+    $planning = if ($showPeak -or $hasModernization) { "<p class='note quota-impact-note'><strong>Peak</strong> adds the target capacity while the source VM still exists: resizes and SCSI to NVMe conversions are modeled in place; Gen1 to Gen2 (Trusted launch upgrade) and redeploy paths are modeled side-by-side. These are planning estimates from <code>quota-impact.csv</code>; validate the final migration method and Azure capacity before execution.</p>" } else { '' }
+    "$okNote<div class='table-wrap'><table class='quota-table'><thead><tr><th>Scope</th>$subHead<th>Region</th><th>Quota</th><th class='num quota-usage'>Used / limit</th><th class='num'>Needed</th>$peakHead<th class='num'>Min. increase</th><th class='num'>Recommended request</th><th>Status</th></tr></thead><tbody>$rowsHtml</tbody></table></div><p class='note'><em>Retirement</em> covers required migrations to their retirement target; <em>Retirement+Modernization</em> is listed only when it differs (it adds optional Wave 4 moves); <em>Modernization</em> (only with <code>--check-modernization</code>) covers the strategic v6/v7 targets. Identical scopes are shown once; <code>quota-impact.csv</code> keeps every scope.</p>$planning"
 }
 
 function New-Kpi {
@@ -695,72 +777,317 @@ function Get-ModernizationViewModel {
         AlreadyModern = $s.AlreadyModern
     }
 }
-function New-ActionGroupHtml {
-    param([string]$Title, [AllowEmptyCollection()][object[]]$Models, [string]$Tone = 'grey', [int]$MaxItems = 5)
-    $e = { param($x) ConvertTo-HtmlEncoded $x }
-    $items = @($Models)
-    $list = if ($items.Count) {
-        (@($items | Select-Object -First $MaxItems | ForEach-Object { "<li>$(& $e $_.VmName)</li>" }) -join '') + $(if ($items.Count -gt $MaxItems) { "<li class='muted'>+$($items.Count - $MaxItems) more</li>" } else { '' })
-    }
-    else { "<li class='muted'>None</li>" }
-    "<div class='action-group action-$Tone'><h3><span>$(& $e $Title)</span><span class='count'>$($items.Count)</span></h3><ul>$list</ul></div>"
+$script:Arrow = [string][char]0x2192
+
+function Get-ToneClass {
+    <# Text colour class for a status value, from the same mapping as the badges. Blue and grey values stay neutral. #>
+    param([string]$Value)
+    if (-not $Value) { return '' }
+    $class = Get-BadgeClass $Value
+    if ($class -in 'b-blue', 'b-grey') { return '' }
+    return 'tone-' + $class.Substring(2)
 }
 
-function New-ModernizationQuotaImpactHtml {
-    <# Renders the backend Modernization-scope quota rows (steady-state vs peak) for one subscription. #>
-    param([AllowEmptyCollection()][object[]]$QuotaRows)
-    $e = { param($x) ConvertTo-HtmlEncoded $x }
-    $rows = @($QuotaRows | Where-Object { $_ -and $_.PSObject.Properties.Name -contains 'Scope' -and $_.Scope -eq 'Modernization' } |
-            Sort-Object @{ e = { if ($_.QuotaName -eq 'cores') { 1 } else { 0 } } }, Region, QuotaName)
-    if ($rows.Count -eq 0) { return "<div class='callout ok'>No v6/v7 target quota demand is present in this subscription.</div>" }
-    $num = { param($v, [switch]$Strong) if ($null -eq $v -or "$v" -eq '') { "<span class='muted'>&ndash;</span>" } elseif ($Strong) { "<strong>$([int]$v)</strong>" } else { "$([int]$v)" } }
-    $html = foreach ($r in $rows) {
-        $name = if ($r.QuotaDisplayName) { $r.QuotaDisplayName } else { $r.QuotaName }
-        $usage = if ($null -ne $r.Limit) { "$([int]$r.CurrentUsage) / $([int]$r.Limit)" } else { "<span class='muted'>Unavailable</span>" }
-        $model = if ($r.MigrationQuotaModel -eq 'InPlace') { 'In-place resize' } else { "$($r.MigrationQuotaModel) ($($r.SideBySideVmCount) side-by-side)" }
-        "<tr><td>$(& $e $r.Region)</td><td>$(& $e $name)</td><td class='num'>$([int]$r.VmCount)</td><td class='num quota-usage'>$usage</td><td class='num steady'>$([int]$r.SteadyStateRequiredVcpu)</td><td class='num peak'>$([int]$r.PeakMigrationRequiredVcpu)</td><td class='num'>$(& $num $r.MinimumIncrease)</td><td class='num'>$(& $num $r.PeakMinimumIncrease -Strong)</td><td class='num'>$(& $num $r.PeakRecommendedIncrease)</td><td class='quota-model'>$(& $e $model)</td><td>$(New-Badge $r.PeakStatus)</td></tr>"
+function New-SpecLineHtml {
+    <# One "Label: value" line shared by the size, change and next-step cells. -Value is already-encoded HTML; -Tone is a Get-ToneClass result. #>
+    param([Parameter(Mandatory)][string]$Label, [Parameter(Mandatory)][AllowEmptyString()][string]$Value, [string]$Tone, [string]$Title)
+    $shown = if ($Tone) { "<span class='$Tone'>$Value</span>" } else { $Value }
+    $tip = if ($Title) { " title='$(ConvertTo-HtmlEncoded $Title)'" } else { '' }
+    "<div class='spec'$tip><span class='spec-label'>${Label}:</span> $shown</div>"
+}
+
+function Get-MaterialChangeLinesHtml {
+    <# One "Attribute: current -> target" line per material difference between the current size and the retirement target, coloured by severity. The full comparison is in the VM details. #>
+    param([Parameter(Mandatory)]$Assessment, [int]$Max = 4)
+    $s = $Assessment.Strategy
+    if (-not $s -or -not $s.RetirementTarget) { return "<span class='muted'>&ndash;</span>" }
+    $noteRequired = 'Temp / Local Disk', 'Disk Controller', 'Hyper-V Generation'
+    $items = @(@($s.TargetComparison) | Where-Object {
+            $_.Attribute -ne 'Processor' -and $_.RetirementChange -in 'Reduced', 'Changed' -and ($_.Attribute -notin $noteRequired -or $_.RetirementNote)
+        })
+    if ($items.Count -eq 0) { return "<span class='muted'>None</span>" }
+    $labels = @{
+        'Uncached Disk IOPS' = 'Disk IOPS'; 'Uncached Disk MBps' = 'Disk MBps'; 'Max Data Disks' = 'Data disks'; 'Max NICs' = 'NICs'
+        'Accelerated Networking' = 'Accel. networking'; 'Temp / Local Disk' = 'Temp disk'; 'Disk Controller' = 'Disk controller'
+        'Hyper-V Generation' = 'VM Gen'; 'Memory (GB)' = 'vRAM (GB)'; 'Premium Storage' = 'Premium storage'; 'Availability Zones' = 'Zones'
+        'CPU Vendor' = 'Vendor'; 'CPU Architecture' = 'Architecture'
     }
+    $show = { param($attribute, $value)
+        if ($attribute -eq 'Hyper-V Generation') { Format-VmGeneration @("$value" -split ',') }
+        elseif ($null -eq $value -or "$value" -eq '') { 'Unknown' }
+        else { "$value" }
+    }
+    $lines = foreach ($i in ($items | Select-Object -First $Max)) {
+        $attribute = [string]$i.Attribute
+        $label = if ($labels.ContainsKey($attribute)) { $labels[$attribute] } else { $attribute }
+        $value = ConvertTo-HtmlEncoded "$(& $show $attribute $i.Current) $script:Arrow $(& $show $attribute $i.RetirementTarget)"
+        $tone = if ($i.RetirementChange -eq 'Reduced') { 'tone-red' } else { 'tone-yellow' }
+        New-SpecLineHtml -Label $label -Value $value -Tone $tone -Title "${attribute}: $($i.Current) $script:Arrow $($i.RetirementTarget)$(if ($i.RetirementNote) { ' - ' + $i.RetirementNote })"
+    }
+    $more = if ($items.Count -gt $Max) { "<div class='spec muted'>+$($items.Count - $Max) more</div>" } else { '' }
+    (@($lines) -join '') + $more
+}
+
+function Format-VmGeneration {
+    <# 'V1' -> 'Gen1', 'V2' -> 'Gen2'; a list becomes 'Gen1, Gen2'; nothing reported -> 'Unknown'. #>
+    param($Value)
+    $items = @($Value | Where-Object { $_ } | ForEach-Object { if ("$_" -match '^V?(\d)$') { "Gen$($Matches[1])" } else { "$_" } })
+    if ($items.Count -eq 0) { return 'Unknown' }
+    return ($items -join ', ')
+}
+
+function New-SizeSpecHtml {
+    <# A VM size with Vendor, vCPU, vRAM, VM Gen and Disk controller on separate lines. Used for the current size, the retirement target and the modernization target so the columns read the same way. #>
+    param([Parameter(Mandatory)][string]$SkuName, $Vendor, $Vcpu, $MemoryGb, $Generation, $Controller)
+    $e = { param($x) ConvertTo-HtmlEncoded $x }
+    $text = { param($v, [string]$suffix = '') if ($null -eq $v -or "$v" -eq '') { 'Unknown' } else { "$(& $e $v)$suffix" } }
+    $controllers = @($Controller | Where-Object { $_ }) -join ', '
+    "<code>$(& $e $SkuName)</code>" +
+    (New-SpecLineHtml -Label 'Vendor' -Value (& $text $Vendor)) +
+    (New-SpecLineHtml -Label 'vCPU' -Value (& $text $Vcpu ' vCPU')) +
+    (New-SpecLineHtml -Label 'vRAM' -Value (& $text $MemoryGb ' GB')) +
+    (New-SpecLineHtml -Label 'VM Gen' -Value (& $text (Format-VmGeneration $Generation))) +
+    (New-SpecLineHtml -Label 'Disk controller' -Value (& $text $controllers))
+}
+
+function Get-Gen1VmCount {
+    <# Number of VMs on Hyper-V generation 1. VMs that do not report a generation are not counted. #>
+    param([AllowEmptyCollection()][object[]]$Assessments)
+    @($Assessments | Where-Object { $_ -and $_.Vm.HyperVGeneration -eq 'V1' }).Count
+}
+
+function New-VmSummaryRowHtml {
+    <# One row of the VMs with Retiring SKUs table: current size, Microsoft status, retirement target and, with --check-modernization, the v6/v7 target and path. #>
+    param([Parameter(Mandatory)]$Assessment, [switch]$CheckModernization, [hashtable]$DetailAnchors = @{})
+    $e = { param($x) ConvertTo-HtmlEncoded $x }
+    $a = $Assessment
+    $r = ConvertTo-AssessmentRow $a
+    $s = if ($a.Strategy) { $a.Strategy } else { Get-TargetStrategy -Assessment $a }
+    $rt = $s.RetirementTarget
+    $p = if ($a.Candidates) { $a.Candidates.Primary } else { $null }
+    $anchor = Get-VmAnchorId $a.Vm
+    $link = if ($DetailAnchors.ContainsKey($anchor)) { "<a class='strong' href='#$anchor'>$(& $e $r.VM)</a>" } else { "<span class='strong'>$(& $e $r.VM)</span>" }
+    $currentCell = New-SizeSpecHtml -SkuName $r.CurrentSku -Vendor $r.CpuVendor -Vcpu $r.vCPU -MemoryGb $r.MemoryGB -Generation $a.Vm.HyperVGeneration -Controller $a.Vm.DiskControllerType
+    $retirement = if ($r.RetirementDate) { "<div class='sub'>$(& $e $r.RetirementDate) &middot; $(& $e $r.TimeRemaining)</div>" } else { '' }
+    $retirementCell = if ($rt) {
+        $record = if ($rt.PSObject.Properties.Name -contains 'Record') { $rt.Record } else { $null }
+        $targetSpec = New-SizeSpecHtml -SkuName $rt.SkuName -Vendor $rt.CpuVendor -Vcpu $rt.vCPUs -MemoryGb $rt.MemoryGB `
+            -Generation $(if ($record) { $record.HyperVGenerations }) -Controller $(if ($record) { $record.DiskControllerTypes })
+        "$targetSpec$(New-SpecLineHtml -Label 'Score' -Value (& $e $rt.Score))$(if ($s.RetirementQuotaStatus) { New-SpecLineHtml -Label 'Quota' -Value (& $e $s.RetirementQuotaStatus) -Tone (Get-ToneClass $s.RetirementQuotaStatus) })"
+    }
+    elseif ($p -and -not $s.RetirementRequired -and -not $s.RetirementUnconfirmed) { "<span class='muted'>Not required</span><div class='sub'>Optional move: <code>$(& $e $p.SkuName)</code></div>" }
+    elseif ($a.Action -eq 'No Action Required') { "<span class='muted'>Current generation</span>" }
+    else { "<span class='muted'>None found</span>" }
+    $cost = if ($a.Pricing -and $a.Pricing.CurrentMonthly) { "`$$([math]::Round($a.Pricing.CurrentMonthly))$(if ($a.Pricing.TargetMonthly) { " &rarr; `$$([math]::Round($a.Pricing.TargetMonthly))" })" } else { "<span class='muted'>&ndash;</span>" }
+    $nextStep = "<span class='muted'>No action required</span>"
+    if ($a.Action -ne 'No Action Required') {
+        $nextStep = New-SpecLineHtml -Label 'Readiness' -Value (& $e $r.DeploymentReadiness) -Tone (Get-ToneClass $r.DeploymentReadiness)
+        $nextStep += New-SpecLineHtml -Label 'Confidence' -Value (& $e $r.Confidence) -Tone (Get-ToneClass $r.Confidence)
+    }
+    $optional = ''
+    if ($CheckModernization) {
+        $m = Get-ModernizationViewModel -Assessment $a
+        $mt = $s.ModernizationTarget
+        $modernCell = if ($s.AlreadyModern) { "<span class='tone-green'>Already v6/v7</span>" }
+        elseif ($s.ModernizationTargetSku -and $mt) {
+            $mRecord = if ($mt.PSObject.Properties.Name -contains 'Record') { $mt.Record } else { $null }
+            (New-SizeSpecHtml -SkuName $mt.SkuName -Vendor $mt.CpuVendor -Vcpu $mt.vCPUs -MemoryGb $mt.MemoryGB `
+                -Generation $(if ($mRecord) { $mRecord.HyperVGenerations }) -Controller $(if ($mRecord) { $mRecord.DiskControllerTypes })) +
+            (New-SpecLineHtml -Label 'Score' -Value (& $e $mt.Score))
+        }
+        else { "<span class='muted'>&ndash;</span>" }
+        $modernStatus = if ($s.ModernizationReadiness) { New-SpecLineHtml -Label 'Status' -Value (& $e $s.ModernizationReadiness) -Tone (Get-ToneClass $s.ModernizationReadiness) } else { '' }
+        $modernQuota = if ($s.ModernizationTargetSku -and $s.ModernizationQuotaStatus) { New-SpecLineHtml -Label 'Quota' -Value (& $e $s.ModernizationQuotaStatus) -Tone (Get-ToneClass $s.ModernizationQuotaStatus) } else { '' }
+        $blockers = if ($m.Blocker -and $m.Blocker -ne 'None') { "<div class='sub blocker-text'>$(& $e $m.Blocker)</div>" } else { '' }
+        $optional = "<td class='target-cell modernization-target-cell'>$modernCell$modernStatus$modernQuota</td><td class='path-cell'><div class='path-primary'>$(& $e $s.ModernizationPath)</div><div class='sub recommended-sequence'>$(& $e $s.RecommendedMigrationPath)</div>$blockers</td>"
+    }
+    "<tr class='vm-summary-row'><td>$link<div class='sub'>$(& $e $r.ResourceGroup) &middot; $(& $e $r.Region)$(if ($r.Zone) { " &middot; zone $(& $e $r.Zone)" }) &middot; $(& $e $r.PowerState)</div></td><td>$currentCell</td><td>$(New-Badge $r.LifecycleStage)<div class='sub'>$(& $e $r.EvidenceClass)</div>$retirement</td><td class='target-cell retirement-target-cell'>$retirementCell</td><td class='change-cell'>$(Get-MaterialChangeLinesHtml -Assessment $a)</td><td>$nextStep</td>$optional<td class='num nowrap'>$cost</td></tr>"
+}
+
+function New-VmTableHtml {
+    <# The single per-VM table. Required retirement columns always; optional v6/v7 columns only with --check-modernization. #>
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments, [switch]$CheckModernization, [hashtable]$DetailAnchors = @{})
+    $rows = @($Assessments | ForEach-Object { New-VmSummaryRowHtml -Assessment $_ -CheckModernization:$CheckModernization -DetailAnchors $DetailAnchors })
+    if ($rows.Count -eq 0) { return "<div class='callout ok'>No VMs in this subscription are on End of Life or retired sizes.</div>" }
+    $optionalGroup = if ($CheckModernization) { "<th colspan='2' class='group-head group-optional'>Optional &middot; v6/v7 modernization</th>" } else { '' }
+    $optionalHead = if ($CheckModernization) { '<th>Modernization target</th><th>Path and blockers</th>' } else { '' }
+    "<div class='table-wrap'><table class='vm-table'><thead><tr><th rowspan='2'>VM</th><th rowspan='2'>Current size</th><th colspan='4' class='group-head group-required'>Required &middot; retirement remediation</th>$optionalGroup<th rowspan='2' class='num'>PAYGO / month</th></tr><tr><th>Microsoft status</th><th>Retirement target</th><th>Material changes</th><th>Next step</th>$optionalHead</tr></thead><tbody>$($rows -join "`n")</tbody></table></div><p class='note'>Every VM is in <code>vm-assessment.csv</code>. Material changes list only differences that need attention; the full current-vs-target comparison is in each VM's details. Monthly cost is the public pay-as-you-go list price (730 h) for comparison only; your actual rates may differ.</p>"
+}
+
+function Get-ComparisonNote {
+    <# Combined note for one comparison row, labelling which target it applies to when both are shown. #>
+    param([Parameter(Mandatory)]$Row, [bool]$ShowRetirement, [bool]$ShowModernization)
+    $rn = if ($ShowRetirement) { [string]$Row.RetirementNote } else { '' }
+    $mn = if ($ShowModernization -or -not $ShowRetirement) { [string]$Row.ModernizationNote } else { '' }
+    $parts = New-Object System.Collections.Generic.List[string]
+    if ($ShowRetirement -and $ShowModernization) {
+        if ($rn -and $rn -eq $mn) { $parts.Add("Both targets: $rn") }
+        else {
+            if ($rn) { $parts.Add("Retirement target: $rn") }
+            if ($mn) { $parts.Add("Modernization target: $mn") }
+        }
+    }
+    else { foreach ($n in @($rn, $mn)) { if ($n) { $parts.Add($n) } } }
+    $parts -join '; '
+}
+
+function New-TargetComparisonMarkdown {
+    <# Attribute | Current | Retirement target | Modernization target | Note, from the same Strategy.TargetComparison model as the HTML card. Returns $null when there is nothing to compare. #>
+    param([Parameter(Mandatory)]$Strategy, [switch]$CheckModernization)
+    $rt = $Strategy.RetirementTarget
+    $mt = if ($CheckModernization -and -not $Strategy.AlreadyModern) { $Strategy.ModernizationTarget } else { $null }
+    $rows = @($Strategy.TargetComparison)
+    if ($rows.Count -eq 0 -or (-not $rt -and -not $mt)) { return $null }
+    $same = [bool]($rt -and $mt -and $rt.SkuName -eq $mt.SkuName)
+    $showRet = [bool]$rt
+    $showMod = [bool]($mt -and -not $same)
+    $retLabel = if ($same) { 'Retirement and modernization target' } else { 'Retirement target' }
+    $columns = @('Attribute', 'Current') + $(if ($showRet) { $retLabel }) + $(if ($showMod) { 'Modernization target' }) + 'Note'
+    $cell = { param($target, $change) if ($null -eq $target -or "$target" -eq '') { '' } elseif ($change) { "$target ($change)" } else { "$target" } }
+    $table = foreach ($row in $rows) {
+        $o = [ordered]@{ Attribute = $row.Attribute; Current = $row.Current }
+        if ($showRet) { $o[$retLabel] = & $cell $row.RetirementTarget $row.RetirementChange }
+        if ($showMod) { $o['Modernization target'] = & $cell $row.ModernizationTarget $row.ModernizationChange }
+        $o['Note'] = Get-ComparisonNote -Row $row -ShowRetirement $showRet -ShowModernization $showMod
+        [pscustomobject]$o
+    }
+    $targets = @(if ($showRet) { "${retLabel}: **$(ConvertTo-MarkdownText $rt.SkuName)**" }) + @(if ($showMod) { "Modernization target: **$(ConvertTo-MarkdownText $mt.SkuName)**" })
+    "$($targets -join ' | ')`n`n$(Format-MdTable -Rows @($table) -Columns $columns)"
+}
+
+function New-TargetComparisonHtml {
+    <# Attribute | Current | Retirement target | Modernization target, rendered from Strategy.TargetComparison. #>
+    param([Parameter(Mandatory)]$Strategy, [switch]$CheckModernization)
+    $e = { param($x) ConvertTo-HtmlEncoded $x }
+    $rt = $Strategy.RetirementTarget
+    $mt = if ($CheckModernization -and -not $Strategy.AlreadyModern) { $Strategy.ModernizationTarget } else { $null }
+    $rows = @($Strategy.TargetComparison)
+    if ($rows.Count -eq 0 -or (-not $rt -and -not $mt)) { return '' }
+    $same = [bool]($rt -and $mt -and $rt.SkuName -eq $mt.SkuName)
+    $showRet = [bool]$rt
+    $showMod = [bool]($mt -and -not $same)
+    $head = "<th>Attribute</th><th>Current</th>"
+    if ($showRet) { $head += "<th>$(if ($same) { 'Retirement and modernization target' } else { 'Retirement target' }) <code>$(& $e $rt.SkuName)</code></th>" }
+    if ($showMod) { $head += "<th>Modernization target <code>$(& $e $mt.SkuName)</code></th>" }
+    $head += '<th>Note</th>'
+    $body = foreach ($row in $rows) {
+        $cells = "<td>$(& $e $row.Attribute)</td><td>$(& $e $row.Current)</td>"
+        if ($showRet) { $cells += "<td>$(& $e $row.RetirementTarget) $(New-Badge $row.RetirementChange)</td>" }
+        if ($showMod) { $cells += "<td>$(& $e $row.ModernizationTarget) $(New-Badge $row.ModernizationChange)</td>" }
+        "<tr>$cells<td>$(& $e (Get-ComparisonNote -Row $row -ShowRetirement $showRet -ShowModernization $showMod))</td></tr>"
+    }
+    "<h3>Current vs target size</h3><div class='table-wrap compact'><table class='comparison-table'><thead><tr>$head</tr></thead><tbody>$($body -join '')</tbody></table></div>"
+}
+
+function New-GateComparisonHtml {
+    <# One compatibility-gate table with a result column per target. Detail is shown once unless the targets differ. #>
+    param($RetirementTarget, $ModernizationTarget)
+    $e = { param($x) ConvertTo-HtmlEncoded $x }
+    $ret = @(if ($RetirementTarget) { $RetirementTarget.Gates })
+    $mod = @(if ($ModernizationTarget) { $ModernizationTarget.Gates })
+    if ($RetirementTarget -and $ModernizationTarget -and $RetirementTarget.SkuName -eq $ModernizationTarget.SkuName) { $mod = @() }
+    if ($ret.Count -eq 0 -and $mod.Count -eq 0) { return '' }
+    $names = New-Object System.Collections.Generic.List[string]
+    foreach ($g in @($ret) + @($mod)) { if (-not $names.Contains([string]$g.Gate)) { $names.Add([string]$g.Gate) } }
+    $head = '<th>Check</th>'
+    if ($ret.Count) { $head += "<th>$(if ($mod.Count) { 'Retirement target' } else { 'Result' })$(if ($mod.Count) { " <code>$(& $e $RetirementTarget.SkuName)</code>" })</th>" }
+    if ($mod.Count) { $head += "<th>$(if ($ret.Count) { 'Modernization target' } else { 'Result' }) <code>$(& $e $ModernizationTarget.SkuName)</code></th>" }
+    $head += '<th>Detail</th>'
+    $body = foreach ($name in $names) {
+        $r = $ret | Where-Object Gate -eq $name | Select-Object -First 1
+        $m = $mod | Where-Object Gate -eq $name | Select-Object -First 1
+        $bothPass = $r -and $m -and $r.Result -eq 'Pass' -and $m.Result -eq 'Pass'
+        $detail = if ($r -and $m -and -not $bothPass -and $r.Detail -ne $m.Detail) { "<strong>Retirement target:</strong> $(& $e $r.Detail)<br><strong>Modernization target:</strong> $(& $e $m.Detail)" }
+        elseif ($r) { & $e $r.Detail }
+        else { & $e $m.Detail }
+        $cells = "<td>$(& $e $name)</td>"
+        if ($ret.Count) { $cells += "<td>$(if ($r) { New-Badge $r.Result } else { "<span class='muted'>&ndash;</span>" })</td>" }
+        if ($mod.Count) { $cells += "<td>$(if ($m) { New-Badge $m.Result } else { "<span class='muted'>&ndash;</span>" })</td>" }
+        "<tr>$cells<td>$detail</td></tr>"
+    }
+    "<h3>Mandatory requirement checks</h3><div class='table-wrap'><table><thead><tr>$head</tr></thead><tbody>$($body -join '')</tbody></table></div>"
+}
+
+function New-VmDetailHtml {
+    <# One expandable card per VM: evidence, targets and path, comparison, quota, validation, gates and sizes evaluated. #>
+    param([Parameter(Mandatory)]$Assessment, [switch]$CheckModernization, [switch]$ExtendedDetails)
+    $e = { param($x) ConvertTo-HtmlEncoded $x }
+    $a = $Assessment
+    $s = if ($a.Strategy) { $a.Strategy } else { Get-TargetStrategy -Assessment $a }
+    $p = $a.Candidates.Primary; $sc = $a.Candidates.Secondary
+    $rt = $s.RetirementTarget
+    $mt = if ($CheckModernization -and -not $s.AlreadyModern) { $s.ModernizationTarget } else { $null }
+    $parts = if ($CheckModernization) { Get-ModernizationDetailParts -Model (Get-ModernizationViewModel -Assessment $a) } else { $null }
+    $confidenceExplanation = Get-ConfidenceTooltip $a.Confidence
+    $confidenceBody = if (@($a.Confidence.LowReasons).Count -or @($a.Confidence.ValidationItems).Count) { "Confidence in the recommended size: $($a.Confidence.Level). The items to validate first are listed under To validate before resizing." } else { $confidenceExplanation }
+    $readinessExplanation = "Readiness of the recommended size: $($a.Readiness)."
+    if ($script:ReadinessMeaning.Contains([string]$a.Readiness)) { $readinessExplanation += " $($script:ReadinessMeaning[[string]$a.Readiness].Long)" }
+    $stage = Get-LifecycleStage -Lifecycle $a.Lifecycle
+    $facts = [ordered]@{
+        'Microsoft status' = "$(New-Badge $stage) $(New-Badge $a.Lifecycle.EvidenceClass) $(& $e $a.Lifecycle.LearnSeriesName) $(if ($a.Lifecycle.RetirementDate) { "&middot; retires <strong>$($a.Lifecycle.RetirementDate)</strong>" })$(if ($a.Lifecycle.SourceUrl) { " &middot; <a href='$(& $e $a.Lifecycle.SourceUrl)' target='_blank'>source</a>" })$(if ($stage -eq 'End of Life') { " &middot; $(New-LearnLink 'EndOfLifeList' 'End of Life list')" })"
+        'Action' = "$(New-Badge $a.Action) &middot; next step: <strong>$(& $e $a.NextStep)</strong> &middot; $(New-Badge $a.Wave)"
+        'Recommended size' = if ($p) { "<code>$(& $e $p.SkuName)</code> &middot; $(New-Badge $p.CpuVendor) $($p.vCPUs) vCPU &middot; $($p.MemoryGB) GB &middot; score <strong>$($p.Score)</strong> ($(& $e $p.Band))" } else { "<span class='muted'>$(& $e $a.Candidates.NoCandidateReason)</span>" }
+    }
+    if ($CheckModernization) {
+        $facts['Retirement target'] = if ($rt) { "<code>$(& $e $rt.SkuName)</code> &middot; v$($rt.Generation) &middot; quota $(New-Badge $s.RetirementQuotaStatus)" } elseif ($s.RetirementRequired -or $s.RetirementUnconfirmed) { "<span class='muted'>No validated retirement target</span>" } else { "<span class='muted'>Not required</span>" }
+        $facts['Modernization target'] = if ($s.AlreadyModern) { "<span class='muted'>Already on a v6/v7 generation</span>" } elseif ($mt) { "<code>$(& $e $mt.SkuName)</code> &middot; v$($mt.Generation) &middot; $(New-Badge $s.ModernizationReadiness) &middot; $(& $e $s.ModernizationPath)" } else { "<span class='muted'>No validated v6/v7 target</span>" }
+        if ($s.RecommendedMigrationPath) { $facts['Recommended path'] = & $e $s.RecommendedMigrationPath }
+        if ($a.Modernization -and $a.Modernization.Reason -and $s.ModernizationTargetSource -notin 'Selected', 'Primary' -and -not $s.AlreadyModern) { $facts['Why not a direct v6/v7 move'] = & $e $a.Modernization.Reason }
+    }
+    $facts['Alternative'] = if ($sc) { "<code>$(& $e $sc.SkuName)</code> (score $($sc.Score)) &middot; $(& $e $a.SecondaryReason)" } else { "<span class='muted'>None in the permitted series</span>" }
+    if (-not $CheckModernization) {
+        $facts['Newer if converted'] = if ($a.Candidates.FutureGeneration) {
+            $fg = @($a.Candidates.FutureGeneration.FailedGates)
+            $docs = @(if ($fg -contains 'Disk Controller') { New-LearnLink 'NvmeConvert' 'SCSI to NVMe conversion' }; if ($fg -contains 'VM Generation') { New-LearnLink 'Gen1TrustedLaunch' 'Gen1 to Trusted launch upgrade' })
+            "<code>$(& $e $a.Candidates.FutureGeneration.SkuName)</code> &middot; requires $(& $e ($fg -join ', ')) conversion$(if ($docs.Count) { " &middot; " + ($docs -join ' &middot; ') })"
+        } else { "<span class='muted'>&ndash;</span>" }
+    }
+    $facts['Quota'] = "$(New-Badge $a.QuotaStatus)$(if ($a.Quota -and $a.Quota.Family.Limit) { " &middot; $(& $e $a.Quota.Family.QuotaDisplayName): $($a.Quota.Family.CurrentUsage) / $($a.Quota.Family.Limit) used, needs $($a.Quota.Family.RequiredVcpu)" })"
+    if ($parts -and $mt) { $facts['Modernization quota'] = "$(New-Badge $s.ModernizationQuotaStatus) / $(New-Badge $s.ModernizationPeakQuotaStatus) (steady / peak) &middot; $($parts.QuotaText) $(& $e $parts.QuotaModel)." }
+    $facts['Candidate series'] = & $e $a.Candidates.PermittedSeries
+    if ($a.Candidates.VendorChangeRequired) { $facts['CPU vendor change'] = & $e $a.Candidates.VendorChangeReason }
+    if ($a.Rightsizing) { $facts['Rightsizing'] = "$(New-Badge $a.Rightsizing.Status) $(& $e $a.Rightsizing.Note)" }
+    $factsHtml = if ($ExtendedDetails) { '<dl class="facts">' + (($facts.Keys | ForEach-Object { "<dt>$(& $e $_)</dt><dd>$($facts[$_])</dd>" }) -join '') + '</dl>' } else { '' }
+    $validation = @(@($a.ValidationItems) + @($s.ValidationItems) + @($a.Confidence.LowReasons | ForEach-Object { "Low confidence: $_" }) + @($a.Lifecycle.Notes) | Where-Object { $_ } | Select-Object -Unique)
+    $notes = ($validation | ForEach-Object { "<li>$(& $e $_)</li>" }) -join ''
+    $actions = if ($parts) { "<div class='callout info'><h3>Blockers and required changes</h3><ul>$($parts.Blockers -join '')</ul><h4>Recommended remediation</h4><ol>$($parts.Remediation -join '')</ol></div>" } else { '' }
+    $comparison = New-TargetComparisonHtml -Strategy $s -CheckModernization:$CheckModernization
+    $gates = if ($ExtendedDetails) { New-GateComparisonHtml -RetirementTarget $(if ($rt) { $rt } else { $p }) -ModernizationTarget $mt } else { '' }
+    $roleBySku = @{}
+    foreach ($pair in @(@('Primary', $p), @('Secondary', $sc), @('Third', $a.Candidates.Third))) { if ($pair[1] -and -not $roleBySku.ContainsKey([string]$pair[1].SkuName)) { $roleBySku[[string]$pair[1].SkuName] = $pair[0] } }
+    $allCands = @($a.Candidates.Candidates)
+    $shownCands = @(if ($ExtendedDetails) { $allCands } else { $allCands | Where-Object { $roleBySku.ContainsKey([string]$_.SkuName) } })
+    $hiddenCands = $allCands.Count - $shownCands.Count
+    $cands = ($shownCands | ForEach-Object {
+        $role = if ($roleBySku.ContainsKey([string]$_.SkuName)) { New-Badge 'Info' $roleBySku[[string]$_.SkuName] } else { "<span class='muted'>&ndash;</span>" }
+        "<tr><td>$role</td><td><code>$(& $e $_.SkuName)</code></td><td>$(New-Badge $_.CpuVendor)</td><td class='num'>v$($_.Generation)</td><td class='num'>$($_.vCPUs) / $($_.MemoryGB)</td><td class='num'><strong>$($_.Score)</strong></td><td>$(New-Badge $_.Availability)</td><td>$(& $e $(if ($_.Rejected) { 'Rejected: ' + $_.RejectionReason } elseif (@($_.ReviewGates).Count) { 'Review: ' + ($_.ReviewGates -join ', ') } else { $_.Variant }))</td></tr>"
+    }) -join ''
+    $candsHeading = if ($ExtendedDetails) { 'Sizes evaluated' } else { 'Recommended sizes' }
+    $candsNote = if ($hiddenCands -gt 0) { "<p class='note'>$hiddenCands more evaluated $(if ($hiddenCands -eq 1) { 'size is' } else { 'sizes are' }) shown when the report is generated with <code>-ExtendedDetails</code>.</p>" } else { '' }
+    $explanations = if ($ExtendedDetails) { "<h3>Assessment explanations</h3>`n<dl class=`"facts`"><dt>Confidence: $(& $e $a.Confidence.Level)</dt><dd class=`"assessment-explanation`">$(& $e $confidenceBody)</dd><dt>Readiness: $(& $e $a.Readiness)</dt><dd class=`"assessment-explanation`">$(& $e $readinessExplanation)</dd></dl>" } else { '' }
+    $first = if ($rt) { $rt.SkuName } elseif ($p) { $p.SkuName } else { 'no recommendation' }
+    $move = "<code>$(& $e $a.Vm.SkuName)</code> <span class='move-arrow'>&rarr;</span> <code>$(& $e $first)</code>$(if ($mt -and $mt.SkuName -ne $first) { " <span class='move-arrow'>&rarr;</span> <code>$(& $e $mt.SkuName)</code>" })"
+    $modernBadge = if ($CheckModernization -and $s.ModernizationReadiness) { " $(New-Badge $s.ModernizationReadiness -Label "Modernization: $($s.ModernizationReadiness)" -Title "Path: $($s.ModernizationPath). $($s.RecommendedMigrationPath)")" } else { '' }
     @"
-<div class='table-wrap'><table class='quota-table quota-impact-table'><thead><tr><th>Region</th><th>Quota</th><th class='num'>VMs</th><th class='num'>Used / limit</th><th class='num'>Steady-state demand</th><th class='num'>Peak migration demand</th><th class='num'>Steady min. increase</th><th class='num'>Peak min. increase</th><th class='num'>Peak recommended request</th><th>Planning model</th><th>Peak status</th></tr></thead><tbody>$($html -join "`n")</tbody></table></div>
-<div class='quota-impact-note'><strong>Peak planning model:</strong> resizes and SCSI to NVMe conversions are modeled in place. Gen1 to Gen2 (Trusted launch upgrade) and redeploy paths are conservatively modeled as side-by-side, so the target capacity is added while the source still exists. These are planning estimates from <code>quota-impact.csv</code> scope <em>Modernization</em>; validate the final migration method and Azure capacity before execution.</div>
+<details class="vm" id="$(Get-VmAnchorId $a.Vm)"><summary><span class="vm-name">$(& $e $a.Vm.Name)</span><span class="vm-move">$move</span><span class="vm-badges">$(New-Badge $a.Confidence.Level -Label "Confidence: $($a.Confidence.Level)" -Title $confidenceExplanation) $(New-Badge $a.Readiness -Label "Readiness: $($a.Readiness)" -Title $readinessExplanation)$modernBadge</span></summary>
+<div class="vm-body">
+$explanations
+$factsHtml
+$actions
+$(if ($notes) { "<div class='callout info'><h3>To validate before resizing</h3><ul>$notes</ul></div>" })
+$comparison
+$gates
+<h3>$candsHeading</h3>$(if ($cands) { "<div class='table-wrap'><table><thead><tr><th>Role</th><th>Size</th><th>CPU</th><th class='num'>Gen</th><th class='num'>vCPU / GB</th><th class='num'>Score</th><th>Availability</th><th>Notes</th></tr></thead><tbody>$cands</tbody></table></div>$candsNote" } else { "<p class='note'>No current-generation size in the permitted series is offered in this region for this subscription. Review Microsoft's migration guidance for this series manually.</p>" })
+</div></details>
 "@
 }
-function New-ModernizationDetailRowHtml {
-    param([Parameter(Mandatory)]$Model, [int]$ColSpan = 9)
+
+function Get-ModernizationDetailParts {
+    <# Blockers, remediation steps and quota text for the modernization target of one VM. Rendered inside the VM detail card. #>
+    param([Parameter(Mandatory)]$Model)
     $e = { param($x) ConvertTo-HtmlEncoded $x }
     $a = $Model.Assessment
     $p = $Model.Target
-
-    $currentFacts = [ordered]@{
-        'VM' = $Model.VmName
-        'Resource group' = $Model.ResourceGroup
-        'Region' = $Model.Region
-        'Current SKU' = $Model.CurrentSku
-        'VM generation' = $(if ($Model.CurrentGeneration) { $Model.CurrentGeneration } else { 'Unknown' })
-        'Disk controller' = $(if ($Model.CurrentController) { $Model.CurrentController } else { 'Unknown' })
-        'CPU vendor' = $(if ($a.Current -and $a.Current.Vendor) { $a.Current.Vendor } else { 'Unknown' })
-        'vCPU / memory' = "$(if ($a.Current) { $a.Current.vCPUs } else { '?' }) vCPU / $(if ($a.Current) { $a.Current.MemoryGB } else { '?' }) GB"
-        'Temp / local disk' = $(if ($a.Current -and $null -ne $a.Current.TempDiskGB) { "$($a.Current.TempDiskGB) GB" } else { 'Unknown' })
-        'Power state' = $(if ($a.Vm.PowerState) { $a.Vm.PowerState } else { 'Unknown' })
-    }
-    $currentHtml = ($currentFacts.Keys | ForEach-Object { "<dt>$(& $e $_)</dt><dd>$(& $e $currentFacts[$_])</dd>" }) -join ''
-
-    $targetFacts = [ordered]@{
-        'Retirement required' = $(if ($Model.RetirementRequired) { 'Yes' } elseif ($Model.RetirementUnconfirmed) { 'Unconfirmed - validate lifecycle' } else { 'No' })
-        'Retirement target' = $(if ($Model.RetirementTargetSku) { $Model.RetirementTargetSku } elseif ($Model.RetirementRequired -or $Model.RetirementUnconfirmed) { 'No validated retirement target' } else { 'Not required' })
-        'Retirement target generation' = $(if ($Model.RetirementTargetGeneration) { "v$($Model.RetirementTargetGeneration)" } else { 'N/A' })
-        'Retirement target quota' = $(if ($Model.RetirementQuotaStatus) { $Model.RetirementQuotaStatus } else { 'N/A' })
-        'Modernization target' = $(if ($Model.ModernizationTargetSku) { $Model.ModernizationTargetSku } else { 'No validated v6/v7 target' })
-        'Modernization generation' = $(if ($Model.ModernizationTargetGeneration) { "v$($Model.ModernizationTargetGeneration)" } else { 'Unknown' })
-        'Modern target family' = $(if ($p -and $p.Family) { $p.Family } else { 'Unknown' })
-        'Modern target CPU vendor' = $(if ($p -and $p.CpuVendor) { $p.CpuVendor } else { 'Unknown' })
-        'Modern target vCPU / memory' = $(if ($p) { "$($p.vCPUs) vCPU / $($p.MemoryGB) GB" } else { 'N/A' })
-        'Modernization method' = $Model.Path
-        'Recommended path' = $Model.RecommendedPath
-        'Status' = $Model.Status
-        'Modernization quota (steady / peak)' = $(if ($Model.QuotaStatus) { "$($Model.QuotaStatus) / $($Model.PeakQuotaStatus)" } else { 'N/A' })
-    }
-    $targetHtml = ($targetFacts.Keys | ForEach-Object { "<dt>$(& $e $_)</dt><dd>$(& $e $targetFacts[$_])</dd>" }) -join ''
 
     $s = $Model.Strategy
     $blockerItems = New-Object System.Collections.Generic.List[string]
@@ -791,121 +1118,12 @@ function New-ModernizationDetailRowHtml {
     else { '<span class="muted">No modernization target; no modernization quota demand.</span>' }
     $quotaModel = switch ($Model.MigrationQuotaModel) { 'SideBySide' { 'Side-by-side: target capacity is needed while the source still exists' } 'InPlace' { 'In-place resize' } default { 'Not applicable' } }
 
-    $validationItems = @(@($a.ValidationItems) + @($Model.ValidationItems) | Where-Object { $_ })
-    $validationHtml = if ($validationItems.Count) { (@($validationItems | Select-Object -Unique | ForEach-Object { "<li>$(& $e $_)</li>" }) -join '') } else { '<li>Standard post-resize application and infrastructure validation.</li>' }
-
-    $diff = if ($p -and $p.Differences) { (@($p.Differences) | ForEach-Object { "<tr><td>$(& $e $_.Attribute)</td><td>$(& $e $_.Current)</td><td>$(& $e $_.Target)</td><td>$(New-Badge $_.Assessment)</td><td>$(& $e $_.Note)</td></tr>" }) -join '' } else { '' }
-    $gates = if ($p -and $p.Gates) { (@($p.Gates) | ForEach-Object { "<tr><td>$(& $e $_.Gate)</td><td>$(New-Badge $_.Result)</td><td>$(& $e $_.Detail)</td></tr>" }) -join '' } else { '' }
-    $candidateRows = if ($a.Candidates -and $a.Candidates.Candidates) { (@($a.Candidates.Candidates) | Select-Object -First 6 | ForEach-Object { "<tr><td>$(if ($_.Role -and $_.Role -ne 'Candidate') { New-Badge 'Info' $_.Role } else { '<span class=''muted''>&ndash;</span>' })</td><td><code>$(& $e $_.SkuName)</code></td><td>$(& $e $_.CpuVendor)</td><td class='num'>v$($_.Generation)</td><td class='num'>$($_.vCPUs) / $($_.MemoryGB)</td><td class='num'>$($_.Score)</td><td>$(New-Badge $_.Availability)</td><td>$(& $e $(if ($_.Rejected) { 'Rejected: ' + $_.RejectionReason } elseif (@($_.ReviewGates).Count) { 'Review: ' + ($_.ReviewGates -join ', ') } else { $_.Variant }))</td></tr>" }) -join '' } else { '' }
-
-    $anchor = 'modernization-' + (Get-VmAnchorId $a.Vm)
-    @"
-<tr class='modernization-detail-row'><td colspan='$ColSpan'>
-<details class='modernization-vm-detail' id='$anchor'>
-<summary><span>Extended VM details</span><span class='detail-summary-meta'>$(& $e $Model.VmName) &middot; $(& $e $Model.Path)</span></summary>
-<div class='modernization-vm-detail-body'>
-  <div class='vm-detail-grid'>
-    <div class='vm-detail-card'><h4>Current VM</h4><dl class='facts compact-facts'>$currentHtml</dl></div>
-    <div class='vm-detail-card target-strategy-card'><h4>Retirement &amp; Modernization Strategy</h4><dl class='facts compact-facts'>$targetHtml</dl></div>
-    <div class='vm-detail-card'><h4>Blockers &amp; Required Changes</h4><ul>$($blockerItems -join '')</ul><h5>Recommended remediation</h5><ol>$($remediation -join '')</ol></div>
-    <div class='vm-detail-card'><h4>Quota &amp; Migration Capacity</h4><p>$quotaText</p><p><strong>Planning model:</strong> $(& $e $quotaModel)</p><p class='note'>Use the subscription-level quota impact table for aggregated steady-state and peak demand.</p></div>
-  </div>
-  <div class='vm-detail-wide'><h4>Validation Checklist</h4><ul class='validation-grid'>$validationHtml</ul></div>
-  $(if ($diff) { "<div class='vm-detail-wide'><h4>Current vs Modern Target</h4><div class='table-wrap'><table class='detail-table'><thead><tr><th>Attribute</th><th>Current</th><th>Target</th><th>Assessment</th><th>Note</th></tr></thead><tbody>$diff</tbody></table></div></div>" })
-  $(if ($gates) { "<div class='vm-detail-wide'><h4>Mandatory Compatibility Gates</h4><div class='table-wrap'><table class='detail-table'><thead><tr><th>Gate</th><th>Result</th><th>Detail</th></tr></thead><tbody>$gates</tbody></table></div></div>" })
-  $(if ($candidateRows) { "<div class='vm-detail-wide'><h4>Top Evaluated Alternatives</h4><div class='table-wrap'><table class='detail-table'><thead><tr><th>Role</th><th>SKU</th><th>CPU</th><th class='num'>Gen</th><th class='num'>vCPU / GB</th><th class='num'>Score</th><th>Availability</th><th>Notes</th></tr></thead><tbody>$candidateRows</tbody></table></div></div>" })
-</div>
-</details>
-</td></tr>
-"@
+    [pscustomobject]@{ Blockers = $blockerItems.ToArray(); Remediation = $remediation.ToArray(); QuotaText = $quotaText; QuotaModel = $quotaModel }
 }
-
-function New-ModernizationSectionHtml {
-    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments, [AllowEmptyCollection()][object[]]$QuotaRows, [int]$MaxDetails = 0)
-    $e = { param($x) ConvertTo-HtmlEncoded $x }
-    $models = @($Assessments | ForEach-Object { Get-ModernizationViewModel -Assessment $_ })
-    $detailCount = 0
-    if ($models.Count -eq 0) { return "<div class='callout ok'>No VMs in this subscription are on End of Life or retired sizes.</div>" }
-
-    $direct = @($models | Where-Object { $_.Path -eq 'Direct Resize' -and $_.Status -eq 'Ready' })
-    $nvme = @($models | Where-Object RequiresNvmeConversion)
-    $gen1 = @($models | Where-Object RequiresGenerationModernization)
-    $quota = @($models | Where-Object QuotaStatus -eq 'Quota Increase Required')
-    $redeploy = @($models | Where-Object RedeployReview)
-    $manual = @($models | Where-Object Status -eq 'Manual Review')
-    $modern = @($models | Where-Object AlreadyModern)
-
-    $kpis = @(
-        (New-Kpi $direct.Count 'Direct resize ready' 'green' 'No conversion blocker found')
-        (New-Kpi $nvme.Count 'NVMe conversion' 'yellow' 'SCSI / controller remediation')
-        (New-Kpi $gen1.Count 'Gen1 modernization' 'orange' 'Gen2-capable path required')
-        (New-Kpi $quota.Count 'Quota increase' 'purple' 'Target-family or regional')
-        (New-Kpi $redeploy.Count 'Redeploy / rebuild review' 'red' 'Gen1 upgrade not supported for the guest OS')
-        (New-Kpi $manual.Count 'Manual validation' 'grey' 'No validated target or quota unverified')
-        (New-Kpi $modern.Count 'Already v6/v7' 'blue' 'No modernization required')
-    ) -join ''
-
-    $tableRows = foreach ($m in ($models | Where-Object { -not $_.AlreadyModern } | Sort-Object @{ e = { switch ($_.Status) { 'Quota Increase' { 0 } 'Redeploy Review' { 1 } 'Convertible' { 2 } 'Manual Review' { 3 } 'Ready' { 4 } default { 5 } } } }, VmName)) {
-        $retirementTarget = if ($m.RetirementTargetSku) { "<code>$(& $e $m.RetirementTargetSku)</code>$(if ($m.RetirementTargetGeneration) { "<div class='sub'>v$($m.RetirementTargetGeneration) &middot; retirement</div>" })" } elseif ($m.RetirementUnconfirmed) { "<span class='badge b-yellow'>Unconfirmed</span>" } elseif (-not $m.RetirementRequired) { "<span class='badge b-green'>Not required</span>" } else { "<span class='muted'>No validated target</span>" }
-        $target = if ($m.ModernizationTargetSku) { "<code>$(& $e $m.ModernizationTargetSku)</code>$(if ($m.ModernizationTargetGeneration) { "<div class='sub'>v$($m.ModernizationTargetGeneration) &middot; strategic</div>" })" } else { "<span class='muted'>&ndash;</span>" }
-        $currentGen = if ($m.CurrentGeneration) { $m.CurrentGeneration } else { 'Unknown' }
-        $controller = if ($m.CurrentController) { $m.CurrentController } else { 'Unknown' }
-        $summaryRow = "<tr class='modernization-summary-row'><td><strong>$(& $e $m.VmName)</strong><div class='sub'>$(& $e $m.ResourceGroup) &middot; $(& $e $m.Region)</div></td><td><code>$(& $e $m.CurrentSku)</code></td><td><div class='inline-meta'><span>$(& $e $currentGen)</span><span class='muted'>&middot;</span><span>$(& $e $controller)</span></div></td><td class='target-cell retirement-target-cell'>$retirementTarget</td><td class='target-cell modernization-target-cell'>$target</td><td class='path-cell'><div class='path-primary'>$(& $e $m.Path)</div><div class='sub recommended-sequence'>$(& $e $m.RecommendedPath)</div></td><td class='blocker-cell'>$(& $e $m.Blocker)</td><td>$(New-Badge $m.QuotaStatus)</td><td class='status-cell'>$(New-Badge $m.Status)</td></tr>"
-        $summaryRow
-        $detailCount++
-        if ($MaxDetails -le 0 -or $detailCount -le $MaxDetails) { New-ModernizationDetailRowHtml -Model $m -ColSpan 9 }
-    }
-    $table = "<div class='target-legend'><span><strong>Retirement target</strong> = supported move required to remediate an affected/EOL SKU.</span><span><strong>Modernization target</strong> = strategic v6/v7 destination when <code>-CheckModernization</code> is enabled.</span></div><div class='table-wrap'><table class='modernization-table'><thead><tr><th>VM</th><th>Current SKU</th><th>Gen / controller</th><th>Retirement target</th><th>Modernization target</th><th>Recommended path</th><th>Key blocker / validation</th><th>Quota</th><th>Status</th></tr></thead><tbody>$($tableRows -join "`n")</tbody></table></div><p class='note'>The two targets can be the same. When they differ, the report explicitly shows whether v5 is an immediate retirement landing zone and v6/v7 is the longer-term modernization destination. A modern target can still be shown when direct resize is blocked by convertible VM generation and/or disk-controller requirements.</p>"
-    if ($MaxDetails -gt 0 -and $detailCount -gt $MaxDetails) { $table += "<p class='note'>Extended details are shown for the first $MaxDetails VMs; every VM remains in the table above, <code>vm-assessment.csv</code> and <code>assessment.json</code>.</p>" }
-
-    $groups = @(
-        (New-ActionGroupHtml -Title 'Ready for Direct Resize' -Models $direct -Tone 'green')
-        (New-ActionGroupHtml -Title 'SCSI -> NVMe Required' -Models $nvme -Tone 'yellow')
-        (New-ActionGroupHtml -Title 'Gen1 Modernization Required' -Models $gen1 -Tone 'orange')
-        (New-ActionGroupHtml -Title 'Redeploy / Rebuild Review' -Models $redeploy -Tone 'red')
-        (New-ActionGroupHtml -Title 'Quota Increase Required' -Models $quota -Tone 'purple')
-        (New-ActionGroupHtml -Title 'Manual Review Required' -Models $manual -Tone 'grey')
-    ) -join ''
-
-    $guidance = New-Object System.Collections.Generic.List[string]
-    if ($nvme.Count) { $guidance.Add("<div class='guidance-item'><strong>SCSI to NVMe conversion</strong><span>Validate guest NVMe driver support, backup/rollback, boot and disk visibility before moving to an NVMe-only v6/v7 target. The report does not claim guest readiness from control-plane data. See $(New-LearnLink 'NvmeConvert'), $(New-LearnLink 'NvmeInPlace'), $(New-LearnLink 'NvmeOsImages') and $(New-LearnLink 'NvmeFaq').</span></div>") }
-    if ($gen1.Count) { $guidance.Add("<div class='guidance-item'><strong>Gen1 to Gen2 (Trusted launch upgrade)</strong><span>Gen1 VMs cannot resize to Gen2-only sizes. Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for supported OS versions and sizes (not Windows Server 2016, Debian or Azure Linux); otherwise redeploy. See <a href='https://learn.microsoft.com/azure/virtual-machines/trusted-launch-existing-vm-gen-1'>Upgrade Gen1 VMs to Trusted launch</a>.</span></div>") }
-    if ($quota.Count) { $guidance.Add("<div class='guidance-item'><strong>Quota planning</strong><span>Request target-family and/or regional vCPU quota before the migration window. Use peak demand when the chosen path requires source and target capacity to coexist.</span></div>") }
-    if (@($models | Where-Object { @($_.ValidationItems | Where-Object { $_ -like 'Temporary disk:*' }).Count -gt 0 }).Count) { $guidance.Add("<div class='guidance-item'><strong>Temporary / local disk</strong><span>Confirm whether the workload depends on ephemeral local storage. Preserve an appropriate <code>d</code> variant where local temp disk capability is required. See $(New-LearnLink 'NoTempDisk').</span></div>") }
-    if (@($models | Where-Object { @($_.ValidationItems | Where-Object { $_ -like 'MANA networking:*' }).Count -gt 0 }).Count) { $guidance.Add("<div class='guidance-item'><strong>MANA / guest validation</strong><span>Accelerated Networking does not by itself prove guest MANA readiness. Validate guest drivers, networking, backup, monitoring and application health after modernization. See $(New-LearnLink 'Mana').</span></div>") }
-    if ($guidance.Count -eq 0) { $guidance.Add("<div class='guidance-item'><strong>No additional remediation guidance</strong><span>No conversion-specific modernization blockers were detected from the available Azure control-plane data.</span></div>") }
-
-    $examples = New-Object System.Collections.Generic.List[string]
-    foreach ($path in @('Direct Resize','SCSI to NVMe + Resize','Gen1 + NVMe + Resize','Gen1 Modernization + Resize','Redeploy / Rebuild Review')) {
-        $m = @($models | Where-Object Path -eq $path | Select-Object -First 1)
-        if ($m.Count -eq 0) { continue }
-        $x = $m[0]
-        $step = switch ($path) { 'Direct Resize' { 'Resize' } 'SCSI to NVMe + Resize' { 'Convert to NVMe' } 'Gen1 + NVMe + Resize' { 'Gen2 + NVMe' } 'Gen1 Modernization + Resize' { 'Trusted launch (Gen2)' } default { 'New Gen2 VM' } }
-        $targetNode = if ($x.TargetSku) { $x.TargetSku } else { 'Select validated v6/v7 target' }
-        $examples.Add("<div class='migration-path'><span class='migration-path-name'>$(& $e $path)</span><span class='migration-node'>$(& $e $x.CurrentSku)</span><span class='migration-arrow'>&rarr; $(& $e $step) &rarr;</span><span class='migration-node'>$(& $e $targetNode)</span></div>")
-    }
-    if ($examples.Count -eq 0) { $examples.Add("<div class='migration-path'><span class='migration-path-name'>No migration example required</span><span class='migration-node'>Current environment</span><span class='migration-arrow'>&rarr;</span><span class='migration-node'>Already modern / no target identified</span></div>") }
-
-    $quotaHtml = New-ModernizationQuotaImpactHtml -QuotaRows $QuotaRows
-    @"
-<div class='kpis modernization-kpis'>$kpis</div>
-<div class='modernization-subheading'><h3>VM Modernization Assessment</h3><span class='note'>Actionable target, path, blocker, quota and validation view.</span></div>
-$table
-<div class='modernization-subheading'><h3>Action Groups</h3><span class='note'>VMs grouped by the work required before migration.</span></div>
-<div class='action-groups'>$groups</div>
-<div class='modernization-subheading'><h3>Quota Impact: Steady State vs Peak Migration</h3><span class='note'>From quota-impact.csv scope Modernization; peak assumes side-by-side capacity for Gen1/redeploy paths.</span></div>
-$quotaHtml
-<div class='modernization-panels'>
-  <div class='modernization-panel'><h3>Contextual Modernization Guidance</h3><div class='modernization-panel-body'><div class='guidance-list'>$($guidance -join '')</div></div></div>
-  <div class='modernization-panel'><h3>Migration Path Examples</h3><div class='modernization-panel-body'><div class='migration-paths'>$($examples -join '')</div></div></div>
-</div>
-"@
-}
-
 
 function Get-BottomLine {
-    <# Plain-language summary sentences for the top of a page. #>
-    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments)
+    <# Plain-language summary sentences for the top of a page. -TenantView points quota readers to the subscription reports, which hold the quota table. #>
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments, [switch]$TenantView)
     $out = New-Object System.Collections.Generic.List[string]
     $retiring = @($Assessments | Where-Object { $_.AffectedByRetirement -eq 'Yes' })
     $retired = @($retiring | Where-Object { $_.Lifecycle.EvidenceClass -eq 'Already Retired' })
@@ -922,7 +1140,7 @@ function Get-BottomLine {
     if ($modern.Count) { $out.Add("$($modern.Count) VM(s) run on an older generation that is <em>not</em> retiring; upgrading is optional (Wave 4).") }
     if ($unknown.Count) { $out.Add("$($unknown.Count) VM(s) could not be matched to Microsoft lifecycle data and need manual confirmation.") }
     $quota = @($Assessments | Where-Object QuotaStatus -eq 'Quota Increase Required')
-    if ($quota.Count) { $out.Add("$($quota.Count) recommended move(s) need a vCPU quota increase first (see Quota actions).") }
+    if ($quota.Count) { $out.Add("$($quota.Count) recommended move(s) need a vCPU quota increase first ($(if ($TenantView) { 'see Quota Actions in the subscription reports' } else { 'see Quota Actions' })).") }
     $ready = @($Assessments | Where-Object { $_.Readiness -eq 'Ready' -and $_.Action -ne 'No Action Required' })
     if ($ready.Count) { $out.Add("$($ready.Count) recommended move(s) are ready to schedule, subject to the listed validation items.") }
     return $out.ToArray()
@@ -1042,7 +1260,7 @@ $($famRows -join "`n")
     $limTable = "<div class='table-wrap'><table class='ref'><thead><tr><th>Check</th><th>Status</th><th>Notes</th></tr></thead><tbody>$($limRows -join "`n")</tbody></table></div>"
 
     return @(
-        (New-Section -Id 'upgrade-guidance' -Title 'Upgrade Path and SCSI to NVMe Guidance' -Body (New-UpgradeGuidanceHtml) -Intro 'Microsoft Learn documentation for moving retiring VMs to a current size, including SCSI to NVMe conversion and Gen1 to Gen2 (Trusted launch).')
+        (New-Section -Id 'upgrade-guidance' -Title 'Upgrade and Modernization Scenarios' -Body (New-UpgradeGuidanceHtml) -Intro 'Recommended steps for each migration path, with examples and Microsoft Learn links, including SCSI to NVMe conversion and Gen1 to Gen2 (Trusted launch).' -Collapsed)
         (New-Section -Id 'cross-vendor' -Title 'Cross-Vendor Migration Warnings' -Body $warn -Intro 'Moving between Intel and AMD is usually transparent to the operating system, but some workloads need validation first.' -Collapsed)
         (New-Section -Id 'sku-families' -Title 'SKU Family Quick Reference' -Body $famTable -Intro 'The first letter of a VM size is its family. Replacements stay in the same family unless Microsoft''s migration guide names another one.' -Collapsed)
         (New-Section -Id 'cpu-vendor' -Title 'CPU Vendor from SKU Name' -Body $cpuTable -Intro 'How to read a VM size name such as <code>Standard_D4ads_v6</code>.' -Collapsed)
@@ -1061,10 +1279,11 @@ function Export-HtmlReports {
     $dataSource = if ($Run.PSObject.Properties.Name -contains 'DataSource' -and $Run.DataSource -and $Run.DataSource -ne 'Live') { $Run.DataSource } else { $null }
     if ($dataSource) { $meta += "Data <strong>$(& $e $dataSource)</strong>" }
     $reference = New-ReferenceSections -ProcessorCatalog $ProcessorCatalog -Run $Run -Summary $s -CatalogResult $CatalogResult
-    $refNav = @(@{ Id = 'upgrade-guidance'; Label = 'Upgrade guidance' }, @{ Id = 'cross-vendor'; Label = 'Cross-vendor' }, @{ Id = 'sku-families'; Label = 'SKU families' }, @{ Id = 'cpu-vendor'; Label = 'CPU from name' }, @{ Id = 'limitations'; Label = 'Limitations' })
+    $refNav = @(@{ Id = 'upgrade-guidance'; Label = 'Upgrade scenarios' }, @{ Id = 'cross-vendor'; Label = 'Cross-vendor' }, @{ Id = 'sku-families'; Label = 'SKU families' }, @{ Id = 'cpu-vendor'; Label = 'CPU from name' }, @{ Id = 'limitations'; Label = 'Limitations' })
     $checkModernization = [bool](Get-RunParameter -Run $Run -Name 'CheckModernization' -Default $false)
     $includeOptional = [bool](Get-RunParameter -Run $Run -Name 'HtmlIncludeOptionalModernization' -Default $false)
     $maxDetails = [int](Get-RunParameter -Run $Run -Name 'HtmlMaxVmDetails' -Default 250)
+    $extendedDetails = [bool](Get-RunParameter -Run $Run -Name 'ExtendedDetails' -Default $false)
     $listed = { param($a) Test-HtmlListedVm -Assessment $a -IncludeOptional:$includeOptional }
     $scopeText = if ($includeOptional) { 'VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action, plus optional modernization (older generations without an announced retirement), are listed.' } else { 'Only VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action are listed.' }
     $ageDays = if ($Run.PSObject.Properties.Name -contains 'SnapshotAgeDays' -and $null -ne $Run.SnapshotAgeDays) { [int]$Run.SnapshotAgeDays } else { $null }
@@ -1072,6 +1291,7 @@ function Export-HtmlReports {
     $subFile = { param($id, $name) (Get-SafeFileName $name) + '-' + $id.Substring(0, [math]::Min(8, $id.Length)) + '.html' }
 
     # -- Tenant index --
+    $gen1Vms = Get-Gen1VmCount -Assessments $Assessments
     $kpis = @(
         (New-Kpi $s.TotalVmsScanned 'VMs assessed' 'neutral' "$($s.TotalSubscriptionsScanned) subscription(s)")
         (New-Kpi $s.AffectedVms 'On retiring sizes' $(if ($s.AffectedVms) { 'orange' } else { 'green' }) 'Microsoft-confirmed')
@@ -1079,10 +1299,11 @@ function Export-HtmlReports {
         (New-Kpi $s.RetirementWithin12Months 'Retire < 12 months' $(if ($s.RetirementWithin12Months) { 'red' } else { 'neutral' }))
         (New-Kpi ($s.RetirementWithin24Months + $s.RetirementWithin36Months) 'Retire in 1-3 years' $(if ($s.RetirementWithin24Months + $s.RetirementWithin36Months) { 'orange' } else { 'neutral' }))
         (New-Kpi $s.ModernizationRecommended 'Optional modernization' 'purple' 'Older, not retiring')
+        (New-Kpi $gen1Vms 'Gen1 VMs' $(if ($gen1Vms) { 'yellow' } else { 'green' }) "of $($s.TotalVmsScanned) VM$(if ($s.TotalVmsScanned -ne 1) { 's' })")
         (New-Kpi $s.VmsRequiringQuotaIncrease 'Need quota increase' $(if ($s.VmsRequiringQuotaIncrease) { 'orange' } else { 'neutral' }))
         (New-Kpi $s.HighConfidence 'High-confidence moves' 'green')
     ) -join ''
-    $bottom = (Get-BottomLine -Assessments $Assessments | ForEach-Object { "<li>$_</li>" }) -join ''
+    $bottom = (Get-BottomLine -Assessments $Assessments -TenantView | ForEach-Object { "<li>$_</li>" }) -join ''
     $srcHtml = (@($CatalogResult.Catalog.sources) | ForEach-Object { "<li><a href='$(& $e $_.Url)' target='_blank'>$(& $e $(if ($_.Title) { $_.Title -replace ' - Azure Virtual Machines \| Microsoft Learn$', '' } else { $_.Name }))</a> <span class='muted'>&middot; updated $(& $e $_.UpdatedAt) &middot; retrieved $(& $e $_.RetrievedUtc)</span></li>" }) -join ''
     $warn = $staleHtml
     if ($CatalogResult.Warning) { $warn += "<div class='callout warn'><strong>Evidence warning:</strong> $(& $e $CatalogResult.Warning)</div>" }
@@ -1114,18 +1335,16 @@ function Export-HtmlReports {
 
     $quotaRows = @(if ($QuotaImpact) { @($QuotaImpact.FamilyRows) + @($QuotaImpact.RegionalRows) | Where-Object { $_ } })
     $quotaIntro = 'Demand is added up for all VMs moving into the same subscription, region and VM family. Minimum increase = current usage + needed &minus; limit; the recommended request adds a safety margin.'
-    $qHtml = New-QuotaActionsHtml -Rows $quotaRows
 
     $body = @(
-        "<section id='summary' class='card'><h2>Summary</h2><div class='kpis'>$kpis</div><div class='bottom-line'><h3>Bottom line</h3><ul>$bottom</ul></div></section>"
+        "<section id='summary' class='card'><h2>Summary</h2><div class='kpis kpis-index'>$kpis</div><div class='bottom-line'><h3>Bottom line</h3><ul>$bottom</ul></div></section>"
         $warn
-        (New-Section -Id 'waves' -Title 'Migration Waves' -Body $waveHtml -Intro $waveIntro)
-        (New-Section -Id 'quota' -Title 'Quota Actions' -Body $qHtml -Intro $quotaIntro)
+        (New-Section -Id 'waves' -Title 'Migration Waves' -Body $waveHtml -Intro $waveIntro -Collapsed)
         (New-Section -Id 'subscriptions' -Title 'Subscriptions' -Body $subHtml)
         (New-Section -Id 'evidence' -Title 'Microsoft Retirement Evidence' -Body "<ul class='links'>$srcHtml</ul>" -Intro 'Retirement status comes only from these Microsoft sources. Older sizes without an announced retirement are reported as optional modernization, never as retired.')
         $reference
     ) -join "`n"
-    $nav = @(@{ Id = 'summary'; Label = 'Summary' }, @{ Id = 'waves'; Label = 'Waves' }, @{ Id = 'quota'; Label = 'Quota' }, @{ Id = 'subscriptions'; Label = 'Subscriptions' }, @{ Id = 'evidence'; Label = 'Evidence' }) + $refNav
+    $nav = @(@{ Id = 'summary'; Label = 'Summary' }, @{ Id = 'waves'; Label = 'Waves' }, @{ Id = 'subscriptions'; Label = 'Subscriptions' }, @{ Id = 'evidence'; Label = 'Evidence' }) + $refNav
     (New-HtmlPage -Title "VMSKURetirementReport - $($Run.Tenant.Name)" -Eyebrow 'VMSKURetirementReport' -Heading $Run.Tenant.Name -Subtitle "Tenant $($Run.Tenant.Id)" -Meta $meta -Body $body -Css $css -Nav $nav) | Out-File (Join-Path $OutDir $indexName) -Encoding utf8
 
     # -- Per-subscription pages --
@@ -1136,10 +1355,12 @@ function Export-HtmlReports {
         $aff = @($set | Where-Object AffectedByRetirement -eq 'Yes').Count
         $mod = @($set | Where-Object Wave -eq 'Wave 4 - Modernization').Count
         $none = @($set | Where-Object Action -eq 'No Action Required').Count
+        $gen1 = Get-Gen1VmCount -Assessments $set
         $kp = @(
             (New-Kpi $set.Count 'VMs' 'neutral' "$(@($set | Where-Object { $_.Vm.PowerState -eq 'Running' }).Count) running")
             (New-Kpi $aff 'On retiring sizes' $(if ($aff) { 'orange' } else { 'green' }))
             (New-Kpi $mod 'Optional modernization' 'purple')
+            (New-Kpi $gen1 'Gen1 VMs' $(if ($gen1) { 'yellow' } else { 'green' }) "of $($set.Count) VM$(if ($set.Count -ne 1) { 's' })")
             (New-Kpi $none 'No action needed' 'green')
             (New-Kpi @($set | Where-Object QuotaStatus -eq 'Quota Increase Required').Count 'Need quota increase' 'neutral')
             (New-Kpi @($set | Where-Object { $_.Confidence -and $_.Confidence.Level -eq 'HIGH' }).Count 'High-confidence moves' 'green')
@@ -1148,121 +1369,57 @@ function Export-HtmlReports {
         $retiring = @($set | Where-Object { & $listed $_ })
         $retiringOnly = @($set | Where-Object { Test-RetiringVm -Assessment $_ })
         $earliest = @($retiringOnly | ForEach-Object { "$($_.Lifecycle.RetirementDate)" } | Where-Object { $_ } | Sort-Object | Select-Object -First 1)
-        $modernTargets = if ($checkModernization) { @($retiring | Where-Object { $s = if ($_.Strategy) { $_.Strategy } else { Get-TargetStrategy -Assessment $_ }; $s.ModernizationTargetSku -and -not $s.AlreadyModern }).Count } else { 0 }
-        $tilesHtml = New-TrackTilesHtml -RetiringCount $retiringOnly.Count -EarliestDate $(if ($earliest.Count) { $earliest[0] } else { '' }) -ShowModernization:$checkModernization -ModernizationCount $modernTargets
-
-        $rows = foreach ($a in ($retiring | Sort-Object { & $waveRank $_.Wave }, { $_.Vm.Name })) {
-            $r = ConvertTo-AssessmentRow $a
-            $p = if ($a.Candidates) { $a.Candidates.Primary } else { $null }
-            $rec = if ($r.RecommendedSku) {
-                $recParts = @(
-                    if ($r.TargetCpuVendor) { & $e $r.TargetCpuVendor }
-                    if ($null -ne $r.CompatibilityScore -and "$($r.CompatibilityScore)" -ne '') { "score $(& $e $r.CompatibilityScore)" }
-                    if ($r.ModernizationStatus -and $r.ModernizationStatus -ne 'Not Evaluated') { "v6/v7: $(& $e $r.ModernizationStatus)" }
-                )
-                "<code>$(& $e $r.RecommendedSku)</code><div class='sub'>$($recParts -join ' &middot; ')</div>"
-            }
-            elseif ($a.Action -eq 'No Action Required') { "<span class='muted'>Current generation</span>" } else { "<span class='muted'>None found</span>" }
-            $currentTempDisk = if ($null -eq $a.Current.HasTempDisk) { "<span class='muted'>Unable to Verify</span>" } elseif ($a.Current.HasTempDisk) { "$(& $e $a.Current.TempDiskGB) GB" } else { 'None' }
-            $currentDiskController = if (@($a.Current.DiskControllerTypes).Count) { & $e (@($a.Current.DiskControllerTypes) -join ', ') } else { "<span class='muted'>Unable to Verify</span>" }
-            $currentUncachedIops = if ($null -ne $a.Current.UncachedDiskIOPS) { & $e $a.Current.UncachedDiskIOPS } else { "<span class='muted'>Unable to Verify</span>" }
-            $currentUncachedMBps = if ($null -ne $a.Current.UncachedDiskMBps) { & $e $a.Current.UncachedDiskMBps } else { "<span class='muted'>Unable to Verify</span>" }
-            $tempDisk = if (-not $p) { "<span class='muted'>&ndash;</span>" } elseif ($null -eq $p.Record.HasTempDisk) { "<span class='muted'>Unable to Verify</span>" } elseif ($p.Record.HasTempDisk) { "$(& $e $p.TempDiskGB) GB" } else { 'None' }
-            $diskController = if (-not $p) { "<span class='muted'>&ndash;</span>" } elseif (@($p.Record.DiskControllerTypes).Count) { & $e (@($p.Record.DiskControllerTypes) -join ', ') } else { "<span class='muted'>Unable to Verify</span>" }
-            $uncachedIops = if ($p -and $null -ne $p.Record.UncachedDiskIOPS) { & $e $p.Record.UncachedDiskIOPS } elseif ($p) { "<span class='muted'>Unable to Verify</span>" } else { "<span class='muted'>&ndash;</span>" }
-            $uncachedMBps = if ($p -and $null -ne $p.Record.UncachedDiskMBps) { & $e $p.Record.UncachedDiskMBps } elseif ($p) { "<span class='muted'>Unable to Verify</span>" } else { "<span class='muted'>&ndash;</span>" }
-            $capabilitySummary = "<div class='capability-summary'><div><span class='cap-label'>Temp</span><span>$currentTempDisk &rarr; <strong>$tempDisk</strong></span></div><div><span class='cap-label'>Controller</span><span>$currentDiskController &rarr; <strong>$diskController</strong></span></div><div><span class='cap-label'>IOPS</span><span>$currentUncachedIops &rarr; <strong>$uncachedIops</strong></span></div><div><span class='cap-label'>MBps</span><span>$currentUncachedMBps &rarr; <strong>$uncachedMBps</strong></span></div></div>"
-            $ret = if ($r.RetirementDate) { "<div class='sub'>$(& $e $r.RetirementDate) &middot; $(& $e $r.TimeRemaining)</div>" } else { '' }
-            $cost = if ($a.Pricing -and $a.Pricing.CurrentMonthly) { "`$$([math]::Round($a.Pricing.CurrentMonthly))$(if ($a.Pricing.TargetMonthly) { " &rarr; `$$([math]::Round($a.Pricing.TargetMonthly))" })" } else { "<span class='muted'>&ndash;</span>" }
-            $vmAnchor = Get-VmAnchorId $a.Vm
-            $link = if ($a.Candidates -and $a.Action -ne 'No Action Required') { "<a class='strong' href='#$vmAnchor'>$(& $e $r.VM)</a>" } else { "<span class='strong'>$(& $e $r.VM)</span>" }
-            "<tr><td>$link<div class='sub'>$(& $e $r.ResourceGroup) &middot; $(& $e $r.Region)$(if ($r.Zone) { " &middot; zone $(& $e $r.Zone)" }) &middot; $(& $e $r.PowerState)</div></td><td><code>$(& $e $r.CurrentSku)</code><div class='sub'>$(New-Badge $r.CpuVendor) $(& $e $r.vCPU) vCPU &middot; $(& $e $r.MemoryGB) GB</div></td><td>$(New-Badge $r.LifecycleStage)<div class='sub'>$(& $e $r.EvidenceClass)</div>$ret</td><td>$rec</td><td class='cap-summary'>$capabilitySummary</td><td>$(New-Badge $r.Action)$(if ($a.Action -ne 'No Action Required') { "<div class='sub'>Readiness: $(& $e $r.DeploymentReadiness) &middot; Confidence: $(& $e $r.Confidence)</div>" })</td><td class='num nowrap'>$cost</td></tr>"
-        }
-        $table = if (@($rows).Count) { "<div class='table-wrap'><table class='vm-table'><thead><tr><th>VM</th><th>Current size</th><th>Microsoft status</th><th>Recommended size</th><th>Disk capabilities</th><th>Next step</th><th class='num'>PAYGO / month</th></tr></thead><tbody>$($rows -join "`n")</tbody></table></div><p class='note'>$scopeText Every VM is in <code>vm-assessment.csv</code>. Disk capabilities compare current &rarr; recommended values. Monthly cost is the public pay-as-you-go list price (730 h) for comparison only; your actual rates may differ.</p>" } else { "<div class='callout ok'>No VMs in this subscription are on End of Life or retired sizes.</div>" }
-
-        $legend = @"
-<div class="legend">
-<div><h3>Microsoft status</h3><ul class="legend-list">
-<li>$(New-Badge 'Retired') Size is retired; migrate now.</li>
-<li>$(New-Badge 'End of Life') <span>Microsoft has announced the retirement ($(New-LearnLink 'EndOfLifeList' 'End of Life list')): plan modernization or migration before the date.</span></li>
-<li>$(New-Badge 'Confirmed Retirement') Microsoft has published a retirement date.</li>
-<li>$(New-Badge 'Modernization Recommended') Older generation, not retiring.</li>
-<li>$(New-Badge 'No Retirement Announced') Current generation.</li></ul></div>
-<div><h3>Confidence in the recommended size</h3><ul class="legend-list">
-<li>$(New-Badge 'HIGH') No outstanding items in the assessed evidence.</li>
-<li>$(New-Badge 'MEDIUM') One item to validate first.</li>
-<li>$(New-Badge 'LOW') Several items, or a blocker.</li></ul>
-<p>Expand a VM to read its confidence and readiness explanations (select, tap, or use Enter/Space). Hover text is also available.</p></div>
-<div><h3>Readiness: checked platform prerequisites</h3><ul class="legend-list">
-$(($script:ReadinessMeaning.Keys | ForEach-Object { "<li>$(New-Badge $_) $(& $e $script:ReadinessMeaning[$_].Short)</li>" }) -join "`n")</ul>
-<p>Confidence and readiness are independent: <em>LOW + Ready</em> passes the checked platform/quota prerequisites but has unresolved assessment items. Neither <em>Ready</em> nor <em>HIGH</em> guarantees hardware allocation or a successful resize; validate guest OS, workload, licensing and capacity before making a change.</p></div>
-<div><h3>Score (0&ndash;100)</h3><p>How closely the recommended size matches the current one: <strong>90+</strong> excellent, <strong>80+</strong> good, <strong>70+</strong> acceptable with review. A failed mandatory check always rejects a size, whatever its score.</p></div>
-</div>
-"@
+        $tilesHtml = New-TrackTilesHtml -RetiringCount $retiringOnly.Count -EarliestDate $(if ($earliest.Count) { $earliest[0] } else { '' })
 
         $detailSet = @($retiring | Where-Object { $_.Candidates } | Sort-Object { & $waveRank $_.Wave }, { $_.Vm.Name })
         $detailOmitted = if ($maxDetails -gt 0 -and $detailSet.Count -gt $maxDetails) { $detailSet.Count - $maxDetails } else { 0 }
         if ($detailOmitted) { $detailSet = @($detailSet | Select-Object -First $maxDetails) }
-        $details = foreach ($a in $detailSet) {
-            $p = $a.Candidates.Primary; $sc = $a.Candidates.Secondary
-            $confidenceExplanation = Get-ConfidenceTooltip $a.Confidence
-            $readinessExplanation = "Readiness of the recommended size: $($a.Readiness)."
-            if ($script:ReadinessMeaning.Contains([string]$a.Readiness)) { $readinessExplanation += " $($script:ReadinessMeaning[[string]$a.Readiness].Long)" }
-            $facts = [ordered]@{
-                'Microsoft status' = "$(New-Badge (Get-LifecycleStage -Lifecycle $a.Lifecycle)) $(New-Badge $a.Lifecycle.EvidenceClass) $(& $e $a.Lifecycle.LearnSeriesName) $(if ($a.Lifecycle.RetirementDate) { "&middot; retires <strong>$($a.Lifecycle.RetirementDate)</strong>" })$(if ($a.Lifecycle.SourceUrl) { " &middot; <a href='$(& $e $a.Lifecycle.SourceUrl)' target='_blank'>source</a>" })$(if ((Get-LifecycleStage -Lifecycle $a.Lifecycle) -eq 'End of Life') { " &middot; $(New-LearnLink 'EndOfLifeList' 'End of Life list')" })"
-                'Modernization' = if ($a.Modernization) { "$(New-Badge $a.Modernization.Status) &middot; $(& $e $a.Modernization.Reason)" } else { "<span class='muted'>Not evaluated</span>" }
-                'Action' = "$(New-Badge $a.Action) &middot; next step: <strong>$(& $e $a.NextStep)</strong> &middot; $(New-Badge $a.Wave)"
-                'Recommended' = if ($p) { "<code>$(& $e $p.SkuName)</code> &middot; $(New-Badge $p.CpuVendor) $($p.vCPUs) vCPU &middot; $($p.MemoryGB) GB &middot; score <strong>$($p.Score)</strong> ($(& $e $p.Band))" } else { "<span class='muted'>$(& $e $a.Candidates.NoCandidateReason)</span>" }
-                'Alternative' = if ($sc) { "<code>$(& $e $sc.SkuName)</code> (score $($sc.Score)) &middot; $(& $e $a.SecondaryReason)" } else { "<span class='muted'>None in the permitted series</span>" }
-                'Newer if converted' = if ($a.Candidates.FutureGeneration) {
-                    $fg = @($a.Candidates.FutureGeneration.FailedGates)
-                    $docs = @(if ($fg -contains 'Disk Controller') { New-LearnLink 'NvmeConvert' 'SCSI to NVMe conversion' }; if ($fg -contains 'VM Generation') { New-LearnLink 'Gen1TrustedLaunch' 'Gen1 to Trusted launch upgrade' })
-                    "<code>$(& $e $a.Candidates.FutureGeneration.SkuName)</code> &middot; requires $(& $e ($fg -join ', ')) conversion$(if ($docs.Count) { " &middot; " + ($docs -join ' &middot; ') })"
-                } else { "<span class='muted'>&ndash;</span>" }
-                'Quota' = "$(New-Badge $a.QuotaStatus)$(if ($a.Quota -and $a.Quota.Family.Limit) { " &middot; $(& $e $a.Quota.Family.QuotaDisplayName): $($a.Quota.Family.CurrentUsage) / $($a.Quota.Family.Limit) used, needs $($a.Quota.Family.RequiredVcpu)" })"
-                'Candidate series' = & $e $a.Candidates.PermittedSeries
-            }
-            if ($a.Candidates.VendorChangeRequired) { $facts['CPU vendor change'] = & $e $a.Candidates.VendorChangeReason }
-            if ($a.Rightsizing) { $facts['Rightsizing'] = "$(New-Badge $a.Rightsizing.Status) $(& $e $a.Rightsizing.Note)" }
-            $factsHtml = ($facts.Keys | ForEach-Object { "<dt>$(& $e $_)</dt><dd>$($facts[$_])</dd>" }) -join ''
-            $notes = (@($a.ValidationItems) + @($a.Confidence.LowReasons | ForEach-Object { "Low confidence: $_" }) + @($a.Lifecycle.Notes) | Where-Object { $_ } | ForEach-Object { "<li>$(& $e $_)</li>" }) -join ''
-            $diff = if ($p) { (@($p.Differences) | ForEach-Object { "<tr><td>$(& $e $_.Attribute)</td><td>$(& $e $_.Current)</td><td>$(& $e $_.Target)</td><td>$(New-Badge $_.Assessment)</td><td>$(& $e $_.Note)</td></tr>" }) -join '' } else { '' }
-            $gates = if ($p) { (@($p.Gates) | ForEach-Object { "<tr><td>$(& $e $_.Gate)</td><td>$(New-Badge $_.Result)</td><td>$(& $e $_.Detail)</td></tr>" }) -join '' } else { '' }
-            $cands = (@($a.Candidates.Candidates) | Select-Object -First 8 | ForEach-Object { "<tr><td>$(if ($_.Role -ne 'Candidate') { New-Badge 'Info' $_.Role } else { "<span class='muted'>&ndash;</span>" })</td><td><code>$(& $e $_.SkuName)</code></td><td>$(New-Badge $_.CpuVendor)</td><td class='num'>v$($_.Generation)</td><td class='num'>$($_.vCPUs) / $($_.MemoryGB)</td><td class='num'><strong>$($_.Score)</strong></td><td>$(New-Badge $_.Availability)</td><td>$(& $e $(if ($_.Rejected) { 'Rejected: ' + $_.RejectionReason } elseif (@($_.ReviewGates).Count) { 'Review: ' + ($_.ReviewGates -join ', ') } else { $_.Variant }))</td></tr>" }) -join ''
-            @"
-<details class="vm" id="$(Get-VmAnchorId $a.Vm)"><summary><span class="vm-name">$(& $e $a.Vm.Name)</span><span class="vm-move"><code>$(& $e $a.Vm.SkuName)</code> &rarr; <code>$(& $e $(if ($p) { $p.SkuName } else { 'no recommendation' }))</code></span><span class="vm-badges">$(New-Badge $a.Confidence.Level -Label "Confidence: $($a.Confidence.Level)" -Title $confidenceExplanation) $(New-Badge $a.Readiness -Label "Readiness: $($a.Readiness)" -Title $readinessExplanation)</span></summary>
-<div class="vm-body">
-<h3>Assessment explanations</h3>
-<dl class="facts"><dt>Confidence: $(& $e $a.Confidence.Level)</dt><dd class="assessment-explanation">$(& $e $confidenceExplanation)</dd><dt>Readiness: $(& $e $a.Readiness)</dt><dd class="assessment-explanation">$(& $e $readinessExplanation)</dd></dl>
-<dl class="facts">$factsHtml</dl>
-$(if ($notes) { "<div class='callout info'><h3>To validate before resizing</h3><ul>$notes</ul></div>" })
-$(if ($diff) { "<h3>Current vs recommended size</h3><div class='table-wrap'><table><thead><tr><th>Attribute</th><th>Current</th><th>Recommended</th><th>Change</th><th>Note</th></tr></thead><tbody>$diff</tbody></table></div>" })
-$(if ($gates) { "<h3>Mandatory requirement checks</h3><div class='table-wrap'><table><thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead><tbody>$gates</tbody></table></div>" })
-<h3>Sizes evaluated</h3>$(if ($cands) { "<div class='table-wrap'><table><thead><tr><th>Role</th><th>Size</th><th>CPU</th><th class='num'>Gen</th><th class='num'>vCPU / GB</th><th class='num'>Score</th><th>Availability</th><th>Notes</th></tr></thead><tbody>$cands</tbody></table></div>" } else { "<p class='note'>No current-generation size in the permitted series is offered in this region for this subscription. Review Microsoft's migration guidance for this series manually.</p>" })
-</div></details>
+        $detailAnchors = @{}
+        foreach ($d in $detailSet) { $detailAnchors[(Get-VmAnchorId $d.Vm)] = $true }
+        $table = New-VmTableHtml -Assessments @($retiring | Sort-Object { & $waveRank $_.Wave }, { $_.Vm.Name }) -CheckModernization:$checkModernization -DetailAnchors $detailAnchors
+
+        # Compact legend: one row per topic with the badges inline. The long explanations are in a collapsed note.
+        $legendItems = { param([string[]]$Items) "<ul class=""legend-items"">" + (($Items | ForEach-Object { "<li>$_</li>" }) -join '') + '</ul>' }
+        $readinessItems = @($script:ReadinessMeaning.Keys | ForEach-Object { "$(New-Badge $_) $(& $e $script:ReadinessMeaning[$_].Short)" })
+        $legend = @"
+<div class="legend">
+<dl class="legend-rows">
+<div class="legend-row"><dt>Microsoft status</dt><dd>$(& $legendItems @(
+    "$(New-Badge 'Retired') size is retired; migrate now"
+    "$(New-Badge 'End of Life') retirement announced ($(New-LearnLink 'EndOfLifeList' 'End of Life list'))"
+    "$(New-Badge 'Confirmed Retirement') date published"
+    "$(New-Badge 'Modernization Recommended') older generation, not retiring"
+    "$(New-Badge 'No Retirement Announced') current generation"))</dd></div>
+<div class="legend-row"><dt>Confidence<span class="legend-sub">in the recommended size</span></dt><dd>$(& $legendItems @(
+    "$(New-Badge 'HIGH') no outstanding items in the assessed evidence"
+    "$(New-Badge 'MEDIUM') one item to validate first"
+    "$(New-Badge 'LOW') several items, or a blocker"))</dd></div>
+<div class="legend-row"><dt>Readiness<span class="legend-sub">checked platform prerequisites</span></dt><dd>$(& $legendItems $readinessItems)</dd></div>
+<div class="legend-row"><dt>Score (0&ndash;100)</dt><dd>How closely the recommended size matches the current one: <strong>90+</strong> excellent, <strong>80+</strong> good, <strong>70+</strong> acceptable with review.</dd></div>
+</dl>
+<p class="legend-note">Confidence and readiness are independent. Neither <em>Ready</em> nor <em>HIGH</em> guarantees hardware allocation or a successful resize; validate guest OS, workload, licensing and capacity first.</p>
+<details class="legend-more"><summary>More about confidence and readiness</summary>
+<p>The recommended size is the retirement target, or the v6/v7 target when a direct v6/v7 move passes all checks. A failed mandatory check always rejects a size, whatever its score. <em>LOW + Ready</em> passes the checked platform/quota prerequisites but has unresolved assessment items.</p>
+<p>Hover over a confidence or readiness badge for its explanation. Generate the report with <code>-ExtendedDetails</code> to also print both explanations and the mandatory requirement checks inside each VM card.</p></details>
+</div>
 "@
-        }
+
+        $details = foreach ($a in $detailSet) { New-VmDetailHtml -Assessment $a -CheckModernization:$checkModernization -ExtendedDetails:$extendedDetails }
         $omittedNote = if ($detailOmitted) { "<div class='callout info'>Details are shown for the first $maxDetails VMs in wave order; $detailOmitted more are in <code>detailed-report.md</code>, <code>vm-assessment.csv</code> and <code>assessment.json</code> (raise or disable the limit with <code>-HtmlMaxVmDetails</code>).</div>" } else { '' }
         $detailHtml = if (@($details).Count) { $omittedNote + ($details -join "`n") } else { "<div class='callout ok'>No VMs in this subscription are on End of Life or retired sizes.</div>" }
         $subQuotaRows = @($quotaRows | Where-Object SubscriptionId -eq $g.Name)
         $subQuotaHtml = New-QuotaActionsHtml -Rows $subQuotaRows -HideSubscription
-        $modernizationHtml = if ($checkModernization) { New-ModernizationSectionHtml -Assessments $retiring -QuotaRows $subQuotaRows -MaxDetails $maxDetails } else { $null }
         $body = @(
             $staleHtml
             "<section id='overview' class='card'><h2>Overview</h2>$tilesHtml<div class='kpis'>$kp</div><div class='bottom-line'><h3>Bottom line</h3><ul>$bl</ul></div></section>"
-            (New-TrackHtml -Tone 'retirement' -Part 'Part 1' -Label 'Required' -Title 'Retirement remediation' -Description "VMs on sizes Microsoft is retiring. Move them to the recommended size before the retirement date.$(if ($includeOptional) { ' Optional-modernization VMs are also listed (-HtmlIncludeOptionalModernization).' })" -Body (@(
-                        (New-Section -Id 'vms' -Title 'VMs with Retiring SKUs' -Body ($legend + $table) -Intro $scopeText)
-                        (New-Section -Id 'details' -Title 'VMs with Retiring SKUs details' -Body $detailHtml -Intro "Select a VM to see its evidence, recommended size, what changes, and what to validate first. Upgrade steps: $(New-LearnLink 'Resize' 'resize'), $(New-LearnLink 'NvmeConvert' 'SCSI to NVMe'), $(New-LearnLink 'Gen1TrustedLaunch' 'Gen1 to Trusted launch').")
+            (New-TrackHtml -Tone 'retirement' -Label 'Required' -Title 'Retirement remediation' -Description "VMs on sizes Microsoft is retiring. Move them to the recommended size before the retirement date.$(if ($includeOptional) { ' Optional-modernization VMs are also listed (-HtmlIncludeOptionalModernization).' })" -Body (@(
+                        (New-Section -Id 'vms' -Title 'VMs with Retiring SKUs' -Body ($legend + $table) -Intro "$scopeText$(if ($checkModernization) { ' The v6/v7 columns show each VM''s strategic modernization target, path and blockers next to its required retirement target.' })")
+                        (New-Section -Id 'details' -Title 'VMs with Retiring SKUs details' -Body $detailHtml -Intro "Select a VM to see its comparison with the target sizes, what to validate first and the recommended sizes. Upgrade steps: $(New-LearnLink 'Resize' 'resize'), $(New-LearnLink 'NvmeConvert' 'SCSI to NVMe'), $(New-LearnLink 'Gen1TrustedLaunch' 'Gen1 to Trusted launch').")
                     ) -join "`n"))
-            $(if ($checkModernization) {
-                    New-TrackHtml -Tone 'modernization' -Part 'Part 2' -Label 'Optional' -Title 'v6/v7 Modernization' -Description 'Longer-term moves of these VMs to current v6/v7 generations. Plan them when it suits; they do not replace the required retirement moves above.' -Body (
-                        New-Section -Id 'modernization' -Title 'v6/v7 Generation Modernization Paths' -Body $modernizationHtml -Intro 'Direct resize readiness, Gen1/NVMe conversion paths, quota impact, remediation groups and contextual migration guidance for the VMs in Part 1.')
-                })
             (New-Section -Id 'quota' -Title 'Quota Actions' -Body $subQuotaHtml -Intro "Quota requests for this subscription only. $quotaIntro")
             $reference
         ) -join "`n"
-        $nav = @(@{ Id = 'overview'; Label = 'Overview' }, @{ Id = 'vms'; Label = 'Retiring VMs'; Group = 'Retirement'; Tone = 'retirement' }, @{ Id = 'details'; Label = 'Details'; Group = 'Retirement'; Tone = 'retirement' }) +
-            $(if ($checkModernization) { @(@{ Id = 'modernization'; Label = 'v6/v7 paths'; Group = 'Modernization'; Tone = 'modernization' }) } else { @() }) + @(@{ Id = 'quota'; Label = 'Quota' }) + $refNav
+        $nav = @(@{ Id = 'overview'; Label = 'Overview' }, @{ Id = 'vms'; Label = 'Retiring VMs'; Group = 'Retirement'; Tone = 'retirement' }, @{ Id = 'details'; Label = 'Details'; Group = 'Retirement'; Tone = 'retirement' }, @{ Id = 'quota'; Label = 'Quota' }) + $refNav
         $metaSub = @("Subscription <strong>$(& $e $g.Name)</strong>", "Tenant <strong>$(& $e $Run.Tenant.Name)</strong>", "As of <strong>$asOf</strong>", 'Read-only')
         if ($dataSource) { $metaSub += "Data <strong>$(& $e $dataSource)</strong>" }
         (New-HtmlPage -Title "VMSKURetirementReport - $name" -Eyebrow 'Subscription assessment' -Heading $name -Meta $metaSub -Body $body -Css $css -BackLink $indexName -Nav $nav) | Out-File (Join-Path $OutDir (& $subFile $g.Name $name)) -Encoding utf8
