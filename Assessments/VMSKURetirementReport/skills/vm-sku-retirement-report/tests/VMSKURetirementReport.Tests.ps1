@@ -48,6 +48,33 @@ BeforeAll {
         $q = [pscustomobject]@{ Status = $QuotaStatus; DataQuality = 'Verified'; Family = [pscustomobject]@{ QuotaDisplayName = 'x'; MinimumIncrease = 0; RecommendedIncrease = 0; CurrentUsage = 0; Limit = 100; RequiredVcpu = 4 }; Regional = [pscustomobject]@{ MinimumIncrease = 0 } }
         Complete-VmAssessment -Assessment $a -QuotaResult $q -Usage @{}
     }
+    function script:Export-TestOutput {
+        param([object[]]$Assessments, $QuotaImpact = $null, [object[]]$CollectionIssues = @(), [switch]$Html)
+        $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory $dir | Out-Null
+        $run = [pscustomobject]@{ GeneratedUtc = '2026-09-24T00:00:00Z'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'n' }; Account = 'a'; Parameters = [ordered]@{ IncludePricing = $false; HorizonMonths = 36 }
+            Counts = [pscustomobject]@{ Vms = @($Assessments).Count; Nics = 0; Disks = 0; AdeExtensions = 0; AdvisorRetirement = 0; ServiceHealthRetirement = 0 } }
+        $summary = New-AssessmentSummary -Assessments $Assessments -SubscriptionsScanned 1
+        $catalogResult = [pscustomobject]@{ Source = 'Fixture'; Warning = $null; Catalog = $Catalog }
+        [void](Export-AssessmentData -OutDir $dir -Run $run -Assessments $Assessments -Summary $summary -QuotaImpact $QuotaImpact -CatalogResult $catalogResult -Inventory $null -CollectionIssues $CollectionIssues)
+        if ($Html) {
+            Export-ExecutiveSummaryMarkdown -Path (Join-Path $dir 'executive-summary.md') -Run $run -Summary $summary -Rows @() -QuotaImpact $QuotaImpact -CatalogResult $catalogResult -CollectionIssues $CollectionIssues
+            Export-HtmlReports -OutDir $dir -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $summary -Assessments $Assessments -QuotaImpact $QuotaImpact -CatalogResult $catalogResult -ProcessorCatalog $Proc -CollectionIssues $CollectionIssues
+        }
+        $dir
+    }
+    function script:Read-TestJson { param([string]$Dir) Get-Content (Join-Path $Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40 }
+    # A fake Azure CLI on PATH for the duration of -Action: a script named az.ps1 whose stderr (Write-Error) reaches the caller's 2> redirection.
+    function script:Use-FakeAz {
+        param([Parameter(Mandatory)][string]$Body, [Parameter(Mandatory)][scriptblock]$Action)
+        $dir = Join-Path $TestDrive ('fake-az-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory $dir | Out-Null
+        Set-Content (Join-Path $dir 'az.ps1') -Value $Body
+        $savedPath = $env:PATH
+        try { $env:PATH = "$dir$([System.IO.Path]::PathSeparator)$env:PATH"; & $Action }
+        finally { $env:PATH = $savedPath }
+    }
+    $script:Denied = "Write-Error `"ERROR: (AuthorizationFailed) The client 'jane.doe@contoso.com' with object id '11111111-2222-3333-4444-555555555555' does not have authorization to perform action 'X' over scope '/subscriptions/s1'.`" -ErrorAction Continue; exit 1"
 }
 
 Describe 'SKU name parsing (Azure naming convention)' {
@@ -536,16 +563,6 @@ Describe 'Candidate cache key' {
 
 Describe 'JSON and CSV output shapes' {
     BeforeAll {
-        function script:Export-TestOutput {
-            param([object[]]$Assessments, $QuotaImpact = $null)
-            $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
-            New-Item -ItemType Directory $dir | Out-Null
-            $run = [pscustomobject]@{ GeneratedUtc = '2026-09-24T00:00:00Z'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'n' }; Account = 'a'; Parameters = [ordered]@{ IncludePricing = $false }; Counts = [pscustomobject]@{} }
-            $summary = New-AssessmentSummary -Assessments $Assessments -SubscriptionsScanned 1
-            [void](Export-AssessmentData -OutDir $dir -Run $run -Assessments $Assessments -Summary $summary -QuotaImpact $QuotaImpact -CatalogResult ([pscustomobject]@{ Source = 'Fixture'; Warning = $null; Catalog = $Catalog }) -Inventory $null)
-            $dir
-        }
-        function script:Read-TestJson { param([string]$Dir) Get-Content (Join-Path $Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40 }
         function script:Get-BuilderColumns {
             param([string]$File, [string]$Function)
             $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root "scripts/modules/$File"), [ref]$null, [ref]$null)
@@ -693,6 +710,256 @@ Describe 'Primary older than the newest valid generation' {
         $a.Candidates.PSObject.Properties.Name | Should -Contain 'NewerGenerationUnavailable'
         @($a.Candidates.NewerGenerationUnavailable).Count | Should -Be 0
         @($a.ValidationItems | Where-Object { $_ -like 'Newer generation unavailable:*' }).Count | Should -Be 0
+    }
+}
+
+Describe 'Data-collection issues: recording' {
+    It 'masks the object id of the signed-in identity but keeps the subscription in the scope' {
+        $safe = ConvertTo-SafeCliMessage "(AuthorizationFailed) The client 'jane.doe@contoso.com' with object id '11111111-2222-3333-4444-555555555555' cannot act over scope '/subscriptions/66666666-7777-8888-9999-000000000000'."
+        $safe | Should -Match "object id '\*\*\*\*'"
+        $safe | Should -Match "j\*\*\*\*@contoso\.com"
+        $safe | Should -Not -Match '11111111-2222'
+        $safe | Should -Match '66666666-7777-8888-9999-000000000000'
+    }
+
+    It 'keeps recorded problems in a stable order and writes a warning when there is no sink' {
+        $sink = New-CollectionIssueSink
+        $sink.GetType().Name | Should -BeLike 'ConcurrentQueue*'
+        Add-CollectionIssue -Sink $sink -Api 'Resource SKUs' -SubscriptionId 's2' -Region 'westus2' -Message 'm2' -Effect 'e'
+        Add-CollectionIssue -Sink $sink -Api 'Compute usage' -SubscriptionId 's1' -Region 'eastus2' -Message 'm1'
+        Add-CollectionIssue -Sink $sink -Api 'Resource SKUs' -SubscriptionId 's1' -Region 'eastus2' -Message 'm0'
+        @(Get-CollectionIssue -Sink $sink | ForEach-Object { "$($_.Api)|$($_.SubscriptionId)" }) | Should -Be @('Compute usage|s1', 'Resource SKUs|s1', 'Resource SKUs|s2')
+        @(Get-CollectionIssue -Sink $null).Count | Should -Be 0
+        $warnings = @(Add-CollectionIssue -Api 'Resource SKUs' -SubscriptionId 's1' -Region 'eastus2' -Message 'boom' -Effect 'Nothing is recommended.' 3>&1)
+        "$($warnings[0])" | Should -Be 'Resource SKUs (eastus2, subscription s1): boom Nothing is recommended.'
+    }
+
+    It 'gives Invoke-AzJson the sanitized reason of a tolerated failure' {
+        Use-FakeAz -Body $Denied -Action {
+            $failure = $null
+            Invoke-AzJson -Arguments @('vm', 'list-usage') -MaxRetries 0 -AllowFailure -Failure ([ref]$failure) | Should -BeNullOrEmpty
+            $failure | Should -Match 'AuthorizationFailed'
+            $failure | Should -Match "object id '\*\*\*\*'"
+            $failure | Should -Not -Match 'jane\.doe'
+        }
+        Use-FakeAz -Body "Write-Output '[1]'; exit 0" -Action {
+            $failure = $null
+            @(Invoke-AzJson -Arguments @('vm', 'list-usage') -AllowFailure -Failure ([ref]$failure)).Count | Should -Be 1
+            $failure | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'records why quota could not be read, per subscription and region' -ForEach @(
+        @{ Case = 'denied'; Body = 'DENIED'; Message = 'AuthorizationFailed' }
+        @{ Case = 'empty'; Body = "Write-Output '[]'; exit 0"; Message = 'returned no quota data' }
+    ) {
+        $sink = New-CollectionIssueSink
+        $script = if ($Body -eq 'DENIED') { $Denied } else { $Body }
+        # An empty JSON list reads back as nothing, so both cases leave the quota of the scope unknown ($null).
+        $usage = Use-FakeAz -Body $script -Action { Get-QuotaUsage -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $usage | Should -BeNullOrEmpty
+        $issues = @(Get-CollectionIssue -Sink $sink)
+        $issues.Count | Should -Be 1
+        $issues[0].Api | Should -BeLike 'Compute usage*'
+        $issues[0].SubscriptionId | Should -Be 's1'
+        $issues[0].Region | Should -Be 'eastus2'
+        $issues[0].Message | Should -Match $Message
+        $issues[0].Effect | Should -Match 'Quota cannot be verified'
+        ($issues[0].Message + $issues[0].Effect) | Should -Not -Match 'jane\.doe|11111111-2222'
+    }
+
+    It 'records nothing when quota is read' {
+        $sink = New-CollectionIssueSink
+        $body = "Write-Output '[{`"name`":{`"value`":`"cores`"},`"localName`":`"Total Regional vCPUs`",`"currentValue`":4,`"limit`":100}]'; exit 0"
+        $usage = Use-FakeAz -Body $body -Action { Get-QuotaUsage -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $usage['cores'].Limit | Should -Be 100
+        @(Get-CollectionIssue -Sink $sink).Count | Should -Be 0
+    }
+
+    It 'shares one sink across the parallel quota runspaces' {
+        $sink = New-CollectionIssueSink
+        $pairs = @(1..4 | ForEach-Object { [pscustomobject]@{ SubscriptionId = "s$_"; Region = 'eastus2' } })
+        $usage = Use-FakeAz -Body $Denied -Action { Get-QuotaUsages -Pairs $pairs -ThrottleLimit 3 -IssueSink $sink }
+        $usage.Count | Should -Be 4
+        @(Get-CollectionIssue -Sink $sink | ForEach-Object SubscriptionId) | Should -Be @('s1', 's2', 's3', 's4')
+    }
+
+    It 'records a Resource Graph query that stops part-way and says how many rows it had' {
+        $body = "if (@(`$args) -contains '--skip-token') { Write-Error `"ERROR: (Forbidden) access denied`" -ErrorAction Continue; exit 1 }; Write-Output '{`"data`":[{`"id`":1},{`"id`":2}],`"skip_token`":`"t1`"}'; exit 0"
+        Use-FakeAz -Body $body -Action {
+            $failure = $null
+            $rows = @(Invoke-ArgQuery -Query 'Resources' -AllowFailure -Failure ([ref]$failure))
+            $rows.Count | Should -Be 2
+            $failure | Should -Match 'Forbidden'
+            $failure | Should -Match 'stopped after 2 rows'
+        }
+    }
+}
+
+Describe 'Data-collection issues: Resource SKU collection' {
+    BeforeAll {
+        $script:SkuFixture = @(Get-Content (Join-Path $PSScriptRoot 'fixtures/skus-eastus2.json') -Raw | ConvertFrom-Json)
+        $script:SkuJson = (Join-Path $PSScriptRoot 'fixtures/skus-eastus2.json')
+        # The token is available, so the REST call is attempted first.
+        $script:TokenOk = "if (`"`$args`" -match 'get-access-token') { Write-Output '{`"accessToken`":`"t`"}'; exit 0 }"
+    }
+    BeforeEach {
+        Mock Start-Sleep -ModuleName SkuCatalog {}
+    }
+
+    It 'records both causes when the REST call and the az fallback fail' {
+        $sink = New-CollectionIssueSink
+        Mock Invoke-RestMethod -ModuleName SkuCatalog { throw 'Response status code does not indicate success: 403 (Forbidden).' }
+        $cat = Use-FakeAz -Body ("$TokenOk`n" + "if (`"`$args`" -match 'vm list-skus') { $Denied }") -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $cat.Count | Should -Be 0
+        $issue = @(Get-CollectionIssue -Sink $sink)
+        $issue.Count | Should -Be 1
+        $issue[0].Api | Should -Be 'Resource SKUs'
+        $issue[0].Region | Should -Be 'eastus2'
+        $issue[0].Message | Should -Match 'REST call failed: .*403'
+        $issue[0].Message | Should -Match 'az vm list-skus failed: .*AuthorizationFailed'
+        $issue[0].Message | Should -Not -Match 'jane\.doe|11111111-2222'
+        $issue[0].Effect | Should -Match 'No replacement size'
+    }
+
+    It 'says that az returned no sizes when it succeeds with an empty list' {
+        $sink = New-CollectionIssueSink
+        Mock Invoke-RestMethod -ModuleName SkuCatalog { [pscustomobject]@{ value = @() } }
+        $cat = Use-FakeAz -Body ("$TokenOk`n" + "if (`"`$args`" -match 'vm list-skus') { Write-Output '[]'; exit 0 }") -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $cat.Count | Should -Be 0
+        @(Get-CollectionIssue -Sink $sink)[0].Message | Should -Match 'az vm list-skus returned no VM sizes'
+    }
+
+    It 'records nothing, and logs the fallback, when az supplies the sizes after the REST call failed' {
+        $sink = New-CollectionIssueSink
+        Mock Invoke-RestMethod -ModuleName SkuCatalog { throw 'Response status code does not indicate success: 500.' }
+        $body = "$TokenOk`n" + "if (`"`$args`" -match 'vm list-skus') { Get-Content -LiteralPath '$SkuJson' -Raw; exit 0 }"
+        $out = @(Use-FakeAz -Body $body -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink 6>&1 })
+        $cat = @($out | Where-Object { $_ -is [hashtable] })[0]
+        $cat.Count | Should -BeGreaterThan 5
+        @(Get-CollectionIssue -Sink $sink).Count | Should -Be 0
+        ($out | Where-Object { $_ -is [System.Management.Automation.InformationRecord] } | ForEach-Object { "$_" }) -join "`n" | Should -Match 'REST failed for eastus2.*used az vm list-skus instead'
+    }
+
+    It 'records a size list that was cut off after 50 pages' {
+        $sink = New-CollectionIssueSink
+        $items = $SkuFixture
+        $page = { [pscustomobject]@{ value = $items; nextLink = 'https://management.azure.com/next' } }.GetNewClosure()
+        Mock Invoke-RestMethod -ModuleName SkuCatalog -MockWith $page
+        $cat = Use-FakeAz -Body $TokenOk -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        Should -Invoke Invoke-RestMethod -ModuleName SkuCatalog -Times 50 -Exactly
+        $cat.Count | Should -BeGreaterThan 5
+        $issue = @(Get-CollectionIssue -Sink $sink)
+        $issue.Count | Should -Be 1
+        $issue[0].Api | Should -Be 'Resource SKUs (REST)'
+        $issue[0].Message | Should -Match 'stopped after 50 pages'
+    }
+
+    It 'records nothing when the REST call returns the sizes' {
+        $sink = New-CollectionIssueSink
+        $items = $SkuFixture
+        $page = { [pscustomobject]@{ value = $items } }.GetNewClosure()
+        Mock Invoke-RestMethod -ModuleName SkuCatalog -MockWith $page
+        $cat = Use-FakeAz -Body $TokenOk -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $cat.Count | Should -BeGreaterThan 5
+        @(Get-CollectionIssue -Sink $sink).Count | Should -Be 0
+    }
+}
+
+Describe 'Data-collection issues: effect on assessments and outputs' {
+    BeforeAll {
+        $script:SkuIssue = [pscustomobject]@{ SubscriptionId = 's1'; Region = 'eastus2'; Api = 'Resource SKUs'; Message = 'az vm list-skus failed: (AuthorizationFailed) access denied'; Effect = 'No replacement size can be recommended for VMs in this scope.' }
+        $script:QuotaIssue = [pscustomobject]@{ SubscriptionId = 's1'; Region = 'eastus2'; Api = 'Compute usage (az vm list-usage)'; Message = 'returned no quota data'; Effect = 'Quota cannot be verified.' }
+        function script:New-AssessmentWithoutSkuData {
+            param([string]$Name = 'nocat', [object[]]$Issues = @($SkuIssue), [string]$Sku = 'Standard_DS3_v2')
+            $vm = New-TestVm -Name $Name -Sku $Sku -Gen 'V1'
+            $lc = Resolve-SkuLifecycle -SkuName $vm.SkuName -Catalog $Catalog -AsOf $AsOf
+            $a = New-VmAssessment -Vm $vm -Lifecycle $lc -RegionCatalog $null -ProcessorCatalog $Proc -RetirementCatalog $Catalog -LifecycleCache @{} -CandidateCache @{} -Weights $Weights -AsOf $AsOf -SubscriptionName 'sub1'
+            Complete-VmAssessment -Assessment $a -QuotaResult $null -Usage @{} -CollectionIssues $Issues
+        }
+    }
+
+    It 'states the cause in the low-confidence reasons and the recommendation reason of a VM without SKU data' {
+        $a = New-AssessmentWithoutSkuData
+        $a.Candidates | Should -BeNullOrEmpty
+        $a.Readiness | Should -Be 'Manual Review Required'
+        $a.Confidence.Level | Should -Be 'LOW'
+        $a.Confidence.LowReasons | Should -Contain 'Data not collected (Resource SKUs): az vm list-skus failed: (AuthorizationFailed) access denied'
+        (Get-NoRecommendationReason -Assessment $a) | Should -Match '^Data could not be collected - Resource SKUs: az vm list-skus failed'
+        (ConvertTo-AssessmentRow $a).RecommendationReason | Should -Match '^Data could not be collected - Resource SKUs'
+    }
+
+    It 'keeps the previous reason when there is no recorded cause' {
+        $a = New-AssessmentWithoutSkuData -Issues @()
+        $a.Confidence.LowReasons.Count | Should -Be 0
+        (Get-NoRecommendationReason -Assessment $a) | Should -Be 'Size characteristics or region catalog unavailable'
+    }
+
+    It 'adds nothing for a VM that needs no action' {
+        $a = New-AssessmentWithoutSkuData -Name 'fine' -Sku 'Standard_D4s_v5'
+        $a.Action | Should -Be 'No Action Required'
+        $a.Confidence.Level | Should -Be 'N/A'
+        $a.Confidence.LowReasons.Count | Should -Be 0
+        (Get-NoRecommendationReason -Assessment $a) | Should -BeNullOrEmpty
+    }
+
+    It 'names the reason quota could not be verified' {
+        $vm = New-TestVm -Name 'q' -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $lc = Resolve-SkuLifecycle -SkuName $vm.SkuName -Catalog $Catalog -AsOf $AsOf
+        $a = New-VmAssessment -Vm $vm -Lifecycle $lc -RegionCatalog $SkuCat -ProcessorCatalog $Proc -RetirementCatalog $Catalog -LifecycleCache @{} -CandidateCache @{} -Weights $Weights -AsOf $AsOf -SubscriptionName 'sub1'
+        $a = Complete-VmAssessment -Assessment $a -QuotaResult $null -Usage @{} -CollectionIssues @($QuotaIssue)
+        $a.Confidence.Level | Should -Be 'LOW'
+        $a.Confidence.LowReasons | Should -Contain 'Quota could not be validated'
+        $a.Confidence.LowReasons | Should -Contain 'Data not collected (Compute usage (az vm list-usage)): returned no quota data'
+    }
+
+    It 'writes collectionIssues as an array in assessment.json for none, one and several problems' -ForEach @(
+        @{ Case = 'none'; Count = 0 }
+        @{ Case = 'one'; Count = 1 }
+        @{ Case = 'two'; Count = 2 }
+    ) {
+        $issues = @(@($SkuIssue, $QuotaIssue) | Select-Object -First $Count)
+        $j = Read-TestJson (Export-TestOutput -Assessments @((Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'))) -CollectionIssues $issues)
+        ($j.collectionIssues -is [System.Array]) | Should -BeTrue -Because "collectionIssues must be an array ($Case)"
+        @($j.collectionIssues).Count | Should -Be $Count
+        if ($Count -gt 0) {
+            $first = @($j.collectionIssues)[0]
+            $first.PSObject.Properties.Name | Should -Be @('subscriptionId', 'region', 'api', 'message', 'effect')
+            $first.api | Should -Be 'Resource SKUs'
+        }
+    }
+
+    It 'lists the problems in the executive summary only when there are some' {
+        $a = @((Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')))
+        $with = Get-Content (Join-Path (Export-TestOutput -Assessments $a -CollectionIssues @($SkuIssue, $QuotaIssue) -Html) 'executive-summary.md') -Raw
+        $with | Should -Match '(?m)^## Data collection issues'
+        $with | Should -Match '\| Data \| Subscription \| Region \| Problem \| Effect \|'
+        $with | Should -Match 'Resource SKUs'
+        $without = Get-Content (Join-Path (Export-TestOutput -Assessments $a -Html) 'executive-summary.md') -Raw
+        $without | Should -Not -Match 'Data collection issues'
+    }
+
+    It 'shows the problems on the pages of the affected subscription and a panel for every listed VM without a recommendation' {
+        $withoutData = New-AssessmentWithoutSkuData
+        $other = $SkuIssue.PSObject.Copy(); $other.SubscriptionId = 'other-subscription'; $other.Message = 'unrelated problem elsewhere'
+        $dir = Export-TestOutput -Assessments @($withoutData) -CollectionIssues @($SkuIssue, $other) -Html
+        $index = Get-Content (Join-Path $dir 'index.html') -Raw
+        $index | Should -Match 'Some data could not be collected \(2\)'
+        $sub = Get-Content (Get-ChildItem $dir -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
+        $sub | Should -Match 'Some data could not be collected \(1\)'
+        $sub | Should -Match 'AuthorizationFailed'
+        $sub | Should -Not -Match 'unrelated problem elsewhere'
+        ([regex]::Matches($sub, "<tr class='vm-summary-row")).Count | Should -Be 1
+        ([regex]::Matches($sub, "<tr class='vm-detail-row'")).Count | Should -Be 1
+        $sub | Should -Match 'Why there is no recommendation'
+        $sub | Should -Match 'Data could not be collected - Resource SKUs'
+        $sub | Should -Not -Match 'Why there is no recommendation</h4><p>Size characteristics'
+    }
+
+    It 'adds no callout when nothing went wrong' {
+        $a = @((Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')))
+        $dir = Export-TestOutput -Assessments $a -Html
+        foreach ($page in Get-ChildItem $dir -Filter '*.html') { (Get-Content $page.FullName -Raw) | Should -Not -Match 'Some data could not be collected' }
     }
 }
 

@@ -9,6 +9,18 @@ $vmBase = "/subscriptions/$sub/resourcegroups/rg-app/providers/microsoft.compute
 function Out-Json($o) { $o | ConvertTo-Json -Depth 20; exit 0 }
 function Arg($name) { $i = [array]::IndexOf($a, $name); if ($i -ge 0 -and $i + 1 -lt $a.Count) { $a[$i + 1] } else { $null } }
 
+# Fault injection for the diagnostics tests: MOCK_AZ_FAULT=<skus|usage>-<denied|garbage|empty> breaks only that call.
+# Write-Error (not [Console]::Error) so the text reaches the caller's 2> redirection like the stderr of a real az process.
+$denied = "ERROR: (AuthorizationFailed) The client 'admin@contoso.example' with object id '99999999-9999-9999-9999-999999999999' does not have authorization to perform action '{0}'."
+switch ($env:MOCK_AZ_FAULT) {
+    'skus-denied' { if ($joined -match '^vm list-skus') { Write-Error ($denied -f 'Microsoft.Compute/skus/read') -ErrorAction Continue; exit 1 } }
+    'skus-garbage' { if ($joined -match '^vm list-skus') { Write-Output 'this-is-not-json'; exit 0 } }
+    'skus-empty' { if ($joined -match '^vm list-skus') { Write-Output '[]'; exit 0 } }
+    'usage-denied' { if ($joined -match '^vm list-usage') { Write-Error ($denied -f 'Microsoft.Compute/locations/usages/read') -ErrorAction Continue; exit 1 } }
+    'usage-garbage' { if ($joined -match '^vm list-usage') { Write-Output '{ not valid json'; exit 0 } }
+    'usage-empty' { if ($joined -match '^vm list-usage') { Write-Output '[]'; exit 0 } }
+}
+
 if ($joined -match '^account show') {
     Out-Json ([pscustomobject]@{ id = $sub; name = 'contoso-prod'; tenantId = '22222222-2222-2222-2222-222222222222'; tenantDisplayName = 'Contoso (Sample)'; user = @{ name = 'admin@contoso.example' } })
 }

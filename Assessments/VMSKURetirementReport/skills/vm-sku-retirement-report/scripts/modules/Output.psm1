@@ -167,7 +167,8 @@ function Export-AssessmentData {
         [Parameter(Mandatory)]$Summary,
         $QuotaImpact,
         [Parameter(Mandatory)]$CatalogResult,
-        $Inventory
+        $Inventory,
+        [object[]]$CollectionIssues = @()
     )
     $rows = @($Assessments | ForEach-Object { ConvertTo-AssessmentRow $_ })
     Export-CsvFile -Rows @(ConvertTo-SafeCsvRows -Rows $rows) -Name 'vm-assessment' -OutDir $OutDir
@@ -224,6 +225,7 @@ function Export-AssessmentData {
         counts = $Run.Counts
         summary = $Summary
         quota = [ordered]@{ family = @(if ($QuotaImpact) { $QuotaImpact.FamilyRows }); regional = @(if ($QuotaImpact) { $QuotaImpact.RegionalRows }) }
+        collectionIssues = @($CollectionIssues | ForEach-Object { [ordered]@{ subscriptionId = $_.SubscriptionId; region = $_.Region; api = $_.Api; message = $_.Message; effect = $_.Effect } })
         vms = @($Assessments | ForEach-Object { ConvertTo-AssessmentJsonObject $_ })
     }
     $doc | ConvertTo-Json -Depth 14 | Out-File (Join-Path $OutDir 'assessment.json') -Encoding utf8
@@ -243,7 +245,7 @@ function Format-MdTable {
 }
 
 function Export-ExecutiveSummaryMarkdown {
-    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)]$Run, [Parameter(Mandatory)]$Summary, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Rows, $QuotaImpact, $CatalogResult)
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)]$Run, [Parameter(Mandatory)]$Summary, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Rows, $QuotaImpact, $CatalogResult, [object[]]$CollectionIssues = @())
     $s = $Summary
     $sb = New-Object System.Text.StringBuilder
     [void]$sb.AppendLine("# VMSKURetirementReport - Executive Summary")
@@ -263,6 +265,14 @@ function Export-ExecutiveSummaryMarkdown {
     if ($unmappedNames.Count -gt 0) { [void]$sb.AppendLine("> **Unmapped Microsoft series (not classified):** $($unmappedNames -join ', ')`n") }
     $nonVm = @(Get-NonVmSizeEntries -Catalog $CatalogResult.Catalog)
     if ($nonVm.Count -gt 0) { [void]$sb.AppendLine("> **Microsoft lifecycle entries that are not VM sizes (validate separately):** $((@($nonVm) | ForEach-Object { "$($_.Name) ($($_.Category), $($_.Status) $($_.PlannedRetirementDate))" }) -join '; ')`n") }
+    if (@($CollectionIssues).Count -gt 0) {
+        [void]$sb.AppendLine('## Data collection issues')
+        [void]$sb.AppendLine()
+        [void]$sb.AppendLine('Some data could not be collected, so the results for the affected scopes are incomplete. Fix the cause and run the assessment again. The same list is in `assessment.json` (`collectionIssues`).')
+        [void]$sb.AppendLine()
+        $issueRows = @($CollectionIssues | ForEach-Object { [pscustomobject]@{ Data = $_.Api; Subscription = $_.SubscriptionId; Region = $_.Region; Problem = $_.Message; Effect = $_.Effect } })
+        [void]$sb.AppendLine((Format-MdTable -Rows $issueRows -Columns 'Data', 'Subscription', 'Region', 'Problem', 'Effect'))
+    }
 
     [void]$sb.AppendLine('## Estate summary')
     [void]$sb.AppendLine()
@@ -440,7 +450,8 @@ function Export-DetailedReportMarkdown {
                 [void]$sb.AppendLine($(if ($comparison) { $comparison } else { Format-MdTable -Rows @($p.Differences) -Columns 'Attribute', 'Current', 'Target', 'Assessment', 'Note' }))
             }
             else {
-                [void]$sb.AppendLine("_No primary recommendation: $(if ($a.Candidates) { $a.Candidates.NoCandidateReason } else { 'size characteristics or region catalog unavailable' })_")
+                $noRecommendation = if ($a.Candidates) { $a.Candidates.NoCandidateReason } else { $cause = Get-NoRecommendationReason -Assessment $a; if ($cause) { ConvertTo-MarkdownText $cause } else { 'size characteristics or region catalog unavailable' } }
+                [void]$sb.AppendLine("_No primary recommendation: ${noRecommendation}_")
                 [void]$sb.AppendLine()
                 if ($comparison) {
                     [void]$sb.AppendLine('**CURRENT VS TARGET SIZE**')
@@ -1106,6 +1117,45 @@ $extended
 "@
 }
 
+function New-CollectionIssuesHtml {
+    <# A warning callout for data that could not be collected. -SubscriptionId limits it to one subscription plus the tenant-wide items. #>
+    param([AllowEmptyCollection()][object[]]$Issues = @(), [string]$SubscriptionId, [hashtable]$SubscriptionNames = @{})
+    $e = { param($x) ConvertTo-HtmlEncoded $x }
+    $set = @($Issues | Where-Object { $_ -and (-not $SubscriptionId -or -not $_.SubscriptionId -or $_.SubscriptionId -eq $SubscriptionId) })
+    if ($set.Count -eq 0) { return '' }
+    $items = ($set | ForEach-Object {
+            $subscription = if ($_.SubscriptionId -and -not $SubscriptionId) { if ($SubscriptionNames.ContainsKey([string]$_.SubscriptionId)) { $SubscriptionNames[[string]$_.SubscriptionId] } else { $_.SubscriptionId } }
+            $where = @($subscription, $_.Region) | Where-Object { $_ }
+            "<li><strong>$(& $e $_.Api)</strong>$(if ($where) { " <span class='muted'>&middot; $(& $e ($where -join ' / '))</span>" }): $(& $e $_.Message)$(if ($_.Effect) { " <span class='muted'>$(& $e $_.Effect)</span>" })</li>"
+        }) -join ''
+    "<div class='callout warn'><strong>Some data could not be collected ($($set.Count)).</strong> The results for the affected scopes are incomplete; fix the cause and run the assessment again.<ul>$items</ul></div>"
+}
+
+function New-VmNoRecommendationDetailHtml {
+    <# The collapsible block for a listed VM that has no recommendation because no candidate search could run: why, and what to do. Same layout as New-VmDetailHtml. #>
+    param([Parameter(Mandatory)]$Assessment)
+    $e = { param($x) ConvertTo-HtmlEncoded $x }
+    $a = $Assessment
+    $reason = Get-NoRecommendationReason -Assessment $a
+    $why = "<p>$(& $e $(if ($reason) { $reason } else { 'Size characteristics or region catalog unavailable' }))</p>"
+    $issueItems = ($a.CollectionIssues | ForEach-Object { "<li><strong>$(& $e $_.Api):</strong> $(& $e $_.Message)$(if ($_.Effect) { " <span class='muted'>$(& $e $_.Effect)</span>" })</li>" }) -join ''
+    if ($issueItems) { $why += "<ul class='vd-list'>$issueItems</ul>" }
+    $notes = (@(@($a.ValidationItems) + @($a.Lifecycle.Notes) | Where-Object { $_ } | Select-Object -Unique) | ForEach-Object { "<li>$(& $e $_)</li>" }) -join ''
+    $metaParts = @(if ($a.Wave) { New-Badge $a.Wave }; if ($a.Lifecycle.RetirementDate) { "retires <strong>$(& $e $a.Lifecycle.RetirementDate)</strong>" }; if ($a.NextStep) { "next step: <strong>$(& $e $a.NextStep)</strong>" })
+    $badges = "$(New-Badge $a.Confidence.Level -Label "Confidence: $($a.Confidence.Level)") $(New-Badge $a.Readiness -Label "Readiness: $($a.Readiness)")"
+    $steps = "<ol class='vd-steps'><li>Resolve the problem described here (access, provider registration or service availability), then run the assessment again.</li><li>Until then, check Microsoft's guidance for this size manually ($(New-LearnLink 'EndOfLifeList' 'End of Life list')).</li></ol>"
+    @"
+<div class="vm-detail">
+<div class="vd-head"><span class="vd-move"><code>$(& $e $a.Vm.SkuName)</code> <span class='move-arrow'>&rarr;</span> <code>no recommendation</code></span><span class="vd-badges">$badges</span><div class="vd-meta">$($metaParts -join ' &middot; ')</div></div>
+<div class="vd-cols">
+<section class="vd-card"><h4>Why there is no recommendation</h4>$why</section>
+<section class="vd-card"><h4>What to do</h4>$steps</section>
+</div>
+$(if ($notes) { "<section class='vd-card'><h4>Validate before resizing</h4><ul class='vd-list'>$notes</ul></section>" })
+</div>
+"@
+}
+
 function Get-ModernizationDetailParts {
     <# Blocker topics, remediation steps and quota text for the modernization target of one VM, from Assessment.Strategy. Rendered inside the VM's detail block. #>
     param([Parameter(Mandatory)]$Assessment)
@@ -1294,7 +1344,7 @@ $($famRows -join "`n")
 }
 
 function Export-HtmlReports {
-    param([Parameter(Mandatory)][string]$OutDir, [Parameter(Mandatory)][string]$CssPath, [Parameter(Mandatory)]$Run, [Parameter(Mandatory)]$Summary, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments, $QuotaImpact, $CatalogResult, $ProcessorCatalog)
+    param([Parameter(Mandatory)][string]$OutDir, [Parameter(Mandatory)][string]$CssPath, [Parameter(Mandatory)]$Run, [Parameter(Mandatory)]$Summary, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments, $QuotaImpact, $CatalogResult, $ProcessorCatalog, [object[]]$CollectionIssues = @())
     $css = Get-Content $CssPath -Raw
     $e = { param($x) ConvertTo-HtmlEncoded $x }
     $s = $Summary
@@ -1331,6 +1381,9 @@ function Export-HtmlReports {
     $bottom = (Get-BottomLine -Assessments $Assessments -TenantView | ForEach-Object { "<li>$_</li>" }) -join ''
     $srcHtml = (@($CatalogResult.Catalog.sources) | ForEach-Object { "<li><a href='$(& $e $_.Url)' target='_blank'>$(& $e $(if ($_.Title) { $_.Title -replace ' - Azure Virtual Machines \| Microsoft Learn$', '' } else { $_.Name }))</a> <span class='muted'>&middot; updated $(& $e $_.UpdatedAt) &middot; retrieved $(& $e $_.RetrievedUtc)</span></li>" }) -join ''
     $warn = $staleHtml
+    $subscriptionNames = @{}
+    foreach ($a in $Assessments) { $subscriptionNames[[string]$a.Vm.SubscriptionId] = $a.SubscriptionName }
+    $warn += New-CollectionIssuesHtml -Issues $CollectionIssues -SubscriptionNames $subscriptionNames
     if ($CatalogResult.Warning) { $warn += "<div class='callout warn'><strong>Evidence warning:</strong> $(& $e $CatalogResult.Warning)</div>" }
     $unm = @(Get-UnmappedSeriesNames -Catalog $CatalogResult.Catalog)
     if ($unm.Count -gt 0) { $warn += "<div class='callout warn'><strong>Microsoft series without a size mapping (not classified):</strong> $(& $e ($unm -join ', '))</div>" }
@@ -1396,11 +1449,13 @@ function Export-HtmlReports {
         $earliest = @($retiringOnly | ForEach-Object { "$($_.Lifecycle.RetirementDate)" } | Where-Object { $_ } | Sort-Object | Select-Object -First 1)
         $tilesHtml = New-TrackTilesHtml -RetiringCount $retiringOnly.Count -EarliestDate $(if ($earliest.Count) { $earliest[0] } else { '' })
 
-        $detailSet = @($retiring | Where-Object { $_.Candidates } | Sort-Object { & $waveRank $_.Wave }, { $_.Vm.Name })
+        $detailSet = @($retiring | Sort-Object { & $waveRank $_.Wave }, { $_.Vm.Name })
         $detailOmitted = if ($maxDetails -gt 0 -and $detailSet.Count -gt $maxDetails) { $detailSet.Count - $maxDetails } else { 0 }
         if ($detailOmitted) { $detailSet = @($detailSet | Select-Object -First $maxDetails) }
         $detailBlocks = @{}
-        foreach ($d in $detailSet) { $detailBlocks[(Get-VmAnchorId $d.Vm)] = New-VmDetailHtml -Assessment $d -CheckModernization:$checkModernization -ExtendedDetails:$extendedDetails }
+        foreach ($d in $detailSet) {
+            $detailBlocks[(Get-VmAnchorId $d.Vm)] = if ($d.Candidates) { New-VmDetailHtml -Assessment $d -CheckModernization:$checkModernization -ExtendedDetails:$extendedDetails } else { New-VmNoRecommendationDetailHtml -Assessment $d }
+        }
         $omittedNote = if ($detailOmitted) { "<div class='callout info'>Details are shown for the first $maxDetails VMs in wave order; $detailOmitted more are in <code>detailed-report.md</code>, <code>vm-assessment.csv</code> and <code>assessment.json</code> (raise or disable the limit with <code>-HtmlMaxVmDetails</code>).</div>" } else { '' }
         $table = New-VmTableHtml -Assessments @($retiring | Sort-Object { & $waveRank $_.Wave }, { $_.Vm.Name }) -CheckModernization:$checkModernization -Details $detailBlocks
 
@@ -1434,6 +1489,7 @@ function Export-HtmlReports {
         $subQuotaHtml = New-QuotaActionsHtml -Rows $subQuotaRows -HideSubscription
         $body = @(
             $staleHtml
+            @(New-CollectionIssuesHtml -Issues $CollectionIssues -SubscriptionId $g.Name | Where-Object { $_ })
             "<section id='overview' class='card'><h2>Overview</h2>$tilesHtml<div class='kpis'>$kp</div><div class='bottom-line'><h3>Bottom line</h3><ul>$bl</ul></div></section>"
             (New-TrackHtml -Tone 'retirement' -Label 'Required' -Title 'Retirement remediation' -Description "VMs on sizes Microsoft is retiring. Move them to the recommended size before the retirement date.$(if ($includeOptional) { ' Optional-modernization VMs are also listed (-HtmlIncludeOptionalModernization).' })" -Body (@(
                         (New-Section -Id 'vms' -Title 'VMs with Retiring SKUs' -Body ($legend + $omittedNote + $table) -Intro "$scopeText$(if ($checkModernization) { ' The v6/v7 columns show each VM''s modernization target and its migration path next to its required retirement target.' }) Select a VM's Details to see what to do, what changes and what to validate; upgrade steps: $(New-LearnLink 'Resize' 'resize'), $(New-LearnLink 'NvmeConvert' 'SCSI to NVMe'), $(New-LearnLink 'Gen1TrustedLaunch' 'Gen1 to Trusted launch').")

@@ -20,6 +20,7 @@ complete, machine-readable result for Azure Workbooks, Power BI, Excel, Logic Ap
   summary: { <estate counts>, ByEvidenceClass[], ByWave[], BySubscription[], ByRegion[], ByCurrentSku[], ByCurrentSkuFamily[],
              ByRecommendedSku[], ByRecommendedSkuFamily[], ByCpuVendor[], ByRetirementDate[], ByMigrationPriority[], ByDeploymentReadiness[] },
   quota: { family: [QuotaRow], regional: [QuotaRow] },
+  collectionIssues: [ { subscriptionId, region, api, message, effect } ],   # data that could not be collected; [] when everything was read
   vms: [ {
     row: <same fields as vm-assessment.csv>,
     vm: <inventory record: ids, zone, availability set, PPG, host, VMSS, power state, OS, Hyper-V generation, disk controller,
@@ -59,6 +60,17 @@ mis-read a single-subscription or single-region estate.
 `materialDifferences[].Current` / `.Target` and `TargetComparison[].Current` / `.RetirementTarget` / `.ModernizationTarget` are
 display values whose JSON type follows the `Attribute` (string, number, boolean or `null`); read them together with
 `Attribute`, or as text. The CSV and the reports render them as text.
+
+### Collection issues
+
+`collectionIssues[]` lists every problem that left part of the data missing; it is `[]` when everything was read. Each entry
+has `subscriptionId` and `region` (`null` when the problem is not tied to one scope), `api` (what was being read, for example
+`Resource SKUs`, `Compute usage (az vm list-usage)`, `Resource Graph: Azure Advisor retirement recommendations`,
+`Azure Monitor metrics (rightsizing)`, `Azure Retail Prices`), `message` (the sanitized reason; email addresses and the
+signed-in identity's object id are masked) and `effect` (what it means for the results). For a VM in the affected
+subscription and region the cause is also in `confidence.LowReasons` ("Data not collected (...): ...") and, when no
+recommendation could be made, in the CSV column `RecommendationReason`. The same list is in `executive-summary.md`
+("Data collection issues") and in a callout on the HTML pages. See the methodology, section 2.
 
 ### Candidate object
 

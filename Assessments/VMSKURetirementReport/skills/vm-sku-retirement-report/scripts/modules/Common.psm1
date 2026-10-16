@@ -103,11 +103,14 @@ function Invoke-AzJson {
     <#
     .SYNOPSIS
         Runs an Azure CLI command (read-only) and returns parsed JSON, with retry on throttling/transient errors.
+    .PARAMETER AllowFailure
+        A failed call returns $null instead of throwing. Pass -Failure to receive the sanitized reason.
     #>
     param(
         [Parameter(Mandatory)][string[]]$Arguments,
         [int]$MaxRetries = 3,
-        [switch]$AllowFailure
+        [switch]$AllowFailure,
+        [ref]$Failure
     )
     $snapshotMode = Get-SnapshotMode
     $isToken = $Arguments -contains 'get-access-token'
@@ -117,7 +120,7 @@ function Invoke-AzJson {
         if ($isToken) { return [pscustomobject]@{ accessToken = 'snapshot-replay'; tokenType = 'Bearer' } }
         $entry = Read-SnapshotEntry -Kind 'az' -Request $request
         if ($entry.Failed) {
-            if ($AllowFailure) { return $null }
+            if ($AllowFailure) { if ($Failure) { $Failure.Value = 'The call failed when the snapshot was captured.' }; return $null }
             throw "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed when the snapshot was captured."
         }
         if ([string]::IsNullOrWhiteSpace($entry.Text)) { return $null }
@@ -148,7 +151,9 @@ function Invoke-AzJson {
         }
         if ($snapshotMode -eq 'Record' -and -not $isToken) { Save-SnapshotEntry -Kind 'az' -Request $request -Text $null -Failed }
         if ($AllowFailure) {
-            Write-Verbose "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed: $(ConvertTo-SafeCliMessage $err)"
+            $safe = ConvertTo-SafeCliMessage $err
+            Write-Verbose "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed: $safe"
+            if ($Failure) { $Failure.Value = if ($safe) { $safe } else { "az exited with code $code." } }
             return $null
         }
         throw "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed (exit $code): $(ConvertTo-SafeCliMessage $err)"
@@ -303,16 +308,53 @@ function ConvertTo-DisplayPath {
 function ConvertTo-SafeCliMessage {
     <#
     .SYNOPSIS
-        Sanitizes Azure CLI error text before it is shown, thrown or logged: masks email addresses, hides the home
-        directory, collapses whitespace and truncates.
+        Sanitizes Azure CLI error text before it is shown, thrown or logged: masks email addresses and the object id of the
+        signed-in identity, hides the home directory, collapses whitespace and truncates.
     #>
     param([AllowNull()][string]$Text, [int]$MaxLength = 400)
     if ([string]::IsNullOrWhiteSpace($Text)) { return '' }
     $t = ConvertTo-DisplayPath (($Text -replace '\s+', ' ').Trim())
     $t = $t -replace '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', { Get-MaskedAccount $_.Value }
+    $t = $t -replace '(?i)(object id\s*[''"]?)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '$1****'
     if ($t.Length -gt $MaxLength) { $t = $t.Substring(0, $MaxLength) + '...' }
     return $t
 }
 
+function New-CollectionIssueSink {
+    <# A thread-safe list for data-collection problems. Parallel runspaces share it through $using:; the comma keeps the queue from being enumerated. #>
+    , [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
+}
+
+function Format-CollectionIssue {
+    param([Parameter(Mandatory)]$Issue)
+    $scope = @($Issue.Region, $(if ($Issue.SubscriptionId) { "subscription $($Issue.SubscriptionId)" })) | Where-Object { $_ }
+    "$($Issue.Api)$(if ($scope) { " ($($scope -join ', '))" }): $($Issue.Message)$(if ($Issue.Effect) { " $($Issue.Effect)" })"
+}
+
+function Add-CollectionIssue {
+    <#
+    .SYNOPSIS
+        Records a data-collection problem (what could not be read, for which subscription / region, why, and what it means
+        for the results). Without a sink the problem is written as a warning so it is never lost.
+    #>
+    param(
+        $Sink,
+        [Parameter(Mandatory)][string]$Api,
+        [Parameter(Mandatory)][string]$Message,
+        [string]$SubscriptionId,
+        [string]$Region,
+        [string]$Effect
+    )
+    $issue = [pscustomobject]@{ SubscriptionId = $SubscriptionId; Region = $Region; Api = $Api; Message = $Message; Effect = $Effect }
+    if ($Sink) { $Sink.Enqueue($issue) } else { Write-Warning (Format-CollectionIssue $issue) }
+}
+
+function Get-CollectionIssue {
+    <# The recorded problems in a stable order (parallel runspaces enqueue in an arbitrary order). #>
+    param($Sink)
+    if (-not $Sink) { return @() }
+    @($Sink.ToArray() | Sort-Object Api, SubscriptionId, Region, Message)
+}
+
 Export-ModuleMember -Function Get-ToolVersion, Write-Phase, Write-PhaseDone, Invoke-AzJson, Test-AzAuthentication, Get-SkuNameInfo, ConvertTo-InvariantDate, Get-MonthsBetween, Get-SafeFileName, Get-DefaultAssessmentOutputPath, ConvertTo-HtmlEncoded, `
-    Get-MaskedAccount, ConvertTo-DisplayPath, ConvertTo-SafeCliMessage, Get-SnapshotMode, Invoke-SnapshotRest
+    Get-MaskedAccount, ConvertTo-DisplayPath, ConvertTo-SafeCliMessage, Get-SnapshotMode, Invoke-SnapshotRest, New-CollectionIssueSink, Format-CollectionIssue, Add-CollectionIssue, Get-CollectionIssue

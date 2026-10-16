@@ -260,7 +260,9 @@ try {
     $weights = Get-Content (Join-Path $skillRoot 'data/scoring-weights.json') -Raw | ConvertFrom-Json
 
     # -- Inventory --
-    $inventory = Get-EstateInventory -SubscriptionIds @($subs | ForEach-Object id) -Regions $Region -TenantId $argTenant
+    # Every problem that leaves part of the data missing is recorded here, and reported in the console, run.log and all outputs.
+    $issueSink = New-CollectionIssueSink
+    $inventory = Get-EstateInventory -SubscriptionIds @($subs | ForEach-Object id) -Regions $Region -TenantId $argTenant -IssueSink $issueSink
     $vms = @($inventory.Vms)
     if ($rawDir) { $vms | ConvertTo-Json -Depth 8 -Compress | Out-File (Join-Path $rawDir 'vm-inventory.json') -Encoding utf8 }
 
@@ -277,15 +279,15 @@ try {
     $needPairs = @($needs | ForEach-Object { [pscustomobject]@{ SubscriptionId = $_.SubscriptionId; Region = $_.Region } } | Sort-Object SubscriptionId, Region -Unique)
     $allPairs = @($vms | ForEach-Object { [pscustomobject]@{ SubscriptionId = $_.SubscriptionId; Region = $_.Region } } | Sort-Object SubscriptionId, Region -Unique)
     Write-Phase "Resource SKUs (capabilities + restrictions): $($allPairs.Count) subscription/region pair(s)"
-    $skuCatalogs = if ($allPairs.Count) { Get-SkuCatalogs -Pairs $allPairs -RawCacheDir $rawDir -ThrottleLimit $ThrottleLimit } else { @{} }
-    $emptyCats = @($skuCatalogs.Keys | Where-Object { $skuCatalogs[$_].Count -eq 0 })
-    foreach ($k in $emptyCats) { Write-Warning "No SKU data returned for $k (permissions or provider registration)." }
+    $skuCatalogs = if ($allPairs.Count) { Get-SkuCatalogs -Pairs $allPairs -RawCacheDir $rawDir -ThrottleLimit $ThrottleLimit -IssueSink $issueSink } else { @{} }
     Write-PhaseDone "$($skuCatalogs.Count) catalogs"
     # A snapshot records quota for every subscription/region so a replay can enable --check-modernization later.
     $quotaPairs = @(if ($SaveSnapshot) { $allPairs } else { $needPairs })
     Write-Phase "Compute quota usage: $($quotaPairs.Count) subscription/region pair(s)"
-    $usage = if ($quotaPairs.Count) { Get-QuotaUsages -Pairs $quotaPairs -ThrottleLimit $ThrottleLimit } else { @{} }
+    $usage = if ($quotaPairs.Count) { Get-QuotaUsages -Pairs $quotaPairs -ThrottleLimit $ThrottleLimit -IssueSink $issueSink } else { @{} }
     Write-PhaseDone "$(@($usage.Keys | Where-Object { $usage[$_] }).Count) with data"
+    $collectionIssues = @(Get-CollectionIssue -Sink $issueSink)
+    foreach ($issue in $collectionIssues) { Write-Warning (Format-CollectionIssue $issue) }
 
     # -- Per-VM assessment --
     Write-Phase "Assessing $($vms.Count) VMs"
@@ -354,7 +356,8 @@ try {
         $id = $a.Vm.Id
         $q = if ($a.AffectedByRetirement -in 'Yes', 'Unknown') { & $byVm $quotaPrimaryMandatory $id } else { & $byVm $quotaAll $id }
         [void](Complete-VmAssessment -Assessment $a -QuotaResult $q -RetirementQuotaResult (& $byVm $quotaRetirement $id) `
-                -ModernizationQuotaResult (& $byVm $quotaModern $id) -Usage $usage -HorizonMonths $HorizonMonths)
+                -ModernizationQuotaResult (& $byVm $quotaModern $id) -Usage $usage -HorizonMonths $HorizonMonths `
+                -CollectionIssues @($collectionIssues | Where-Object { $_.SubscriptionId -eq $a.Vm.SubscriptionId -and $_.Region -eq $a.Vm.Region }))
     }
     $increase = { param($result) if ($result) { @($result.FamilyRows + $result.RegionalRows | Where-Object Status -eq 'Quota Increase Required').Count } else { 0 } }
     $phase = "$(& $increase $quotaRetirement) retirement-scope quota(s) need an increase; $(& $increase $quotaAll) incl. modernization"
@@ -373,7 +376,10 @@ try {
             }
             Write-PhaseDone "$(@($targets | Where-Object { $_.Rightsizing -and $_.Rightsizing.Status -eq 'Potential Rightsizing Opportunity' }).Count) potential opportunities"
         }
-        catch { Write-Warning "Rightsizing telemetry unavailable: $($_.Exception.Message)" } }
+        catch {
+            Write-Warning "Rightsizing telemetry unavailable: $($_.Exception.Message)"
+            Add-CollectionIssue -Sink $issueSink -Api 'Azure Monitor metrics (rightsizing)' -Message (ConvertTo-SafeCliMessage $_.Exception.Message) -Effect 'Rightsizing opportunities are not shown.'
+        } }
     }
 
     # -- Optional: pricing --
@@ -386,6 +392,7 @@ try {
             catch {
                 $pricingStatus = if ($completedPricingRegions -gt 0) { 'Partial' } else { 'Unavailable' }
                 Write-Warning "Retail pricing unavailable for region '$($rg.Name)'. Incomplete region prices discarded; prices from $completedPricingRegions completed region(s) retained. Remaining regions skipped. $($_.Exception.Message) Use -SkipPricing to skip this step."
+                Add-CollectionIssue -Sink $issueSink -Api 'Azure Retail Prices' -Region $rg.Name -Message (ConvertTo-SafeCliMessage $_.Exception.Message) -Effect 'Pricing is unavailable or partial (see pricingStatus in assessment.json).'
                 break
             }
             foreach ($a in $rg.Group) {
@@ -402,6 +409,7 @@ try {
         Write-PhaseDone $(if ($pricingStatus -eq 'Done') { '' } else { $pricingStatus.ToLowerInvariant() })
     }
     Write-Phase 'Writing outputs'
+    $collectionIssues = @(Get-CollectionIssue -Sink $issueSink)
     $summary = New-AssessmentSummary -Assessments $assessments.ToArray() -SubscriptionsScanned $subs.Count
     $run = [pscustomobject]@{
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o'); AsOf = $AsOfDate; ToolVersion = (Get-ToolVersion)
@@ -418,10 +426,10 @@ try {
         }
         Counts = $inventory.Counts
     }
-    $rows = @(Export-AssessmentData -OutDir $OutputPath -Run $run -Assessments $assessments.ToArray() -Summary $summary -QuotaImpact $quotaImpact -CatalogResult $catalogResult -Inventory $inventory)
-    Export-ExecutiveSummaryMarkdown -Path (Join-Path $OutputPath 'executive-summary.md') -Run $run -Summary $summary -Rows $rows -QuotaImpact $quotaImpact -CatalogResult $catalogResult
+    $rows = @(Export-AssessmentData -OutDir $OutputPath -Run $run -Assessments $assessments.ToArray() -Summary $summary -QuotaImpact $quotaImpact -CatalogResult $catalogResult -Inventory $inventory -CollectionIssues $collectionIssues)
+    Export-ExecutiveSummaryMarkdown -Path (Join-Path $OutputPath 'executive-summary.md') -Run $run -Summary $summary -Rows $rows -QuotaImpact $quotaImpact -CatalogResult $catalogResult -CollectionIssues $collectionIssues
     Export-DetailedReportMarkdown -Path (Join-Path $OutputPath 'detailed-report.md') -Assessments $assessments.ToArray() -Run $run
-    if (-not $SkipHtml) { Export-HtmlReports -OutDir $OutputPath -CssPath (Join-Path $skillRoot 'templates/report.css') -Run $run -Summary $summary -Assessments $assessments.ToArray() -QuotaImpact $quotaImpact -CatalogResult $catalogResult -ProcessorCatalog $procCatalog }
+    if (-not $SkipHtml) { Export-HtmlReports -OutDir $OutputPath -CssPath (Join-Path $skillRoot 'templates/report.css') -Run $run -Summary $summary -Assessments $assessments.ToArray() -QuotaImpact $quotaImpact -CatalogResult $catalogResult -ProcessorCatalog $procCatalog -CollectionIssues $collectionIssues }
     Write-PhaseDone
 
     if ($SaveSnapshot) {
@@ -440,6 +448,7 @@ try {
     Write-Host '==== Summary ====' -ForegroundColor Cyan
     $summary | Select-Object TotalSubscriptionsScanned, TotalVmsScanned, AffectedVms, AlreadyRetired, RetirementWithin12Months, RetirementWithin24Months, RetirementWithin36Months, ModernizationRecommended, ModernizationOptional, UnableToDetermine, VmsRequiringQuotaIncrease, VmsWithRegionalRestrictions, VmsRequiringCpuVendorChange, VmsRequiringManualReview, HighConfidence, MediumConfidence, LowConfidence | Format-List | Out-String | Write-Host
     Write-Host "Outputs: $(ConvertTo-DisplayPath $OutputPath)" -ForegroundColor Green
+    if ($collectionIssues.Count) { Write-Host "Data-collection issues: $($collectionIssues.Count). Results for the affected scopes are incomplete; the causes are listed in executive-summary.md, the HTML reports and assessment.json (collectionIssues)." -ForegroundColor Yellow }
     Write-Host ("Elapsed: {0:N0}s" -f ((Get-Date) - $startTime).TotalSeconds)
 }
 finally {

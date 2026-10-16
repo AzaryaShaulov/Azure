@@ -122,7 +122,7 @@ function New-VmAssessment {
         Vm = $Vm; SubscriptionName = $SubscriptionName; Lifecycle = $lc; Current = $current; Candidates = $cand; Modernization = $modernization
         AffectedByRetirement = $affected
         Quota = $null; QuotaStatus = $null; Readiness = $null; Confidence = $null; Action = $null; NextStep = $null; Wave = $null
-        SecondaryReason = $null; Rightsizing = $null; Pricing = $null; DataQuality = $null; ValidationItems = @()
+        SecondaryReason = $null; Rightsizing = $null; Pricing = $null; DataQuality = $null; ValidationItems = @(); CollectionIssues = @()
         RetirementQuota = $null; ModernizationQuota = $null; Strategy = $null
     }
 }
@@ -281,9 +281,14 @@ function Complete-VmAssessment {
         Quota result for the retirement target (Retirement scope).
     .PARAMETER ModernizationQuotaResult
         Quota result for the strategic v6/v7 target (Modernization scope, with steady-state and peak demand).
+    .PARAMETER CollectionIssues
+        Data-collection problems for this VM's subscription and region (SKU or quota data that could not be read). They explain
+        a missing recommendation and are added to the low-confidence reasons.
     #>
-    param([Parameter(Mandatory)]$Assessment, $QuotaResult, $RetirementQuotaResult, $ModernizationQuotaResult, [hashtable]$Usage, [ValidateRange(12, 120)][int]$HorizonMonths = 36)
+    param([Parameter(Mandatory)]$Assessment, $QuotaResult, $RetirementQuotaResult, $ModernizationQuotaResult, [hashtable]$Usage, [ValidateRange(12, 120)][int]$HorizonMonths = 36, [object[]]$CollectionIssues = @())
     $a = $Assessment; $vm = $a.Vm; $c = $a.Candidates
+    $a.CollectionIssues = @($CollectionIssues)
+    $causes = @($a.CollectionIssues | ForEach-Object { "Data not collected ($($_.Api)): $($_.Message)" })
     $a.RetirementQuota = $RetirementQuotaResult; $a.ModernizationQuota = $ModernizationQuotaResult
     $primary = if ($c) { $c.Primary } else { $null }
     $secondary = if ($c) { $c.Secondary } else { $null }
@@ -309,7 +314,7 @@ function Complete-VmAssessment {
     if (-not $c) {
         $a.Readiness = if ($a.Action -eq 'No Action Required') { 'Not Applicable' } else { 'Manual Review Required' }
         $a.NextStep = if ($a.Action -eq 'No Action Required') { 'None' } else { 'Manual Review Required' }
-        $a.Confidence = [pscustomobject]@{ Level = if ($a.Action -eq 'No Action Required') { 'N/A' } else { 'LOW' }; LowReasons = @(); ValidationItems = @() }
+        $a.Confidence = [pscustomobject]@{ Level = if ($a.Action -eq 'No Action Required') { 'N/A' } else { 'LOW' }; LowReasons = @(if ($a.Action -ne 'No Action Required') { $causes }); ValidationItems = @() }
     }
     else {
         $reviews = @(if ($primary) { $primary.Gates | Where-Object { $_.Result -in 'Review', 'Unknown' -and $_.Gate -notin 'CPU Vendor', 'Nested Virtualization' } | ForEach-Object { "$($_.Gate): $($_.Detail)" } })
@@ -329,6 +334,9 @@ function Complete-VmAssessment {
         $items = @($reviews)
         if (-not $a.Current.CapsKnown) { $items += 'Current size capabilities not available from Resource SKUs API' }
         $a.Confidence = Get-MigrationConfidence -Lifecycle $a.Lifecycle -Primary $primary -Current $a.Current -VendorChangeRequired $c.VendorChangeRequired -QuotaStatus $quotaStatus -ValidationItems $items
+        # An unverified quota already lowers confidence; name the reason it could not be verified.
+        $quotaCauses = @($a.CollectionIssues | Where-Object { $_.Api -like 'Compute usage*' } | ForEach-Object { "Data not collected ($($_.Api)): $($_.Message)" })
+        if ($quotaCauses.Count -gt 0) { $a.Confidence.LowReasons = @($a.Confidence.LowReasons) + $quotaCauses }
         $a.ValidationItems = @($a.Confidence.ValidationItems)
         $a.NextStep = switch ($a.Readiness) {
             # 'Proceed with Resize' only when nothing is left to validate; availability set / scale set membership, a removed
@@ -585,6 +593,17 @@ function Get-TimeRemainingText {
     return '-'
 }
 
+function Get-NoRecommendationReason {
+    <# Why a VM that needs action has no recommendation because no candidate search ran: the data that could not be collected, or the generic cause. $null when no action is needed. #>
+    param([Parameter(Mandatory)]$Assessment)
+    $a = $Assessment
+    if ($a.Candidates) { return $a.Candidates.NoCandidateReason }
+    if ($a.Action -eq 'No Action Required') { return $null }
+    $causes = @($a.CollectionIssues | ForEach-Object { "$($_.Api): $($_.Message)" })
+    if ($causes.Count -gt 0) { return "Data could not be collected - $($causes -join '; ')" }
+    return 'Size characteristics or region catalog unavailable'
+}
+
 function ConvertTo-AssessmentRow {
     <# Flat row for CSV / Power BI (one row per VM). #>
     param([Parameter(Mandatory)]$A)
@@ -639,7 +658,7 @@ function ConvertTo-AssessmentRow {
         SkuRegionalAvailability = if ($modern) { $modern.Availability } elseif ($p) { $p.Availability } else { $null }
         QuotaStatus             = $A.QuotaStatus
         ModernizationStatus     = if ($modern) { $modern.Status } else { 'Not Evaluated' }
-        RecommendationReason    = if ($modern) { $modern.Reason } elseif ($A.Candidates) { $A.Candidates.NoCandidateReason } else { $null }
+        RecommendationReason    = if ($modern) { $modern.Reason } elseif ($A.Candidates) { $A.Candidates.NoCandidateReason } else { Get-NoRecommendationReason -Assessment $A }
         QuotaFamily             = if ($A.Quota) { $A.Quota.Family.QuotaDisplayName } else { $null }
         QuotaMinIncreaseFamily  = if ($A.Quota) { $A.Quota.Family.MinimumIncrease } else { $null }
         QuotaMinIncreaseRegional = if ($A.Quota) { $A.Quota.Regional.MinimumIncrease } else { $null }
@@ -739,4 +758,4 @@ function New-AssessmentSummary {
     }
 }
 
-Export-ModuleMember -Function Test-NeedsCandidates, New-VmAssessment, Update-VmAction, Complete-VmAssessment, Resolve-ModernizationQuotaChoices, Get-ModernizationTargetInfo, Get-TargetDifferences, New-TargetComparison, Get-TargetStrategy, Get-TimeRemainingText, ConvertTo-AssessmentRow, New-AssessmentSummary
+Export-ModuleMember -Function Test-NeedsCandidates, New-VmAssessment, Update-VmAction, Complete-VmAssessment, Resolve-ModernizationQuotaChoices, Get-ModernizationTargetInfo, Get-TargetDifferences, New-TargetComparison, Get-TargetStrategy, Get-TimeRemainingText, Get-NoRecommendationReason, ConvertTo-AssessmentRow, New-AssessmentSummary

@@ -101,8 +101,10 @@ function Get-RegionSkuCatalog {
         Uses the Microsoft.Compute/skus REST API with a token for the subscription's own tenant (about 15x faster
         than 'az vm list-skus' and tenant-independent); falls back to 'az vm list-skus --all' if REST fails.
     #>
-    param([Parameter(Mandatory)][string]$SubscriptionId, [Parameter(Mandatory)][string]$Region, [string]$RawCachePath)
+    param([Parameter(Mandatory)][string]$SubscriptionId, [Parameter(Mandatory)][string]$Region, [string]$RawCachePath, $IssueSink)
     $raw = $null
+    $restFailure = $null
+    $truncated = $false
     try {
         $tok = (Invoke-AzJson -Arguments @('account', 'get-access-token', '--subscription', $SubscriptionId, '--resource', 'https://management.azure.com')).accessToken
         $url = "https://management.azure.com/subscriptions/$SubscriptionId/providers/Microsoft.Compute/skus?api-version=2021-07-01&`$filter=location eq '$Region'"
@@ -118,14 +120,34 @@ function Get-RegionSkuCatalog {
             $url = if ($resp.PSObject.Properties.Name -contains 'nextLink') { $resp.nextLink } else { $null }
             $pages++
         }
+        $truncated = [bool]$url
         $raw = $items.ToArray()
     }
     catch {
-        Write-Verbose "Compute SKUs REST failed for $SubscriptionId/$Region ($($_.Exception.Message)); falling back to az vm list-skus."
+        $restFailure = ConvertTo-SafeCliMessage $_.Exception.Message
+        Write-Verbose "Compute SKUs REST failed for $SubscriptionId/$Region ($restFailure); falling back to az vm list-skus."
         $raw = $null
     }
+    if ($truncated) {
+        Add-CollectionIssue -Sink $IssueSink -Api 'Resource SKUs (REST)' -SubscriptionId $SubscriptionId -Region $Region `
+            -Message 'Reading stopped after 50 pages, so the size list may be incomplete.' `
+            -Effect 'Some sizes may be missing from the replacement search for VMs in this scope.'
+    }
     if (-not $raw -or @($raw).Count -eq 0) {
-        $raw = Invoke-AzJson -Arguments @('vm', 'list-skus', '--location', $Region, '--resource-type', 'virtualMachines', '--all', '--subscription', $SubscriptionId) -AllowFailure
+        $cliFailure = $null
+        $raw = Invoke-AzJson -Arguments @('vm', 'list-skus', '--location', $Region, '--resource-type', 'virtualMachines', '--all', '--subscription', $SubscriptionId) -AllowFailure -Failure ([ref]$cliFailure)
+        if ($raw -and @($raw).Count -gt 0) {
+            if ($restFailure) { Write-Host "    note: Resource SKUs REST failed for $Region in subscription $SubscriptionId ($restFailure); used az vm list-skus instead." -ForegroundColor DarkGray }
+        }
+        else {
+            # An empty JSON list also reads back as $null, so "no failure" means the call succeeded with nothing.
+            $cause = @(
+                if ($restFailure) { "REST call failed: $restFailure" }
+                if ($cliFailure) { "az vm list-skus failed: $cliFailure" } else { 'az vm list-skus returned no VM sizes (check permissions and the Microsoft.Compute provider registration)' }
+            ) -join '; '
+            Add-CollectionIssue -Sink $IssueSink -Api 'Resource SKUs' -SubscriptionId $SubscriptionId -Region $Region -Message $cause `
+                -Effect 'No replacement size can be recommended for VMs in this scope.'
+        }
     }
     if ($RawCachePath -and $raw) { $raw | ConvertTo-Json -Depth 20 -Compress | Out-File $RawCachePath -Encoding utf8 }
     $dict = @{}
@@ -146,7 +168,8 @@ function Get-SkuCatalogs {
     param(
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Pairs,
         [string]$RawCacheDir,
-        [int]$ThrottleLimit = 6
+        [int]$ThrottleLimit = 6,
+        $IssueSink
     )
     $modulePath = Join-Path $PSScriptRoot 'SkuCatalog.psm1'
     $results = $Pairs | ForEach-Object -ThrottleLimit $ThrottleLimit -Parallel {
@@ -154,17 +177,20 @@ function Get-SkuCatalogs {
         $p = $_
         $cache = if ($using:RawCacheDir) { Join-Path $using:RawCacheDir ("skus-{0}-{1}.json" -f $p.SubscriptionId, $p.Region) } else { $null }
         try {
-            $cat = Get-RegionSkuCatalog -SubscriptionId $p.SubscriptionId -Region $p.Region -RawCachePath $cache
-            [pscustomobject]@{ Key = "$($p.SubscriptionId)|$($p.Region)".ToLowerInvariant(); Catalog = $cat; Error = $null }
+            $cat = Get-RegionSkuCatalog -SubscriptionId $p.SubscriptionId -Region $p.Region -RawCachePath $cache -IssueSink $using:IssueSink
+            [pscustomobject]@{ Key = "$($p.SubscriptionId)|$($p.Region)".ToLowerInvariant(); Catalog = $cat; Error = $null; Pair = $p }
         }
         catch {
-            [pscustomobject]@{ Key = "$($p.SubscriptionId)|$($p.Region)".ToLowerInvariant(); Catalog = @{}; Error = $_.Exception.Message }
+            [pscustomobject]@{ Key = "$($p.SubscriptionId)|$($p.Region)".ToLowerInvariant(); Catalog = @{}; Error = (ConvertTo-SafeCliMessage $_.Exception.Message); Pair = $p }
         }
     }
     $out = @{}
     foreach ($r in @($results)) {
         $out[$r.Key] = $r.Catalog
-        if ($r.Error) { Write-Warning "Could not retrieve the subscription-scoped SKU catalog for $($r.Key): $($r.Error). Recommendations for this scope will remain unavailable." }
+        if ($r.Error) {
+            Add-CollectionIssue -Sink $IssueSink -Api 'Resource SKUs' -SubscriptionId $r.Pair.SubscriptionId -Region $r.Pair.Region -Message $r.Error `
+                -Effect 'No replacement size can be recommended for VMs in this scope.'
+        }
     }
     return $out
 }

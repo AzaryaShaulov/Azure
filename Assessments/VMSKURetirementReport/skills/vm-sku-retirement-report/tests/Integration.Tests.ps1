@@ -532,3 +532,97 @@ Describe 'Authentication preflight (mock Azure)' {
         Join-Path $out 'vm-assessment.csv' | Should -Not -Exist
     }
 }
+
+Describe 'Data-collection problems (mock Azure with an injected fault)' {
+    BeforeAll {
+        $script:MockDir = Join-Path $PSScriptRoot 'mock'
+        $script:RunFault = {
+            param([string]$Fault)
+            $dir = Join-Path $TestDrive "fault-$Fault"
+            $log = & pwsh -NoProfile -Command "`$env:MOCK_AZ_FAULT='$Fault'; `$env:PATH='$MockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$dir' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2 -SkipPricing" 2>&1 | Out-String
+            [pscustomobject]@{ Dir = $dir; Log = $log; Json = (Get-Content (Join-Path $dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40); Csv = @(Import-Csv (Join-Path $dir 'vm-assessment.csv')); RunLog = (Get-Content (Join-Path $dir 'run.log') -Raw) }
+        }
+        $script:SkuDenied = & $RunFault 'skus-denied'
+        $script:UsageDenied = & $RunFault 'usage-denied'
+    }
+
+    It 'reports no problem when every call succeeds' {
+        $j = Get-Content (Join-Path $Out 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        ($j.collectionIssues -is [System.Array]) | Should -BeTrue
+        @($j.collectionIssues).Count | Should -Be 0
+        $Log | Should -Not -Match 'Data-collection issues'
+        (Get-Content (Join-Path $Out 'executive-summary.md') -Raw) | Should -Not -Match 'Data collection issues'
+        foreach ($page in Get-ChildItem $Out -Filter '*.html') { (Get-Content $page.FullName -Raw) | Should -Not -Match 'Some data could not be collected' }
+    }
+
+    Context 'when the Resource SKUs call is denied' {
+        It 'stops nothing, says what failed and why in every output, and masks the identity in the message' {
+            $SkuDenied.Log | Should -Match 'Outputs:'
+            $SkuDenied.Log | Should -Match 'Data-collection issues: 1'
+            $issues = @($SkuDenied.Json.collectionIssues)
+            $issues.Count | Should -Be 1
+            $issues[0].api | Should -Be 'Resource SKUs'
+            $issues[0].region | Should -Be 'eastus2'
+            $issues[0].subscriptionId | Should -Be '11111111-1111-1111-1111-111111111111'
+            $issues[0].message | Should -Match 'AuthorizationFailed'
+            $issues[0].message | Should -Match "'a\*\*\*\*@contoso\.example'"
+            $issues[0].message | Should -Match "object id '\*\*\*\*'"
+            $issues[0].effect | Should -Match 'No replacement size'
+            $SkuDenied.RunLog | Should -Match 'WARNING: Resource SKUs \(eastus2, subscription 11111111-1111-1111-1111-111111111111\): .*AuthorizationFailed'
+            $SkuDenied.RunLog | Should -Match 'Resource SKUs REST failed|used az vm list-skus instead|Data-collection issues'
+            (Get-Content (Join-Path $SkuDenied.Dir 'executive-summary.md') -Raw) | Should -Match '(?m)^## Data collection issues'
+            foreach ($file in Get-ChildItem $SkuDenied.Dir -File -Recurse) {
+                $content = Get-Content $file.FullName -Raw
+                $content | Should -Not -Match 'admin@contoso\.example' -Because "$($file.Name) must not contain the raw account"
+                $content | Should -Not -Match '99999999-9999-9999-9999-999999999999' -Because "$($file.Name) must not contain the raw object id"
+            }
+        }
+
+        It 'puts the cause into the low-confidence reasons and the recommendation reason of every VM that needs action' {
+            $needAction = @($SkuDenied.Json.vms | Where-Object { $_.action -ne 'No Action Required' })
+            $needAction.Count | Should -BeGreaterThan 0
+            foreach ($vm in $needAction) {
+                $vm.recommendation | Should -BeNullOrEmpty
+                $vm.readiness | Should -Be 'Manual Review Required'
+                @($vm.confidence.LowReasons | Where-Object { $_ -like 'Data not collected (Resource SKUs): *AuthorizationFailed*' }).Count | Should -Be 1
+            }
+            foreach ($row in @($SkuDenied.Csv | Where-Object { $_.Action -ne 'No Action Required' })) { $row.RecommendationReason | Should -Match '^Data could not be collected - Resource SKUs: ' }
+        }
+
+        It 'shows the problem on the index and the subscription page and gives every listed VM a detail panel that explains it' {
+            (Get-Content (Join-Path $SkuDenied.Dir 'index.html') -Raw) | Should -Match 'Some data could not be collected \(1\)'
+            $page = Get-Content (Get-ChildItem $SkuDenied.Dir -Filter 'contoso-prod-*.html').FullName -Raw
+            $page | Should -Match 'Some data could not be collected \(1\)'
+            $summaryRows = ([regex]::Matches($page, "<tr class='vm-summary-row")).Count
+            $summaryRows | Should -BeGreaterThan 0
+            ([regex]::Matches($page, "<tr class='vm-detail-row'")).Count | Should -Be $summaryRows
+            ([regex]::Matches($page, 'Why there is no recommendation')).Count | Should -Be $summaryRows
+            ([regex]::Matches($page, "<input type='checkbox' class='vm-toggle'")).Count | Should -Be $summaryRows
+        }
+    }
+
+    Context 'when the compute usage (quota) call is denied' {
+        It 'records the cause, names it in the low-confidence reasons and warns' {
+            $UsageDenied.Log | Should -Match 'Data-collection issues: 1'
+            $issues = @($UsageDenied.Json.collectionIssues)
+            $issues.Count | Should -Be 1
+            $issues[0].api | Should -BeLike 'Compute usage*'
+            $issues[0].message | Should -Match 'AuthorizationFailed'
+            $issues[0].message | Should -Not -Match 'admin@contoso\.example|99999999-9999'
+            $UsageDenied.RunLog | Should -Match 'WARNING: Compute usage'
+            $withQuota = @($UsageDenied.Json.vms | Where-Object { $_.action -ne 'No Action Required' -and $_.recommendation })
+            $withQuota.Count | Should -BeGreaterThan 0
+            foreach ($vm in $withQuota) {
+                $vm.confidence.LowReasons | Should -Contain 'Quota could not be validated'
+                @($vm.confidence.LowReasons | Where-Object { $_ -like 'Data not collected (Compute usage*AuthorizationFailed*' }).Count | Should -Be 1
+            }
+        }
+
+        It 'still gives the VMs their normal recommendations and details' {
+            $page = Get-Content (Get-ChildItem $UsageDenied.Dir -Filter 'contoso-prod-*.html').FullName -Raw
+            $page | Should -Match 'Some data could not be collected \(1\)'
+            $page | Should -Not -Match 'Why there is no recommendation'
+            @($UsageDenied.Csv | Where-Object { $_.RecommendedSku }).Count | Should -BeGreaterThan 0
+        }
+    }
+}

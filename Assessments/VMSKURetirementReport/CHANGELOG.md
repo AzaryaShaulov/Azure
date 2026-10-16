@@ -29,6 +29,16 @@ All notable changes to this project are documented here. The format follows
   mismatch prints the module's file manifest, and `dependencies.psd1` holds the new hashes.
 - The PowerShell 7.2 compatibility check never ran (its container image tag did not exist). It is replaced by the Windows
   `powershell-compat` job described above.
+- **Failed Azure reads were invisible in the results.** When the Resource SKUs call was denied, returned bad JSON or nothing,
+  every affected VM silently became `Manual Review Required` / `LOW` with no reason, no detail panel and one generic
+  console warning; when the quota call failed there was no warning at all, and a Resource Graph query that stopped after
+  its first page (Advisor, Service Health, disk-encryption extensions) or an SKU list cut off after 50 pages gave only a
+  verbose log line. Each such failure is now recorded with what was being read, the subscription and region, the sanitized
+  reason and its effect, and shown in the console, `run.log`, `assessment.json` (`collectionIssues`, always an array), the
+  executive summary and a callout on the HTML pages. The cause is added to the VM's low-confidence reasons and
+  `RecommendationReason`, and every listed VM without a recommendation gets a detail panel that explains why. Error text now
+  also masks the signed-in identity's object id. A REST failure that the `az vm list-skus` fallback covered is noted in
+  `run.log` only. Rightsizing and pricing failures are listed with the other problems.
 - **A CPU vendor inferred from the size name no longer leaves confidence at `HIGH`.** The confidence calculation says CPU
   vendor must be verified for `HIGH` but never looked at the vendor's data quality, so a size missing from the processor
   catalog (for example an older HB or NC size, resolved as Intel from its name) could still be `HIGH`. A VM whose current
