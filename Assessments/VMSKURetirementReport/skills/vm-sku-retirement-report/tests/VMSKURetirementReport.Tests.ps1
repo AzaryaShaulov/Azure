@@ -467,6 +467,73 @@ Describe 'Candidate selection and mandatory gates' {
     }
 }
 
+Describe 'Candidate cache key' {
+    BeforeAll {
+        function script:Invoke-SharedCacheAssessment {
+            param([object[]]$Vms, [hashtable]$Region = $SkuCat)
+            $cache = @{}
+            $result = @{}
+            foreach ($vm in $Vms) {
+                $lc = Resolve-SkuLifecycle -SkuName $vm.SkuName -Catalog $Catalog -AsOf $AsOf
+                $result[$vm.Name] = New-VmAssessment -Vm $vm -Lifecycle $lc -RegionCatalog $Region -ProcessorCatalog $Proc -RetirementCatalog $Catalog `
+                    -LifecycleCache @{} -CandidateCache $cache -Weights $Weights -AsOf $AsOf -SubscriptionName 'sub1'
+            }
+            [pscustomobject]@{ Cache = $cache; Result = $result }
+        }
+    }
+
+    It 'gives a VM on a dedicated host group its own Dedicated Host review whichever VM is assessed first' -ForEach @(@{ Reverse = $false }, @{ Reverse = $true }) {
+        $plain = New-TestVm -Name 'plain' -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $grouped = New-TestVm -Name 'grouped' -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $grouped.DedicatedHostGroupId = '/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Compute/hostGroups/hg1'
+        $run = Invoke-SharedCacheAssessment -Vms $(if ($Reverse) { @($grouped, $plain) } else { @($plain, $grouped) })
+        $run.Cache.Count | Should -Be 2
+        $run.Result['grouped'].Candidates.Primary.ReviewGates | Should -Contain 'Dedicated Host'
+        $run.Result['plain'].Candidates.Primary.ReviewGates | Should -Not -Contain 'Dedicated Host'
+    }
+
+    It 'keeps "controller not reported" on the VM that did not report one whichever VM is assessed first' -ForEach @(@{ Reverse = $false }, @{ Reverse = $true }) {
+        $reported = New-TestVm -Name 'reported' -Sku 'Standard_DS3_v2' -Gen 'V1' -Controller 'SCSI'
+        $default = New-TestVm -Name 'default' -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $run = Invoke-SharedCacheAssessment -Vms $(if ($Reverse) { @($default, $reported) } else { @($reported, $default) })
+        $run.Cache.Count | Should -Be 2
+        $detail = { param($a) (@($a.Candidates.Primary.Gates) | Where-Object Gate -eq 'Disk Controller').Detail }
+        & $detail $run.Result['default'] | Should -Match 'not reported'
+        & $detail $run.Result['reported'] | Should -Not -Match 'not reported'
+    }
+
+    It 'reports each VM''s own count of Accelerated Networking NICs whichever VM is assessed first' -ForEach @(@{ Reverse = $false }, @{ Reverse = $true }) {
+        $noAccel = @{ 'standard_d4s_v3' = $SkuCat['standard_d4s_v3']; 'standard_d4s_v5' = $SkuCat['standard_d4s_v5'].PSObject.Copy() }
+        $noAccel['standard_d4s_v5'].AcceleratedNetworking = $false
+        $both = New-TestVm -Name 'both' -Sku 'Standard_D4s_v3' -Nics 2
+        $one = New-TestVm -Name 'one' -Sku 'Standard_D4s_v3' -Nics 2
+        $one.AcceleratedNicCount = 1
+        $run = Invoke-SharedCacheAssessment -Vms $(if ($Reverse) { @($one, $both) } else { @($both, $one) }) -Region $noAccel
+        $run.Cache.Count | Should -Be 2
+        $reason = { param($a) @($a.Candidates.Candidates)[0].RejectionReason }
+        & $reason $run.Result['both'] | Should -Match '^Accelerated Networking: 2 NIC'
+        & $reason $run.Result['one'] | Should -Match '^Accelerated Networking: 1 NIC'
+    }
+
+    It 'still shares one evaluation between VMs that are identical for the search' {
+        $run = Invoke-SharedCacheAssessment -Vms @((New-TestVm -Name 'a' -Sku 'Standard_DS3_v2' -Gen 'V1'), (New-TestVm -Name 'b' -Sku 'Standard_DS3_v2' -Gen 'V1'))
+        $run.Cache.Count | Should -Be 1
+    }
+
+    It 'includes in the key every VM property that candidate selection and scoring read' {
+        $parse = { param($p) [System.Management.Automation.Language.Parser]::ParseFile($p, [ref]$null, [ref]$null) }
+        $isVmRead = { param($n) $n -is [System.Management.Automation.Language.MemberExpressionAst] -and $n.Expression -is [System.Management.Automation.Language.VariableExpressionAst] -and $n.Expression.VariablePath.UserPath -eq 'Vm' -and $n.Member -is [System.Management.Automation.Language.StringConstantExpressionAst] }
+        $reads = foreach ($f in 'Candidates.psm1', 'Scoring.psm1') {
+            (& $parse (Join-Path $Root "scripts/modules/$f")).FindAll($isVmRead, $true) | ForEach-Object { $_.Member.Value }
+        }
+        $keyAssignment = (& $parse (Join-Path $Root 'scripts/modules/Assessment.psm1')).FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -eq '$sig' }, $true) | Select-Object -First 1
+        $keyAssignment | Should -Not -BeNullOrEmpty
+        $inKey = @([regex]::Matches($keyAssignment.Right.Extent.Text, '\$Vm\.(\w+)') | ForEach-Object { $_.Groups[1].Value })
+        $missing = @($reads | Sort-Object -Unique | Where-Object { $_ -notin $inKey })
+        ($missing -join ', ') | Should -BeNullOrEmpty
+    }
+}
+
 Describe 'Compatibility score' {
     It 'totals the documented weights to 100' {
         ($Weights.weights.PSObject.Properties.Value | Measure-Object -Sum).Sum | Should -Be 100

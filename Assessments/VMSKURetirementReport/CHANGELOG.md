@@ -24,6 +24,12 @@ All notable changes to this project are documented here. The format follows
   mismatch prints the module's file manifest, and `dependencies.psd1` holds the new hashes.
 - The PowerShell 7.2 compatibility check never ran (its container image tag did not exist). It is replaced by the Windows
   `powershell-compat` job described above.
+- **Replacement sizes could be taken from another VM's evaluation.** VMs with the same size and settings share one
+  candidate evaluation, but the sharing key left out whether the VM is placed through a dedicated host group, whether the
+  VM reported its disk controller and how many NICs use Accelerated Networking. Which VM was assessed first therefore decided
+  whether a VM on a host group lost its Dedicated Host review, whether "controller not reported" showed on the wrong VM and
+  which NIC count appeared in a rejection. The key now includes all three, and a test fails if candidate selection or
+  scoring ever reads a VM property that is not in the key.
 
 ## [1.2.0] - 2026-10-12
 

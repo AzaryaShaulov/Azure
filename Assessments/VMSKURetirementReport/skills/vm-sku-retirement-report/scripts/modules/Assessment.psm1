@@ -70,9 +70,11 @@ function New-VmAssessment {
 
     $cand = $null
     if (((Test-NeedsCandidates -Lifecycle $lc) -or ($CheckModernization -and $current.NameInfo.Version -lt 6)) -and $RegionCatalog) {
+        # The key must contain every VM property the candidate search and scoring read; a test enforces this.
         $sig = @($Vm.SubscriptionId, $Vm.Region, $Vm.SkuName, $Vm.Zone, $Vm.HyperVGeneration, $Vm.DiskControllerType, $Vm.UsesPremiumStorage, $Vm.UsesUltraDisk,
             $Vm.AcceleratedNetworking, $Vm.EphemeralOsDisk, $Vm.EphemeralPlacement, $Vm.NicCount, $Vm.DataDiskCount, $Vm.WriteAcceleratorDisks, $Vm.SecurityType,
-            $Vm.EncryptionAtHost, [bool]$Vm.DedicatedHostId, [bool]$Vm.ProximityPlacementGroup, [bool]$Vm.AvailabilitySetId, [bool]$Vm.VmssId, $Vm.IsSpot, $Vm.Hibernation, $Vm.AzureDiskEncryption, $lc.EvidenceClass, [bool]$CheckModernization) -join '|'
+            $Vm.EncryptionAtHost, [bool]$Vm.DedicatedHostId, [bool]$Vm.ProximityPlacementGroup, [bool]$Vm.AvailabilitySetId, [bool]$Vm.VmssId, $Vm.IsSpot, $Vm.Hibernation, $Vm.AzureDiskEncryption, $lc.EvidenceClass, [bool]$CheckModernization,
+            [bool]$Vm.DedicatedHostGroupId, $Vm.DiskControllerReported, $Vm.AcceleratedNicCount) -join '|'
         if (-not $CandidateCache.ContainsKey($sig)) {
             $CandidateCache[$sig] = Find-ReplacementCandidates -Vm $Vm -Current $current -Lifecycle $lc -RegionCatalog $RegionCatalog -ProcessorCatalog $ProcessorCatalog `
                 -RetirementCatalog $RetirementCatalog -LifecycleCache $LifecycleCache -Weights $Weights -AsOf $AsOf -MaxCandidates $MaxCandidates -CheckModernization:$CheckModernization
