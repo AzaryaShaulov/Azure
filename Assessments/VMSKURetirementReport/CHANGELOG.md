@@ -5,16 +5,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **CI and the release workflow run on Windows only.** The tool runs through Azure CLI and local PowerShell, as a GitHub
+  Copilot skill or as a standalone script; Linux, macOS and containers are not supported. The Linux and macOS test legs
+  and the Linux container job were removed, and the Package and release jobs moved to a Windows runner. PowerShell 7.2 and
+  later stay supported: a new `powershell-compat` job runs the complete mock assessment under PowerShell 7.2.24 and 7.4.21,
+  installed from pinned, checksum-verified official archives, and the main job runs on the runner's own PowerShell. The
+  README, `SKILL.md` and `CONTRIBUTING.md` no longer claim Linux or macOS support.
+
 ### Fixed
 
 - **CI could never pass.** The check that verifies the locked Pester and PSScriptAnalyzer modules hashed every file under
   the installed module folder in culture-sensitive order, including the install-specific `PSGetModuleInfo.xml`, so the
-  committed hashes only matched the machine they were computed on and every "Lint and test" job stopped in Bootstrap on
-  Windows, Linux and macOS. The hash now covers a manifest of the module files in ordinal path order, includes hidden
-  files and ignores installer metadata, so it is independent of the culture-specific sort order and of the installer. A mismatch
-  prints the module's file manifest, and `dependencies.psd1` holds the new hashes.
-- The PowerShell 7.2 compatibility job pulled the container tag `7.2.24-ubuntu-22.04`, which does not exist, so it never
-  started. It now uses `lts-7.2-ubuntu-22.04` (PowerShell 7.2.24), pinned by digest.
+  committed hashes only matched the machine they were computed on and every "Lint and test" job stopped in Bootstrap,
+  including the Windows job. The hash now covers a manifest of the module files in ordinal path order, includes hidden
+  files and ignores installer metadata, so it is independent of the culture-specific sort order and of the installer. A
+  mismatch prints the module's file manifest, and `dependencies.psd1` holds the new hashes.
+- The PowerShell 7.2 compatibility check never ran (its container image tag did not exist). It is replaced by the Windows
+  `powershell-compat` job described above.
 
 ## [1.2.0] - 2026-10-12
 

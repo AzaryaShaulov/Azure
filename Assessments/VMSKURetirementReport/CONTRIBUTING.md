@@ -15,15 +15,19 @@ mappings, rule improvements, report UX and docs.
 
 ## Development setup
 
-The assessment runtime supports PowerShell 7.2+ on Windows, Linux or macOS. Local lint and Pester development use
-PowerShell 7.4+ because the locked Pester 6.2.0 and PSScriptAnalyzer 1.24.0 releases target .NET 8. The Azure CLI is
-only needed for live runs; tests use a mock. Build dependencies are locked in `dependencies.psd1`; Bootstrap installs
+The assessment runtime supports PowerShell 7.2 and later, 7.4 and later included, on Windows, through Azure CLI, as a
+GitHub Copilot skill or as a standalone script; Linux, macOS and containers are not supported. Local lint and Pester
+development use PowerShell 7.4+ because the locked Pester 6.2.0 and PSScriptAnalyzer 1.24.0 releases target .NET 8, so
+the test suite cannot run on 7.2; CI checks 7.2 by running the complete mock assessment under it. The Azure CLI is only
+needed for live runs; tests use a mock. Build dependencies are locked in `dependencies.psd1`; Bootstrap installs
 only those exact versions and verifies a committed hash of each module's files before import. The hash covers the files
 in ordinal path order and ignores installer metadata such as `PSGetModuleInfo.xml`, so it does not depend on the
 culture-specific sort order or on the installer; on a mismatch the build prints the module's file manifest. To move to a new
 tool version, change its `Version` in `dependencies.psd1`, run `./build.ps1 -Task Bootstrap` (it installs the version and
 prints the manifest and the new hash because the old hash no longer matches), review the release, and commit the new
-`TreeHash`. CI separately runs the complete mock assessment under PowerShell 7.2.24.
+`TreeHash`. CI also runs the complete mock assessment under PowerShell 7.2.24 (the supported floor) and 7.4.21, installed
+on a Windows runner from pinned, checksum-verified official archives; to move one of those versions, update the version
+and SHA-256 in the `powershell-compat` job of `.github/workflows/vm-sku-retirement-report-ci.yml`.
 
 ```powershell
 git clone https://github.com/AzaryaShaulov/Azure.git
@@ -71,7 +75,7 @@ node browser-smoke.js ../examples/sample-report msedge firefox webkit
 ## Pull requests
 
 - Keep changes focused, and add or update tests.
-- `./build.ps1` must pass. CI runs the same tasks on Windows, Linux and macOS, including a PowerShell 7.2 lane.
+- `./build.ps1` must pass. CI runs the same tasks on a Windows runner.
 - Add an entry under **Unreleased** in `CHANGELOG.md`.
 
 ## Releasing (maintainers)

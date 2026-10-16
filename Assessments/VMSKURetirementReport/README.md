@@ -99,7 +99,7 @@ HTML report footers and Markdown reports include a **Source repository** link to
 ### Prerequisites
 
 - [PowerShell 7.2+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) (`pwsh`) on
-  Windows, Linux or macOS
+  Windows. Linux, macOS and containers (including Azure Cloud Shell and dev containers) are not supported.
 - [Azure CLI 2.60+](https://learn.microsoft.com/cli/azure/install-azure-cli) (`az`)
 - **Reader** on every subscription to assess; also **Monitoring Reader** when using `-IncludeRightsizing`
 - Network access to Azure management endpoints and Microsoft Learn; `-OfflineCatalog` uses the bundled lifecycle
@@ -344,9 +344,6 @@ cd C:\Tools\VMSKURetirementReport\vm-sku-retirement-report\scripts
 C:\Tools\VMSKURetirementReport\vm-sku-retirement-report\scripts\Invoke-VMSKURetirementReport.ps1 `
     --check-modernization -OutputPath C:\Reports\vm-sku\full-path-run
 ```
-
-> On Linux or macOS use forward slashes, for example
-> `./Invoke-VMSKURetirementReport.ps1 --check-modernization -OutputPath ~/reports/vm-sku`.
 
 ### Step 6 - Open the report
 

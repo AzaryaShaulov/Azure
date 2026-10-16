@@ -38,7 +38,7 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
 
 | Requirement | Check |
 |---|---|
-| PowerShell 7.2+ (Windows, Linux or macOS) | `pwsh -v` |
+| PowerShell 7.2+ on Windows | `pwsh -v` |
 | Azure CLI signed in to the target tenant | `az account show` (else `az login --tenant <tenant>`) |
 | Resource Graph extension | `az extension add --name resource-graph` |
 | RBAC | **Reader** on the subscriptions. Rightsizing: **Monitoring Reader**. Advisor/Service Health corroboration is best-effort |
