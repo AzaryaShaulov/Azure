@@ -35,6 +35,8 @@ coverage.xml
 .idea/
 *.code-workspace
 .playwright-mcp/
+tools/node_modules/
+tools/package-lock.json
 
 # --- OS noise ---
 .DS_Store

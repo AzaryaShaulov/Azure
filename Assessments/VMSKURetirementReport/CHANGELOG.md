@@ -9,6 +9,19 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- **Current Hyper-V generation and disk controller are the VM's own.** In the *Current vs target size* comparison, the
+  current-column value for *Hyper-V Generation* and *Disk Controller* is now the VM's generation (`V1`) and controller
+  (`SCSI`) instead of everything its size supports (`V1,V2`). The row is `Same` when the target supports the VM's value
+  and `Changed` otherwise, so a Gen2 VM moving to a Gen2-only size no longer shows a false change. This changes values in
+  `strategy.TargetComparison` (JSON), `MaterialDifferences` and `ModernizationMaterialDifferences` (CSV); scoring and the
+  compatibility checks are unchanged (they already used the VM's own values).
+- The Details toggle text is larger (0.8rem), and in dark mode the opened toggle uses dark text on the teal (white was
+  1.9:1; now 7.9:1).
+- VM row, detail-row and toggle ids now end in a short hash of the resource group and VM name, because two different
+  pairs (`app-prod`+`db`, `app`+`prod-db`) produced the same id; the VM name is no longer an in-page link.
+- The detail block no longer asks for a quota step when the VM has no target, treats `https://` in a validation item as
+  text rather than a "Topic:" prefix, keeps the VM name and resource group selectable, and opens *Show all attributes*
+  when printed.
 - **Collapsible VM details under each VM row.** The separate *VMs with Retiring SKUs details* section and its
   navigation link are gone. Each row of the *VMs with Retiring SKUs* table has a **Details** toggle (and the whole row
   toggles) that opens a tinted, edged block directly under that VM; an *Expand all details* switch opens every block.
@@ -79,6 +92,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `tools/browser-smoke.js`: optional Playwright smoke test of the HTML report (toggle, whole-row click, expand all,
+  print, narrow screens) for Edge/Chrome, Firefox and WebKit; development only, not packaged.
 - `-ExtendedDetails` (HTML only): adds the confidence and readiness explanations, the mandatory requirement checks and
   every evaluated size to each VM card. Recorded in `assessment.json` under `parameters`.
 - A *Gen1 VMs* card on the tenant index and on every subscription page: the number of VMs on Hyper-V generation 1, out

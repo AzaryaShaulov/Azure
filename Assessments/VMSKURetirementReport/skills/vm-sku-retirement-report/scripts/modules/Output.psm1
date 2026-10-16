@@ -478,9 +478,13 @@ function Get-ConfidenceTooltip {
 }
 
 function Get-VmAnchorId {
-    <# Page-unique anchor for a VM detail card. VM names are unique only within a resource group, so both are used. #>
+    <# Page-unique id for a VM's table row, detail row and toggle. Resource group and name are joined with '-', which both can contain
+       ('app-prod'+'db' vs 'app'+'prod-db'), so a short hash of the unambiguous 'group|name' pair is appended. #>
     param([Parameter(Mandatory)]$Vm)
-    return 'vm-' + (Get-SafeFileName "$($Vm.ResourceGroup)-$($Vm.Name)").ToLowerInvariant()
+    $key = "$($Vm.ResourceGroup)|$($Vm.Name)".ToLowerInvariant()
+    $hash = [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($key))
+    $short = [System.BitConverter]::ToString($hash, 0, 3).Replace('-', '').ToLowerInvariant()
+    return 'vm-' + (Get-SafeFileName "$($Vm.ResourceGroup)-$($Vm.Name)").ToLowerInvariant() + '-' + $short
 }
 
 function New-HtmlPage {
@@ -548,14 +552,11 @@ function New-NavHtml {
 
 function New-TrackHtml {
     <# Wraps the sections of the retirement remediation part of a subscription page in a labelled, colour-coded band. #>
-    param([Parameter(Mandatory)][ValidateSet('retirement')][string]$Tone, [string]$Part,
-        [Parameter(Mandatory)][string]$Label, [Parameter(Mandatory)][string]$Title, [string]$Description, [string]$Body)
+    param([Parameter(Mandatory)][string]$Tone, [Parameter(Mandatory)][string]$Label, [Parameter(Mandatory)][string]$Title, [string]$Description, [string]$Body)
     $e = { param($x) ConvertTo-HtmlEncoded $x }
-    $icon = '&#9888;'
-    $heading = if ($Part) { "$(& $e $Part) &middot; <strong>$(& $e $Label)</strong>" } else { "<strong>$(& $e $Label)</strong>" }
     @"
 <div class='track track-$Tone' id='track-$Tone' role='region' aria-labelledby='track-$Tone-title'>
-<div class='track-banner'><span class='track-icon' aria-hidden='true'>$icon</span><div class='track-text'><span class='track-part'>$heading</span><div class='track-title' id='track-$Tone-title' role='heading' aria-level='2'>$(& $e $Title)</div>$(if ($Description) { "<p class='track-desc'>$Description</p>" })</div></div>
+<div class='track-banner'><span class='track-icon' aria-hidden='true'>&#9888;</span><div class='track-text'><span class='track-part'><strong>$(& $e $Label)</strong></span><div class='track-title' id='track-$Tone-title' role='heading' aria-level='2'>$(& $e $Title)</div>$(if ($Description) { "<p class='track-desc'>$Description</p>" })</div></div>
 $Body
 </div>
 "@
@@ -725,58 +726,6 @@ function New-Kpi {
     "<div class='kpi kpi-$Tone'><div class='kpi-label'>$(ConvertTo-HtmlEncoded $Label)</div><div class='kpi-value'>$(ConvertTo-HtmlEncoded $Value)</div>$(if ($Hint) { "<div class='kpi-hint'>$(ConvertTo-HtmlEncoded $Hint)</div>" })</div>"
 }
 
-function Get-ModernizationViewModel {
-    <# Presentation wrapper around Assessment.Strategy (Get-TargetStrategy). No compatibility or quota decisions here. #>
-    param([Parameter(Mandatory)]$Assessment)
-    $a = $Assessment
-    $s = if ($a.Strategy) { $a.Strategy } else { Get-TargetStrategy -Assessment $a }
-    $t = $s.ModernizationTarget
-    $blockers = New-Object System.Collections.Generic.List[string]
-    if ($s.RedeployReview) { $blockers.Add('Guest OS not supported for Gen1 upgrade') }
-    if ($s.RequiresGenerationChange) { $blockers.Add('Gen1 / target requires Gen2 (Trusted launch upgrade)') }
-    if ($s.RequiresNvmeConversion) { $blockers.Add("$($a.Vm.DiskControllerType) / target requires NVMe") }
-    if ($s.ModernizationQuotaStatus -eq 'Quota Increase Required') { $blockers.Add('Target-family or regional quota') }
-    elseif ($s.ModernizationQuotaStatus -in 'Quota Information Unavailable', 'Manual Validation Required') { $blockers.Add('Quota validation') }
-    if (-not $t -and -not $s.AlreadyModern) {
-        $blockers.Add($(if ($a.Modernization -and $a.Modernization.Status) { "No validated v6/v7 target ($($a.Modernization.Status))" } else { 'No validated v6/v7 target' }))
-    }
-    $validation = @($s.ValidationItems)
-    if ($validation.Count -gt 0 -and $blockers.Count -eq 0) { $blockers.Add('Guest/workload validation') }
-    [pscustomobject]@{
-        Assessment = $a
-        Strategy = $s
-        VmName = $a.Vm.Name
-        ResourceGroup = $a.Vm.ResourceGroup
-        Region = $a.Vm.Region
-        CurrentSku = $a.Vm.SkuName
-        CurrentGeneration = $a.Vm.HyperVGeneration
-        CurrentController = $a.Vm.DiskControllerType
-        RetirementRequired = $s.RetirementRequired
-        RetirementUnconfirmed = $s.RetirementUnconfirmed
-        RetirementTargetSku = $s.RetirementTargetSku
-        RetirementTargetGeneration = $s.RetirementTargetGeneration
-        RetirementQuotaStatus = $s.RetirementQuotaStatus
-        ModernizationTargetSku = $s.ModernizationTargetSku
-        ModernizationTargetGeneration = $s.ModernizationTargetGeneration
-        Target = $t
-        TargetSku = if ($t) { $t.SkuName } else { $null }
-        TargetSource = $s.ModernizationTargetSource
-        Path = $s.ModernizationPath
-        RecommendedPath = $s.RecommendedMigrationPath
-        Complexity = $s.Complexity
-        Status = $s.ModernizationReadiness
-        Blocker = if ($blockers.Count) { $blockers -join '; ' } else { 'None' }
-        RequiresGenerationModernization = $s.RequiresGenerationChange
-        RequiresNvmeConversion = $s.RequiresNvmeConversion
-        RedeployReview = $s.RedeployReview
-        ValidationItems = $validation
-        ManualValidation = $validation.Count -gt 0
-        QuotaStatus = $s.ModernizationQuotaStatus
-        PeakQuotaStatus = $s.ModernizationPeakQuotaStatus
-        MigrationQuotaModel = $s.MigrationQuotaModel
-        AlreadyModern = $s.AlreadyModern
-    }
-}
 $script:Arrow = [string][char]0x2192
 
 function Get-ToneClass {
@@ -1024,7 +973,7 @@ function New-GateComparisonHtml {
 }
 
 function New-VmDetailHtml {
-    <# One expandable card per VM: evidence, targets and path, comparison, quota, validation, gates and sizes evaluated. #>
+    <# The collapsible detail block shown under a VM row: header, what to do, what changes, what to validate and the recommended sizes (-ExtendedDetails adds facts, explanations, gates and every evaluated size). #>
     param([Parameter(Mandatory)]$Assessment, [switch]$CheckModernization, [switch]$ExtendedDetails)
     $e = { param($x) ConvertTo-HtmlEncoded $x }
     $a = $Assessment
@@ -1032,9 +981,9 @@ function New-VmDetailHtml {
     $p = $a.Candidates.Primary; $sc = $a.Candidates.Secondary
     $rt = $s.RetirementTarget
     $mt = if ($CheckModernization -and -not $s.AlreadyModern) { $s.ModernizationTarget } else { $null }
-    $parts = if ($CheckModernization) { Get-ModernizationDetailParts -Model (Get-ModernizationViewModel -Assessment $a) } else { $null }
+    $parts = if ($CheckModernization) { Get-ModernizationDetailParts -Assessment $a } else { $null }
     $confidenceExplanation = Get-ConfidenceTooltip $a.Confidence
-    $confidenceBody = if (@($a.Confidence.LowReasons).Count -or @($a.Confidence.ValidationItems).Count) { "Confidence in the recommended size: $($a.Confidence.Level). The items to validate first are listed under To validate before resizing." } else { $confidenceExplanation }
+    $confidenceBody = if (@($a.Confidence.LowReasons).Count -or @($a.Confidence.ValidationItems).Count) { "Confidence in the recommended size: $($a.Confidence.Level). The items to validate first are listed under Validate before resizing." } else { $confidenceExplanation }
     $readinessExplanation = "Readiness of the recommended size: $($a.Readiness)."
     if ($script:ReadinessMeaning.Contains([string]$a.Readiness)) { $readinessExplanation += " $($script:ReadinessMeaning[[string]$a.Readiness].Long)" }
     $stage = Get-LifecycleStage -Lifecycle $a.Lifecycle
@@ -1065,17 +1014,19 @@ function New-VmDetailHtml {
     $factsHtml = if ($ExtendedDetails) { '<dl class="facts">' + (($facts.Keys | ForEach-Object { "<dt>$(& $e $_)</dt><dd>$($facts[$_])</dd>" }) -join '') + '</dl>' } else { '' }
     $validation = @(@($a.ValidationItems) + @($s.ValidationItems) + @($a.Confidence.LowReasons | ForEach-Object { "Low confidence: $_" }) + @($a.Lifecycle.Notes) | Where-Object { $_ } | Select-Object -Unique)
     # "Topic: text" items get a bold topic so the list can be scanned; the wording itself is unchanged.
-    $notes = ($validation | ForEach-Object { if ("$_" -match '^([^:]{2,40}):\s*(.+)$') { "<li><strong>$(& $e $Matches[1]):</strong> $(& $e $Matches[2])</li>" } else { "<li>$(& $e $_)</li>" } }) -join ''
-    $blockerChips = @(if ($parts) { foreach ($b in $parts.Blockers) { if ("$b" -match '<strong>([^<]+?):?</strong>') { "<span class='vd-chip'>$($Matches[1])</span>" } } })
+    $notes = ($validation | ForEach-Object { if ("$_" -match '^([^:/]{2,40}):\s+(.+)$') { "<li><strong>$(& $e $Matches[1]):</strong> $(& $e $Matches[2])</li>" } else { "<li>$(& $e $_)</li>" } }) -join ''
+    $blockerChips = @(if ($parts) { foreach ($topic in $parts.BlockerTopics) { "<span class='vd-chip'>$(& $e $topic)</span>" } })
     $blockerLine = if (-not $parts) { '' } elseif ($blockerChips.Count) { "<div class='vd-blockers'><span class='vd-label'>Blockers</span>$($blockerChips -join '')</div>" } else { "<div class='vd-blockers'><span class='vd-label'>Blockers</span><span class='vd-chip ok'>None detected</span></div>" }
     $steps = New-Object System.Collections.Generic.List[string]
     $fam = if ($a.Quota -and $a.Quota.Family) { $a.Quota.Family } else { $null }
-    if ($a.QuotaStatus -eq 'Quota Increase Required' -and $fam -and $fam.Limit) {
-        $steps.Add("<li>Request vCPU quota for <strong>$(& $e $fam.QuotaDisplayName)</strong>: $($fam.CurrentUsage) / $($fam.Limit) used, the move needs $($fam.RequiredVcpu) vCPU.</li>")
+    if ($p -or $rt) {
+        if ($a.QuotaStatus -eq 'Quota Increase Required' -and $fam -and $fam.Limit) {
+            $steps.Add("<li>Request vCPU quota for <strong>$(& $e $fam.QuotaDisplayName)</strong>: $($fam.CurrentUsage) / $($fam.Limit) used, the move needs $($fam.RequiredVcpu) vCPU.</li>")
+        }
+        elseif ($a.QuotaStatus -and $a.QuotaStatus -notin 'Quota OK', 'Quota Increase Required') { $steps.Add("<li>Confirm the target-family vCPU quota; it could not be verified ($(& $e $a.QuotaStatus)).</li>") }
+        elseif ($a.QuotaStatus -eq 'Quota Increase Required') { $steps.Add('<li>Request the target-family and regional vCPU quota increase before the change window.</li>') }
     }
-    elseif ($a.QuotaStatus -and $a.QuotaStatus -notin 'Quota OK', 'Quota Increase Required') { $steps.Add("<li>Confirm the target-family vCPU quota; it could not be verified ($(& $e $a.QuotaStatus)).</li>") }
-    elseif ($a.QuotaStatus -eq 'Quota Increase Required') { $steps.Add('<li>Request the target-family and regional vCPU quota increase before the change window.</li>') }
-    if (-not $p -and -not $rt) { $steps.Add("<li>No replacement size was found in the permitted series; review Microsoft's migration guidance manually.</li>") }
+    else { $steps.Add("<li>No replacement size was found in the permitted series; review Microsoft's migration guidance manually.</li>") }
     if ($parts) { foreach ($r in $parts.Remediation) { $steps.Add($r) } }
     else { $steps.Add("<li>Resize in a change window, then validate disks, networking and the application ($(New-LearnLink 'Resize')).</li>") }
     $stepsHtml = "<ol class='vd-steps'>$($steps -join '')</ol>"
@@ -1117,28 +1068,29 @@ $extended
 }
 
 function Get-ModernizationDetailParts {
-    <# Blockers, remediation steps and quota text for the modernization target of one VM. Rendered inside the VM detail card. #>
-    param([Parameter(Mandatory)]$Model)
+    <# Blocker topics, remediation steps and quota text for the modernization target of one VM, from Assessment.Strategy. Rendered inside the VM's detail block. #>
+    param([Parameter(Mandatory)]$Assessment)
     $e = { param($x) ConvertTo-HtmlEncoded $x }
-    $a = $Model.Assessment
-    $p = $Model.Target
+    $a = $Assessment
+    $s = if ($a.Strategy) { $a.Strategy } else { Get-TargetStrategy -Assessment $a }
+    $p = $s.ModernizationTarget
+    $modernQuota = $s.ModernizationQuotaStatus
+    $manualValidation = @($s.ValidationItems).Count -gt 0
 
-    $s = $Model.Strategy
-    $blockerItems = New-Object System.Collections.Generic.List[string]
-    if ($Model.RedeployReview) { $blockerItems.Add("<li><strong>Deployment model:</strong> $(& $e $s.RedeployReason).</li>") }
-    if ($Model.RequiresGenerationModernization) { $blockerItems.Add('<li><strong>VM generation:</strong> Gen1 source; the v6/v7 target is Gen2-only, which requires the Trusted launch upgrade.</li>') }
-    if ($Model.RequiresNvmeConversion) { $blockerItems.Add("<li><strong>Disk controller:</strong> $(& $e $Model.CurrentController) source; the target supports NVMe only.</li>") }
-    if ($Model.QuotaStatus -eq 'Quota Increase Required') { $blockerItems.Add('<li><strong>Quota:</strong> Target-family and/or regional vCPU quota must be increased before migration.</li>') }
-    if (-not $p -and -not $Model.AlreadyModern) { $blockerItems.Add("<li><strong>Target:</strong> $(& $e $Model.Blocker).</li>") }
-    if ($Model.ManualValidation) { $blockerItems.Add('<li><strong>Guest/workload validation:</strong> One or more requirements cannot be proven from Azure control-plane data (see checklist).</li>') }
-    if ($blockerItems.Count -eq 0) { $blockerItems.Add('<li>No modernization blocker was detected from the available assessment data.</li>') }
+    $topics = New-Object System.Collections.Generic.List[string]
+    if ($s.RedeployReview) { $topics.Add('Deployment model') }
+    if ($s.RequiresGenerationChange) { $topics.Add('VM generation') }
+    if ($s.RequiresNvmeConversion) { $topics.Add('Disk controller') }
+    if ($modernQuota -eq 'Quota Increase Required') { $topics.Add('Quota') }
+    if (-not $p -and -not $s.AlreadyModern) { $topics.Add('Target') }
+    if ($manualValidation) { $topics.Add('Guest/workload validation') }
 
     $remediation = New-Object System.Collections.Generic.List[string]
-    if ($Model.RedeployReview) { $remediation.Add('<li>Deploy a Gen2 VM on a supported OS image and migrate the workload/data (side-by-side).</li>') }
-    elseif ($Model.RequiresGenerationModernization) { $remediation.Add("<li>Upgrade the Gen1 VM to Trusted launch (Gen2), or rebuild if the OS or size is not supported ($(New-LearnLink 'Gen1TrustedLaunch')).</li>") }
-    if ($Model.RequiresNvmeConversion) { $remediation.Add("<li>Validate guest NVMe support and backup/rollback, then convert the disk controller to NVMe before resizing ($(New-LearnLink 'NvmeConvert')).</li>") }
-    if ($Model.QuotaStatus -eq 'Quota Increase Required') { $remediation.Add('<li>Request the reported target-family and regional vCPU quota before scheduling the migration (use peak demand for side-by-side paths).</li>') }
-    if (-not $p -and -not $Model.AlreadyModern) { $remediation.Add('<li>Review the modernization reason and candidate table; no v6/v7 size passed the workload gates or is available.</li>') }
+    if ($s.RedeployReview) { $remediation.Add('<li>Deploy a Gen2 VM on a supported OS image and migrate the workload/data (side-by-side).</li>') }
+    elseif ($s.RequiresGenerationChange) { $remediation.Add("<li>Upgrade the Gen1 VM to Trusted launch (Gen2), or rebuild if the OS or size is not supported ($(New-LearnLink 'Gen1TrustedLaunch')).</li>") }
+    if ($s.RequiresNvmeConversion) { $remediation.Add("<li>Validate guest NVMe support and backup/rollback, then convert the disk controller to NVMe before resizing ($(New-LearnLink 'NvmeConvert')).</li>") }
+    if ($modernQuota -eq 'Quota Increase Required') { $remediation.Add('<li>Request the reported target-family and regional vCPU quota before scheduling the migration (use peak demand for side-by-side paths).</li>') }
+    if (-not $p -and -not $s.AlreadyModern) { $remediation.Add('<li>Review the modernization reason and candidate table; no v6/v7 size passed the workload gates or is available.</li>') }
     if ($remediation.Count -eq 0) { $remediation.Add("<li>Schedule a standard resize window and complete normal post-resize validation ($(New-LearnLink 'Resize')).</li>") }
 
     $mq = $a.ModernizationQuota
@@ -1150,9 +1102,9 @@ function Get-ModernizationDetailParts {
     }
     elseif ($p) { '<span class="muted">Target quota was not captured for this VM. Validate target-family and regional quota before execution.</span>' }
     else { '<span class="muted">No modernization target; no modernization quota demand.</span>' }
-    $quotaModel = switch ($Model.MigrationQuotaModel) { 'SideBySide' { 'Side-by-side: target capacity is needed while the source still exists' } 'InPlace' { 'In-place resize' } default { 'Not applicable' } }
+    $quotaModel = switch ($s.MigrationQuotaModel) { 'SideBySide' { 'Side-by-side: target capacity is needed while the source still exists' } 'InPlace' { 'In-place resize' } default { 'Not applicable' } }
 
-    [pscustomobject]@{ Blockers = $blockerItems.ToArray(); Remediation = $remediation.ToArray(); QuotaText = $quotaText; QuotaModel = $quotaModel }
+    [pscustomobject]@{ BlockerTopics = $topics.ToArray(); Remediation = $remediation.ToArray(); QuotaText = $quotaText; QuotaModel = $quotaModel }
 }
 
 function Get-BottomLine {

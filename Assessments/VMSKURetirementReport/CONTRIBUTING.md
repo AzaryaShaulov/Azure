@@ -29,6 +29,17 @@ cd Azure/Assessments/VMSKURetirementReport
 ./build.ps1 -Task Package      # build dist/VMSKURetirementReport-v<version>.zip
 ```
 
+The HTML report has no scripts, so the collapsible VM details are plain CSS (a hidden checkbox and `:has()`), and the
+Pester tests can only check the markup. After changing `templates/report.css` or the table/detail markup, run the
+optional browser smoke test, which opens the sample in real engines (it needs Node.js and is not part of `build.ps1`):
+
+```powershell
+cd tools
+npm i --no-save playwright-core
+npx playwright-core install firefox webkit   # msedge/chrome use the installed browser
+node browser-smoke.js ../examples/sample-report msedge firefox webkit
+```
+
 ## Repository layout
 
 | Path | Purpose |
@@ -38,6 +49,7 @@ cd Azure/Assessments/VMSKURetirementReport
 | `skills/vm-sku-retirement-report/data/` | Cached Microsoft evidence, series map, processor catalog, scoring weights |
 | `skills/vm-sku-retirement-report/references/` | Methodology, scoring, output schema and data-source docs |
 | `skills/vm-sku-retirement-report/tests/` | Pester unit + end-to-end tests with a mock Azure CLI |
+| `tools/` | Development-only browser smoke test for the HTML report (not packaged) |
 | `dist/` | Versioned customer ZIP packages and SHA-256 checksums |
 | `examples/sample-report/` | Generated sample report (synthetic data) |
 

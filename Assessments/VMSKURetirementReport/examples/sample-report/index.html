@@ -201,18 +201,22 @@ thead th code { color: var(--text); font-weight: 600; text-transform: none; lett
 
 /* In-table VM details: a collapsed row under each VM, tinted and edged so it reads as a child of the VM above.
    The report has no scripts, so expand/collapse is a hidden checkbox + label and a :has() selector. */
-:root { --detail-bg: #eaf4f4; --detail-edge: #0f766e; --detail-card: #ffffff; }
-@media (prefers-color-scheme: dark) { :root { --detail-bg: #12242a; --detail-edge: #2dd4bf; --detail-card: #182831; } }
+:root { --detail-bg: #eaf4f4; --detail-edge: #0f766e; --detail-on-edge: #ffffff; --detail-card: #ffffff; }
+@media (prefers-color-scheme: dark) { :root { --detail-bg: #12242a; --detail-edge: #2dd4bf; --detail-on-edge: #052e2a; --detail-card: #182831; } }
 .vm-toggle, .vm-toggle-all { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
-.vm-toggle-label { display: flex; width: fit-content; align-items: center; gap: 4px; margin: 0 0 5px; padding: 0 9px 0 6px; border: 1px solid var(--detail-edge); border-radius: 999px; background: var(--surface); color: var(--detail-edge); font-size: .74rem; font-weight: 650; line-height: 1.6; cursor: pointer; }
+.vm-toggle-label { display: flex; width: fit-content; align-items: center; gap: 4px; margin: 0 0 5px; padding: 1px 10px 1px 7px; border: 1px solid var(--detail-edge); border-radius: 999px; background: var(--surface); color: var(--detail-edge); font-size: .8rem; font-weight: 650; line-height: 1.6; cursor: pointer; }
 .vm-toggle-label::before { content: "\25B8"; }
-.vm-toggle:checked + .vm-toggle-label { background: var(--detail-edge); color: #fff; }
+.vm-toggle:checked + .vm-toggle-label { background: var(--detail-edge); color: var(--detail-on-edge); }
 .vm-toggle:checked + .vm-toggle-label::before { content: "\25BE"; }
 .vm-toggle:focus-visible + .vm-toggle-label, .vm-toggle-all:focus-visible + .vm-toggle-all-label { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* The label is stretched over its row so the whole row toggles; links and tooltips stay above the overlay. */
+.vm-table-block { position: relative; }
 .vm-table tr.vm-summary-row { position: relative; }
 .vm-toggle-label::after { content: ""; position: absolute; inset: 0; z-index: 1; cursor: pointer; }
 .vm-table .vm-summary-row a, .vm-table .vm-summary-row .spec[title], .vm-table .vm-summary-row code { position: relative; z-index: 2; }
+/* The VM name and its resource-group line stay selectable (copyable); everything else in the row toggles. */
+.vm-table .vm-summary-row td:first-child .strong, .vm-table .vm-summary-row td:first-child .sub { position: relative; z-index: 2; }
+.vm-table .vm-summary-row td:first-child .sub { width: fit-content; }
 .vm-table tbody tr.vm-summary-row.alt { background: #fafafa; }
 .vm-table tbody tr.vm-summary-row:hover { background: var(--accent-soft); }
 .vm-table tbody tr.vm-detail-row, .vm-table tbody tr.vm-detail-row:hover { background: var(--detail-bg); }
@@ -227,7 +231,7 @@ thead th code { color: var(--text); font-weight: 600; text-transform: none; lett
 @supports selector(:has(*)) {
   .vm-table tr.vm-detail-row { display: none; }
   .vm-table tr:has(.vm-toggle:checked) + tr.vm-detail-row, .vm-table-block:has(.vm-toggle-all:checked) tr.vm-detail-row { display: table-row; }
-  .vm-table-block:has(.vm-toggle-all:checked) .vm-toggle-label { background: var(--detail-edge); color: #fff; }
+  .vm-table-block:has(.vm-toggle-all:checked) .vm-toggle-label { background: var(--detail-edge); color: var(--detail-on-edge); }
   .vm-table-block:has(.vm-toggle-all:checked) .vm-toggle-label::before { content: "\25BE"; }
 }
 @supports not selector(:has(*)) { .vm-toggle-label, .vm-table-tools { display: none; } }
@@ -306,6 +310,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-i
   .card { box-shadow: none; }
   .collapsible-section > .section-body { display: block !important; }
   .vm-detail-row { break-inside: avoid; }
+  details.vd-more::details-content { content-visibility: visible; display: block; }
   .vm-table tr.vm-detail-row { display: table-row !important; }
   .vm-toggle-label, .vm-table-tools { display: none !important; }
   .vm-toggle-label::after { display: none; }
@@ -318,10 +323,8 @@ tbody td .badge { white-space: normal; text-align: center; }
 tbody td code { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
 thead th { white-space: normal; }
 
-/* v6/v7 and reference rollup colours */
-.kpi-blue { border-top-color: #0078d4; } .kpi-blue .kpi-value { color: #0078d4; }
+/* Extra KPI tone */
 .kpi-yellow { border-top-color: #f2a900; } .kpi-yellow .kpi-value { color: #a15c00; }
-.kpi-grey { border-top-color: #697386; } .kpi-grey .kpi-value { color: #596273; }
 
 /* Reference sections: compact tables, callouts and link rows */
 table.ref, .comparison-table { font-size: .84rem; }

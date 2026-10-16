@@ -10,7 +10,7 @@ function New-CurrentProfile {
         Builds the current-size profile from Resource SKU data (authoritative) or, when the size is no longer offered,
         from the size name (partial).
     #>
-    param([Parameter(Mandatory)][string]$SkuName, $SkuRecord, [Parameter(Mandatory)]$ProcessorInfo, [string]$VmGeneration)
+    param([Parameter(Mandatory)][string]$SkuName, $SkuRecord, [Parameter(Mandatory)]$ProcessorInfo, [string]$VmGeneration, [string]$VmDiskController)
     $info = Get-SkuNameInfo -SkuName $SkuName
     $known = [bool]$SkuRecord
     $vcpu = if ($known -and $SkuRecord.vCPUsAvailable) { $SkuRecord.vCPUsAvailable } elseif ($info.Constrained) { $info.Constrained } elseif ($info.Parsed) { $info.Size } else { $null }
@@ -33,6 +33,7 @@ function New-CurrentProfile {
         UncachedDiskMBps      = if ($known) { $SkuRecord.UncachedDiskMBps } else { $null }
         HyperVGenerations     = if ($known) { @($SkuRecord.HyperVGenerations) } else { @() }
         VmGeneration          = $VmGeneration
+        VmDiskController      = $VmDiskController
         DiskControllerTypes   = if ($known) { @($SkuRecord.DiskControllerTypes) } else { @() }
         GPUs                  = if ($known) { $SkuRecord.GPUs } else { $null }
         Zones                 = if ($known) { @($SkuRecord.Zones) } else { @() }
@@ -171,7 +172,14 @@ function Get-MaterialDifferences {
     $curTemp = if ($null -eq $Current.HasTempDisk) { $null } elseif ($Current.HasTempDisk) { "$($Current.TempDiskGB) GB" } else { 'None' }
     $tgtTemp = if ($null -eq $Candidate.HasTempDisk) { $null } elseif ($Candidate.HasTempDisk) { "$($Candidate.TempDiskGB) GB" } else { 'None' }
     & $cmp 'Temp / Local Disk' $curTemp $tgtTemp -note $(if ($Current.HasTempDisk -and -not $Candidate.HasTempDisk) { 'Temp disk removed - validate pagefile / tempdb / scratch usage' } else { '' })
-    & $cmp 'Disk Controller' ($Current.DiskControllerTypes -join ',') ($Candidate.DiskControllerTypes -join ',') -note $(if (-not (@($Candidate.DiskControllerTypes) -contains 'SCSI')) { 'NVMe only' } else { '' })
+    $vmCtl = if ($Current.PSObject.Properties.Name -contains 'VmDiskController') { [string]$Current.VmDiskController } else { '' }
+    $tgtCtl = @($Candidate.DiskControllerTypes)
+    if ($vmCtl -and $tgtCtl.Count) {
+        # The VM's own controller against what the target supports.
+        $ctlNote = if (($tgtCtl -contains $vmCtl) -or ($tgtCtl -contains 'SCSI')) { '' } else { 'NVMe only' }
+        $d.Add([pscustomobject]@{ Attribute = 'Disk Controller'; Current = $vmCtl; Target = ($tgtCtl -join ','); Assessment = $(if ($tgtCtl -contains $vmCtl) { 'Same' } else { 'Changed' }); Note = $ctlNote })
+    }
+    else { & $cmp 'Disk Controller' ($Current.DiskControllerTypes -join ',') ($tgtCtl -join ',') -note $(if (-not ($tgtCtl -contains 'SCSI')) { 'NVMe only' } else { '' }) }
     $curGens = @($Current.HyperVGenerations)
     $tgtGens = @($Candidate.HyperVGenerations)
     $vmGen = if ($Current.PSObject.Properties.Name -contains 'VmGeneration') { [string]$Current.VmGeneration } else { '' }

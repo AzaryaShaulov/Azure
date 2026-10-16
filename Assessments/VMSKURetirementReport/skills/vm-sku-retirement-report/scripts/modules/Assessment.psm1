@@ -35,7 +35,7 @@ function New-VmAssessment {
     )
     $rec = if ($RegionCatalog) { $RegionCatalog[$Vm.SkuName.ToLowerInvariant()] } else { $null }
     $proc = Get-ProcessorInfo -SkuName $Vm.SkuName -ProcessorCatalog $ProcessorCatalog -SkuRecord $rec
-    $current = New-CurrentProfile -SkuName $Vm.SkuName -SkuRecord $rec -ProcessorInfo $proc -VmGeneration ([string]$Vm.HyperVGeneration)
+    $current = New-CurrentProfile -SkuName $Vm.SkuName -SkuRecord $rec -ProcessorInfo $proc -VmGeneration ([string]$Vm.HyperVGeneration) -VmDiskController ([string]$Vm.DiskControllerType)
     $lc = $Lifecycle
     if ($lc.EvidenceClass -eq 'No Retirement Announced' -and $RegionCatalog -and -not $rec) {
         # Size missing from the regional Resource SKU list for this subscription: may be retired/unlisted - do not guess.

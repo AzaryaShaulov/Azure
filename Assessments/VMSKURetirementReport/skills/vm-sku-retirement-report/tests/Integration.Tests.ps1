@@ -127,7 +127,7 @@ Describe 'End-to-end assessment (mock Azure)' {
         $html | Should -Not -Match "<h2>VMs with Retiring SKUs details</h2>|id='details'|href='#details'"
         $html.IndexOf("id='overview'") | Should -BeLessThan $html.IndexOf("id='vms'")
         $html.IndexOf("id='vms'") | Should -BeLessThan $html.IndexOf("id='quota'")
-        # Part 1 (retirement) is a labelled band containing both retiring-VM sections; there is no modernization part.
+        # The retirement band holds the retiring-VM section; there is no modernization part.
         $html | Should -Match "<div class='track track-retirement' id='track-retirement'"
         $html.IndexOf("id='track-retirement'") | Should -BeLessThan $html.IndexOf("id='vms'")
         $html | Should -Not -Match "id='track-modernization'"
@@ -140,7 +140,7 @@ Describe 'End-to-end assessment (mock Azure)' {
         foreach ($r in $retiring) { $html | Should -Match ">$([regex]::Escape($r.VM))<" }
         foreach ($r in $excluded) { $html | Should -Not -Match ">$([regex]::Escape($r.VM))<" }
         $Rows.Count | Should -Be 7
-        # One merged table row and one detail card per listed VM; the required retirement date and stage are in the row.
+        # One merged table row and one collapsed detail row per listed VM; the required retirement date and stage are in the row.
         $summaryRows = [regex]::Matches($html, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>")
         $summaryRows.Count | Should -Be $retiring.Count
         foreach ($row in $summaryRows) {
@@ -359,7 +359,7 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $ds3 | Should -Match 'Standard_(<wbr>)?D4ds_v5'
         $ds3 | Should -Match 'Standard_(<wbr>)?D4s_v6'
         $ds3 | Should -Match 'Gen1 \+ NVMe \+ Resize'
-        # The path column keeps only the short path label; the blocker text and the sequence sentence are in the card.
+        # The path column keeps only the short path label; the blocker topics and the sequence are in the VM's details.
         $pathCell = [regex]::Match($ds3, "(?s)<td class='path-cell'>.*?</td>").Value
         $pathCell | Should -Be "<td class='path-cell'><div class='path-primary'>Gen1 + NVMe + Resize</div></td>"
         $vmTable | Should -Match '<th>Migration path</th>'
@@ -376,6 +376,13 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $html | Should -Not -Match '<h3>Mandatory requirement checks</h3>|<h3>Assessment explanations</h3>|<h3>Sizes evaluated</h3>|<h3>Current vs target size</h3>'
         $html | Should -Match '<h4>Recommended sizes</h4>'
         $html | Should -Match 'class=.vm-toggle-all. id=.vm-expand-all.'
+        # A VM with no target gets the "no replacement" step and no quota step.
+        $nc6 = [regex]::Match($html, "(?s)<tr class='vm-detail-row' id='vm-rg-app-vm-nc6-[0-9a-f]{6}-details'>.*?</div>\s*</td></tr>").Value
+        $nc6 | Should -Not -BeNullOrEmpty
+        $nc6 | Should -Match 'No replacement size was found'
+        $nc6 | Should -Not -Match 'Confirm the target-family vCPU quota|Request vCPU quota'
+        # Every id on the page is unique (rows, detail rows and toggles).
+        @([regex]::Matches($html, " id='([^']+)'") | ForEach-Object { $_.Groups[1].Value } | Group-Object | Where-Object Count -gt 1).Count | Should -Be 0
         $html | Should -Not -Match "class='chips'"
         # The modernization target cell uses the same layout as the current size and the retirement target.
         $modernCell = [regex]::Match($ds3, "(?s)<td class='target-cell modernization-target-cell'>.*?</td>").Value

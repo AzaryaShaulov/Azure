@@ -1507,17 +1507,29 @@ Describe 'HTML anchors and encoding' {
         Export-HtmlReports -OutDir $out -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $sum -Assessments $as -QuotaImpact $null -CatalogResult ([pscustomobject]@{ Catalog = $Catalog; Source = 'Live'; Warning = $null }) -ProcessorCatalog $Proc
         $html = Get-Content (Get-ChildItem $out -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
         # Each VM has its own toggle and a detail row keyed by the resource-group-qualified anchor, so same-named VMs never collide.
-        $html | Should -Match "<tr class='vm-summary-row[^']*' id='vm-rg-east-app01'>"
-        $html | Should -Match "<tr class='vm-summary-row[^']*' id='vm-rg-west-app01'>"
-        $html | Should -Match "<input type='checkbox' class='vm-toggle' id='tg-vm-rg-east-app01'"
-        $html | Should -Match "<label class='vm-toggle-label' for='tg-vm-rg-west-app01'>Details</label>"
-        $html | Should -Match "<tr class='vm-detail-row' id='vm-rg-east-app01-details'>"
-        $html | Should -Match "<tr class='vm-detail-row' id='vm-rg-west-app01-details'>"
+        $html | Should -Match "<tr class='vm-summary-row[^']*' id='vm-rg-east-app01-[0-9a-f]{6}'>"
+        $html | Should -Match "<tr class='vm-summary-row[^']*' id='vm-rg-west-app01-[0-9a-f]{6}'>"
+        $html | Should -Match "<input type='checkbox' class='vm-toggle' id='tg-vm-rg-east-app01-[0-9a-f]{6}'"
+        $html | Should -Match "<label class='vm-toggle-label' for='tg-vm-rg-west-app01-[0-9a-f]{6}'>Details</label>"
+        $html | Should -Match "<tr class='vm-detail-row' id='vm-rg-east-app01-[0-9a-f]{6}-details'>"
+        $html | Should -Match "<tr class='vm-detail-row' id='vm-rg-west-app01-[0-9a-f]{6}-details'>"
         @([regex]::Matches($html, "id='tg-[^']+'") | ForEach-Object Value | Select-Object -Unique).Count | Should -Be 2
         $html | Should -Match 'zone 1&lt;b&gt;'
         $html | Should -Not -Match 'zone 1<b>'
         $html | Should -Match 'Owner&#39;s workload &lt;script&gt;alert\(1\)&lt;/script&gt;'
         $html | Should -Not -Match '<script>'
+    }
+    It 'gives resource-group/name pairs that only differ by where the hyphen falls different ids' {
+        InModuleScope Output {
+            $a = Get-VmAnchorId ([pscustomobject]@{ ResourceGroup = 'app-prod'; Name = 'db' })
+            $b = Get-VmAnchorId ([pscustomobject]@{ ResourceGroup = 'app'; Name = 'prod-db' })
+            $a | Should -Not -Be $b
+            $a | Should -Match '^vm-app-prod-db-[0-9a-f]{6}$'
+            $b | Should -Match '^vm-app-prod-db-[0-9a-f]{6}$'
+            # Deterministic and case-insensitive, like Azure resource names.
+            Get-VmAnchorId ([pscustomobject]@{ ResourceGroup = 'APP-prod'; Name = 'DB' }) | Should -Be $a
+            Get-VmAnchorId ([pscustomobject]@{ ResourceGroup = 'rg<script>'; Name = "x'y" }) | Should -Match "^[a-z0-9._-]+$"
+        }
     }
     It 'labels the confidence and readiness badges, explains them on hover and encodes the hover text' {
         InModuleScope Output {
@@ -1607,7 +1619,7 @@ Describe 'HTML anchors and encoding' {
 Describe 'In-table collapsible VM details' {
     BeforeAll {
         $script:Pair = @((Invoke-TestAssessment (New-TestVm -Name 'a1' -Sku 'Standard_DS3_v2' -Gen 'V1')), (Invoke-TestAssessment (New-TestVm -Name 'b2' -Sku 'Standard_DS3_v2' -Gen 'V2')))
-        $Pair[0].ValidationItems = @($Pair[0].ValidationItems) + 'Guest NVMe readiness: confirm the guest OS has NVMe drivers'
+        $Pair[0].ValidationItems = @($Pair[0].ValidationItems) + 'Guest NVMe readiness: confirm the guest OS has NVMe drivers' + 'See https://learn.microsoft.com/azure/virtual-machines/sizes for the size list'
         $sum = New-AssessmentSummary -Assessments $Pair -SubscriptionsScanned 1
         $script:DetailOut = Join-Path $TestDrive 'detail-rows'; New-Item -ItemType Directory $DetailOut | Out-Null
         $run = [pscustomobject]@{ GeneratedUtc = 'now'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'tenant' }; Account = 'x'; Parameters = @{}; Counts = @{} }
@@ -1630,7 +1642,9 @@ Describe 'In-table collapsible VM details' {
         $DetailHtml | Should -Match '\.vm-table-block:has\(\.vm-toggle-all:checked\) tr\.vm-detail-row'
         $DetailHtml | Should -Match '@supports not selector\(:has\(\*\)\) \{ \.vm-toggle-label, \.vm-table-tools \{ display: none; \} \}'
         $DetailHtml | Should -Match '\.vm-table tr\.vm-detail-row \{ display: table-row !important; \}'
-        $DetailHtml | Should -Match '--detail-bg: #eaf4f4; --detail-edge: #0f766e;'
+        $DetailHtml | Should -Match '--detail-bg: #eaf4f4; --detail-edge: #0f766e; --detail-on-edge: #ffffff;'
+        # Dark mode: the checked pill uses dark text on the bright teal edge (white would be 1.9:1).
+        $DetailHtml | Should -Match '--detail-edge: #2dd4bf; --detail-on-edge: #052e2a;'
         $DetailHtml | Should -Match '\.vm-detail \{ position: sticky; left: 0;'
     }
     It 'shows what to do, what changes, what to validate and the recommended sizes in that order' {
@@ -1649,6 +1663,17 @@ Describe 'In-table collapsible VM details' {
         ([regex]::Matches($compact, '<tr><td>')).Count | Should -BeLessThan ([regex]::Matches($full, '<tr><td>')).Count
         $compact | Should -Not -Match '<td>Processor</td>|<td>CPU Vendor</td>'
     }
+    It 'bolds only real "Topic: text" prefixes, never part of a URL' {
+        $first = [regex]::Match($DetailHtml, "(?s)<tr class='vm-detail-row'.*?</div>\s*</td></tr>").Value
+        $first | Should -Match '<li><strong>Guest NVMe readiness:</strong> confirm the guest OS has NVMe drivers</li>'
+        $first | Should -Match '<li>See https://learn\.microsoft\.com/azure/virtual-machines/sizes for the size list</li>'
+        $first | Should -Not -Match '<strong>See https:</strong>'
+    }
+    It 'keeps text selectable, bounds the row overlay and opens "Show all attributes" in print' {
+        $DetailHtml | Should -Match '\.vm-table-block \{ position: relative; \}'
+        $DetailHtml | Should -Match 'td:first-child \.strong, \.vm-table \.vm-summary-row td:first-child \.sub \{ position: relative; z-index: 2; \}'
+        $DetailHtml | Should -Match 'details\.vd-more::details-content \{ content-visibility: visible; display: block; \}'
+    }
 }
 
 Describe 'Current Hyper-V generation in the comparison' {
@@ -1659,5 +1684,29 @@ Describe 'Current Hyper-V generation in the comparison' {
         (& $row $v1).Current | Should -Be 'V1'
         (& $row $v2).Current | Should -Be 'V2'
         (& $row $v2).RetirementChange | Should -Be 'Same'
+    }
+    It 'shows the VM''s own disk controller as the current value' {
+        $rec = $SkuCat['standard_d4s_v3']
+        $proc = Get-ProcessorInfo 'Standard_D4s_v3' $Proc $rec
+        $target = [pscustomobject]@{}
+        foreach ($p in $rec.PSObject.Properties) { Add-Member -InputObject $target -NotePropertyName $p.Name -NotePropertyValue $p.Value }
+        $procInfo = [pscustomobject]@{ Vendor = 'Intel'; Architecture = 'x64'; Processors = @() }
+        $row = { param($cur, $tgt) @(Get-MaterialDifferences -Current $cur -Candidate $tgt -CandidateProc $procInfo) | Where-Object Attribute -eq 'Disk Controller' | Select-Object -First 1 }
+
+        $nvmeOnly = $target.PSObject.Copy(); $nvmeOnly.DiskControllerTypes = @('NVMe')
+        $both = $target.PSObject.Copy(); $both.DiskControllerTypes = @('SCSI', 'NVMe')
+        $scsiVm = New-CurrentProfile -SkuName 'Standard_D4s_v3' -SkuRecord $rec -ProcessorInfo $proc -VmDiskController 'SCSI'
+        $nvmeVm = New-CurrentProfile -SkuName 'Standard_D4s_v3' -SkuRecord $rec -ProcessorInfo $proc -VmDiskController 'NVMe'
+        $unknownVm = New-CurrentProfile -SkuName 'Standard_D4s_v3' -SkuRecord $rec -ProcessorInfo $proc
+
+        (& $row $scsiVm $nvmeOnly).Current | Should -Be 'SCSI'
+        (& $row $scsiVm $nvmeOnly).Assessment | Should -Be 'Changed'
+        (& $row $scsiVm $nvmeOnly).Note | Should -Be 'NVMe only'
+        (& $row $scsiVm $both).Assessment | Should -Be 'Same'
+        (& $row $nvmeVm $nvmeOnly).Current | Should -Be 'NVMe'
+        (& $row $nvmeVm $nvmeOnly).Assessment | Should -Be 'Same'
+        (& $row $nvmeVm $nvmeOnly).Note | Should -BeNullOrEmpty
+        # No VM controller supplied: the size's supported set is compared, as before.
+        (& $row $unknownVm $nvmeOnly).Current | Should -Be ($rec.DiskControllerTypes -join ',')
     }
 }

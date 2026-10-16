@@ -100,6 +100,13 @@ Changed or Unknown). It is computed once from the material differences of each t
 modern). Differences for a target that was not ranked as a candidate (for example a convertible newer generation) are
 computed for the comparison only; they are not added to that target's `materialDifferences`.
 
+The `Current` value of the *Hyper-V Generation* and *Disk Controller* rows is the VM's own generation (`V1`, `V2`) and
+disk controller (`SCSI`, `NVMe`), not everything its current size supports; the target value is what the target size
+supports. The row is `Same` when the target supports the VM's value and `Changed` otherwise (a VM on Gen2 moving to a
+Gen2-only size is no longer reported as `Changed`). When the VM's value is not available, the size's supported set is
+compared instead. These values also appear in `materialDifferences`, `MaterialDifferences` and
+`ModernizationMaterialDifferences`.
+
 ## vm-assessment.csv (one row per VM)
 
 | Column group | Columns |
