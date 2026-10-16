@@ -544,6 +544,7 @@ Describe 'Data-collection problems (mock Azure with an injected fault)' {
         }
         $script:SkuDenied = & $RunFault 'skus-denied'
         $script:UsageDenied = & $RunFault 'usage-denied'
+        $script:UsageGarbage = & $RunFault 'usage-garbage'
     }
 
     It 'reports no problem when every call succeeds' {
@@ -623,6 +624,23 @@ Describe 'Data-collection problems (mock Azure with an injected fault)' {
             $page | Should -Match 'Some data could not be collected \(1\)'
             $page | Should -Not -Match 'Why there is no recommendation'
             @($UsageDenied.Csv | Where-Object { $_.RecommendedSku }).Count | Should -BeGreaterThan 0
+        }
+    }
+
+    Context 'when the compute usage (quota) call answers with text that is not JSON' {
+        It 'records one problem with a readable cause instead of a raw parser error' {
+            $UsageGarbage.Log | Should -Match 'Outputs:'
+            $UsageGarbage.Log | Should -Match 'Data-collection issues: 1'
+            $UsageGarbage.Log | Should -Not -Match 'ConvertFrom-Json'
+            $issues = @($UsageGarbage.Json.collectionIssues)
+            $issues.Count | Should -Be 1
+            $issues[0].api | Should -BeLike 'Compute usage*'
+            $issues[0].subscriptionId | Should -Be '11111111-1111-1111-1111-111111111111'
+            $issues[0].message | Should -Match '^The answer is not valid JSON: '
+            $UsageGarbage.RunLog | Should -Match 'WARNING: Compute usage .*The answer is not valid JSON'
+            $withQuota = @($UsageGarbage.Json.vms | Where-Object { $_.action -ne 'No Action Required' -and $_.recommendation })
+            $withQuota.Count | Should -BeGreaterThan 0
+            foreach ($vm in $withQuota) { @($vm.confidence.LowReasons | Where-Object { $_ -like 'Data not collected (Compute usage*The answer is not valid JSON*' }).Count | Should -Be 1 }
         }
     }
 }

@@ -39,6 +39,12 @@ All notable changes to this project are documented here. The format follows
   `RecommendationReason`, and every listed VM without a recommendation gets a detail panel that explains why. Error text now
   also masks the signed-in identity's object id. A REST failure that the `az vm list-skus` fallback covered is noted in
   `run.log` only. Rightsizing and pricing failures are listed with the other problems.
+- **Malformed JSON from a successful `az` call escaped `-AllowFailure`.** A tolerated call (quota, Resource SKUs, optional
+  Resource Graph queries) that exited 0 but printed text that is not JSON still threw, and in the parallel quota runspaces
+  that surfaced as an unwrapped `ConvertFrom-Json` error record with no subscription or region. It now returns nothing and
+  records "The answer is not valid JSON: ..." for that subscription and region (a call that is not tolerated throws the same
+  sanitized message with the command). The quota reader also records an answer it cannot read (a row without a quota name,
+  a non-numeric limit) instead of letting the error escape.
 - **A CPU vendor inferred from the size name no longer leaves confidence at `HIGH`.** The confidence calculation says CPU
   vendor must be verified for `HIGH` but never looked at the vendor's data quality, so a size missing from the processor
   catalog (for example an older HB or NC size, resolved as Intel from its name) could still be `HIGH`. A VM whose current

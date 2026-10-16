@@ -12,11 +12,19 @@ function Get-QuotaUsage {
     $failure = $null
     $raw = Invoke-AzJson -Arguments @('vm', 'list-usage', '--location', $Region, '--subscription', $SubscriptionId) -AllowFailure -Failure ([ref]$failure)
     $d = @{}
-    foreach ($u in @($raw)) {
-        if (-not $u -or -not $u.name) { continue }
-        $d[$u.name.value.ToLowerInvariant()] = [pscustomobject]@{
-            Name = $u.name.value; LocalName = $u.localName; Used = [int]$u.currentValue; Limit = [int]$u.limit
+    try {
+        foreach ($u in @($raw)) {
+            if (-not $u -or -not $u.name) { continue }
+            $d[$u.name.value.ToLowerInvariant()] = [pscustomobject]@{
+                Name = $u.name.value; LocalName = $u.localName; Used = [int]$u.currentValue; Limit = [int]$u.limit
+            }
         }
+    }
+    catch {
+        Add-CollectionIssue -Sink $IssueSink -Api 'Compute usage (az vm list-usage)' -SubscriptionId $SubscriptionId -Region $Region `
+            -Message "The answer could not be read: $(ConvertTo-SafeCliMessage $_.Exception.Message 200)" `
+            -Effect 'Quota cannot be verified for VMs in this scope, so their quota status is not confirmed.'
+        return $null
     }
     if ($d.Count -eq 0) {
         Add-CollectionIssue -Sink $IssueSink -Api 'Compute usage (az vm list-usage)' -SubscriptionId $SubscriptionId -Region $Region `

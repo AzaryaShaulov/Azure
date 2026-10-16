@@ -117,8 +117,8 @@ subscription and region, the sanitized reason and what it means for the results,
 
 | Data | Recorded when | Effect on the results |
 |---|---|---|
-| Resource SKUs (per subscription and region) | The REST call and the `az vm list-skus` fallback both fail or return nothing, or the REST list is cut off after 50 pages | No replacement size can be recommended for VMs in that scope (`Manual Review Required`, `LOW`); a cut-off list can miss sizes |
-| Compute usage (quota) | `az vm list-usage` fails or returns nothing | Quota is not confirmed (`Quota Information Unavailable` or `Manual Validation Required`) |
+| Resource SKUs (per subscription and region) | The REST call and the `az vm list-skus` fallback both fail, return nothing or return an answer that is not valid JSON, or the REST list is cut off after 50 pages | No replacement size can be recommended for VMs in that scope (`Manual Review Required`, `LOW`); a cut-off list can miss sizes |
+| Compute usage (quota) | `az vm list-usage` fails, returns nothing, or returns an answer that is not valid JSON or cannot be read | Quota is not confirmed (`Quota Information Unavailable` or `Manual Validation Required`) |
 | Resource Graph: disk-encryption extensions, Advisor, Service Health (optional) | The query fails or stops part-way (the message says after how many rows) | The ADE note or the corroboration can be incomplete; the Microsoft Learn lifecycle evidence is not affected |
 | Azure Monitor metrics (rightsizing), Azure Retail Prices | The call fails | No rightsizing suggestion, or pricing is unavailable or partial (see `pricingStatus`) |
 

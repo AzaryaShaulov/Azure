@@ -99,6 +99,24 @@ function Invoke-SnapshotRest {
     return $resp
 }
 
+function ConvertFrom-AzJsonText {
+    <#
+    .SYNOPSIS
+        Parses the JSON an az command printed. A malformed answer is reported with the command and a sanitized parser message;
+        with -AllowFailure it returns $null and the reason in -Failure instead of throwing.
+    #>
+    param([string]$Text, [Parameter(Mandatory)][string[]]$Arguments, [switch]$AllowFailure, $Failure)
+    try { return ($Text | ConvertFrom-Json -Depth 64) }
+    catch {
+        $detail = "The answer is not valid JSON: $(ConvertTo-SafeCliMessage $_.Exception.Message 200)"
+        $command = "az $($Arguments[0..([math]::Min(3, $Arguments.Count - 1))] -join ' ')"
+        if (-not $AllowFailure) { throw "$command failed: $detail" }
+        Write-Verbose "${command}: $detail"
+        if ($Failure) { $Failure.Value = $detail }
+        return $null
+    }
+}
+
 function Invoke-AzJson {
     <#
     .SYNOPSIS
@@ -124,7 +142,7 @@ function Invoke-AzJson {
             throw "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed when the snapshot was captured."
         }
         if ([string]::IsNullOrWhiteSpace($entry.Text)) { return $null }
-        return $entry.Text | ConvertFrom-Json -Depth 64
+        return ConvertFrom-AzJsonText -Text $entry.Text -Arguments $Arguments -AllowFailure:$AllowFailure -Failure $Failure
     }
     $attempt = 0
     while ($true) {
@@ -142,7 +160,7 @@ function Invoke-AzJson {
                 Save-SnapshotEntry -Kind 'az' -Request $request -Text $saved
             }
             if ([string]::IsNullOrWhiteSpace($text)) { return $null }
-            return $text | ConvertFrom-Json -Depth 64
+            return ConvertFrom-AzJsonText -Text $text -Arguments $Arguments -AllowFailure:$AllowFailure -Failure $Failure
         }
         $transient = $err -match '(429|TooManyRequests|throttl|timed out|temporar|ServiceUnavailable|503|502|ConnectionReset)'
         if ($transient -and $attempt -le $MaxRetries) {

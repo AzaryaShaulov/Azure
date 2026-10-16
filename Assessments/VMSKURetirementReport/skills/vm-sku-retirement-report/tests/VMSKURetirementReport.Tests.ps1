@@ -768,6 +768,30 @@ Describe 'Data-collection issues: recording' {
         ($issues[0].Message + $issues[0].Effect) | Should -Not -Match 'jane\.doe|11111111-2222'
     }
 
+    It 'reports malformed JSON from a successful az call instead of throwing from a tolerated call' {
+        Use-FakeAz -Body "Write-Output 'this-is-not-json'; exit 0" -Action {
+            $failure = $null
+            Invoke-AzJson -Arguments @('vm', 'list-usage', '--location', 'eastus2') -AllowFailure -Failure ([ref]$failure) | Should -BeNullOrEmpty
+            $failure | Should -Match '^The answer is not valid JSON: '
+            { Invoke-AzJson -Arguments @('vm', 'list-usage', '--location', 'eastus2') } | Should -Throw 'az vm list-usage --location eastus2 failed: The answer is not valid JSON*'
+            Invoke-AzJson -Arguments @('vm', 'list-usage') -AllowFailure | Should -BeNullOrEmpty
+        }
+    }
+
+    It 'records a quota answer that is not JSON or cannot be read' -ForEach @(
+        @{ Case = 'not JSON'; Body = "Write-Output '{ not valid json'; exit 0"; Message = '^The answer is not valid JSON' }
+        @{ Case = 'a row without a name value'; Body = "Write-Output '[{`"name`":{},`"currentValue`":1,`"limit`":2}]'; exit 0"; Message = '^The answer could not be read' }
+        @{ Case = 'a non-numeric limit'; Body = "Write-Output '[{`"name`":{`"value`":`"cores`"},`"currentValue`":1,`"limit`":`"many`"}]'; exit 0"; Message = '^The answer could not be read' }
+    ) {
+        $sink = New-CollectionIssueSink
+        $usage = Use-FakeAz -Body $Body -Action { Get-QuotaUsage -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $usage | Should -BeNullOrEmpty
+        $issues = @(Get-CollectionIssue -Sink $sink)
+        $issues.Count | Should -Be 1
+        $issues[0].Api | Should -BeLike 'Compute usage*'
+        $issues[0].Message | Should -Match $Message
+    }
+
     It 'records nothing when quota is read' {
         $sink = New-CollectionIssueSink
         $body = "Write-Output '[{`"name`":{`"value`":`"cores`"},`"localName`":`"Total Regional vCPUs`",`"currentValue`":4,`"limit`":100}]'; exit 0"
@@ -839,6 +863,15 @@ Describe 'Data-collection issues: Resource SKU collection' {
         $cat.Count | Should -BeGreaterThan 5
         @(Get-CollectionIssue -Sink $sink).Count | Should -Be 0
         ($out | Where-Object { $_ -is [System.Management.Automation.InformationRecord] } | ForEach-Object { "$_" }) -join "`n" | Should -Match 'REST failed for eastus2.*used az vm list-skus instead'
+    }
+
+    It 'records malformed JSON from az vm list-skus as the cause' {
+        $sink = New-CollectionIssueSink
+        Mock Invoke-RestMethod -ModuleName SkuCatalog { throw 'Response status code does not indicate success: 500.' }
+        $body = "$TokenOk`n" + "if (`"`$args`" -match 'vm list-skus') { Write-Output 'this-is-not-json'; exit 0 }"
+        $cat = Use-FakeAz -Body $body -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $cat.Count | Should -Be 0
+        @(Get-CollectionIssue -Sink $sink)[0].Message | Should -Match 'az vm list-skus failed: The answer is not valid JSON'
     }
 
     It 'records a size list that was cut off after 50 pages' {
