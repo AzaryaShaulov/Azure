@@ -1,12 +1,15 @@
 # Repository Audit — VMSKURetirementReport and parent repository
 
-> **Status: read-only audit.** No application code, scripts, templates, schemas, dependencies or generated reports were
-> modified. This document is the only artifact added to the repository. Nothing in the remediation plan has been applied.
+> **Status: audit, with remediation applied on the branch.** The audit itself was read-only: no application code, scripts,
+> templates, schemas, dependencies or generated reports were changed to produce it. The remediation is applied step by step
+> on the branch and tracked in [§3.0](#30-remediation-status-r8) and §9 (r8: the CI repair, the Windows-only alignment and
+> Phase 1 are applied; Phases 2-5 are open). The register below describes the code as audited (baseline `0b4e8a3`), not as
+> it is after the fixes.
 >
 > | | |
 > |---|---|
 > | **Audit date** | 2026-10-16 |
-> | **Revision** | r2 — adds AUD-033 and AUD-034 after the GitHub Actions run history was checked (r1 had only read the workflow files) and corrects the CI and build ratings. r3 — runs the fault-injection scenarios: AUD-007 and AUD-013 become Confirmed, AUD-013 is re-rated from Medium to Low, and AUD-007 and AUD-016 gain executed evidence. r4 — corrects the image-tag advice in AUD-034 (the floating `7.2-ubuntu-22.04` tag is a stale 2022 build; `lts-7.2-ubuntu-22.04` is PowerShell 7.2.24). r5 — records the owner decision that no further code is changed for Linux or macOS (failures there are reported only) and notes that the CI repair on the branch is verified on Windows only. r6 — supersedes r5: the owner decided that the tool is not intended to run on Linux, macOS or in containers, so those platforms and the PowerShell 7.2 container job are out of scope, CI becomes Windows-only (workflow change pending), and the open Linux and macOS questions are closed. r7 — the owner decided that PowerShell 7.2 and later (7.4 and later included) stay supported: the container job is replaced by a Windows job that runs the complete mock assessment under PowerShell 7.2.24 and 7.4.21 from pinned, checksum-verified archives, the Windows-only workflow and documentation changes are applied on the branch, and the supported-floor question is closed. |
+> | **Revision** | r2 — adds AUD-033 and AUD-034 after the GitHub Actions run history was checked (r1 had only read the workflow files) and corrects the CI and build ratings. r3 — runs the fault-injection scenarios: AUD-007 and AUD-013 become Confirmed, AUD-013 is re-rated from Medium to Low, and AUD-007 and AUD-016 gain executed evidence. r4 — corrects the image-tag advice in AUD-034 (the floating `7.2-ubuntu-22.04` tag is a stale 2022 build; `lts-7.2-ubuntu-22.04` is PowerShell 7.2.24). r5 — records the owner decision that no further code is changed for Linux or macOS (failures there are reported only) and notes that the CI repair on the branch is verified on Windows only. r6 — supersedes r5: the owner decided that the tool is not intended to run on Linux, macOS or in containers, so those platforms and the PowerShell 7.2 container job are out of scope, CI becomes Windows-only (workflow change pending), and the open Linux and macOS questions are closed. r7 — the owner decided that PowerShell 7.2 and later (7.4 and later included) stay supported: the container job is replaced by a Windows job that runs the complete mock assessment under PowerShell 7.2.24 and 7.4.21 from pinned, checksum-verified archives, the Windows-only workflow and documentation changes are applied on the branch, and the supported-floor question is closed. r8 — applies step 0.1 and Phase 1 on the branch ([§3.0](#30-remediation-status-r8) lists every addressed finding): AUD-001, 005, 006, 016 and 022 are resolved and AUD-003 is partly resolved (the confidence rule; the processor catalog is still to be extended); Phases 2-5 are open. |
 > | **Repository** | `AzaryaShaulov/Azure` (monorepo, 152 tracked files, no submodules) |
 > | **Baseline** | branch `modernizationv6`, HEAD `0b4e8a3`, plus 23 **staged, uncommitted** changes (the review-fix batch). `git status` was identical before and after the instrumented test run. |
 > | **Primary scope** | `Assessments/VMSKURetirementReport` — tool v1.2.0 (PowerShell 7.2+, read-only Azure VM SKU retirement and modernization assessment) |
@@ -75,15 +78,17 @@
 
 ### Top findings (fix first)
 
-1. **AUD-033 (High)** — CI has never passed: the Pester / PSScriptAnalyzer tree-hash lock fails on all three runners and every test job stops in Bootstrap, so no test runs in CI and no release can be built. *Reproduced locally and in 3 inspected CI runs.*
+*Status in r8: items 1, 2, 4 and 8 are resolved, item 6 is half resolved (AUD-005) and item 5 is partly resolved (the confidence rule); see [§3.0](#30-remediation-status-r8). The wording below is the audit-time finding.*
+
+1. **AUD-033 (High)** — CI has never passed: the Pester / PSScriptAnalyzer tree-hash lock fails on all three runners and every test job stops in Bootstrap, so no test runs in CI and no release can be built. *Reproduced locally and in 3 inspected CI runs.* **Resolved (r8).**
 2. **AUD-001 (High)** — candidate-cache key omits `DedicatedHostGroupId`; a dedicated-host VM can be reported `Ready`/`HIGH`
-   with no Dedicated Host gate, and the result flips with VM enumeration order. *Reproduced.*
+   with no Dedicated Host gate, and the result flips with VM enumeration order. *Reproduced.* **Resolved (r8).**
 3. **AUD-002 (Medium)** — only the smallest size per series is gated; larger valid sizes are never tried. *Reproduced.*
-4. **AUD-006 (Medium)** — availability-set and scale-set members still show "Proceed with Resize (change window)". *Reproduced.*
-5. **AUD-003 (Medium)** — CPU vendor falls back to a naming heuristic that ignores confidence; `Standard_HB60rs` resolves as Intel. *Reproduced.*
-6. **AUD-005 / AUD-004 (Medium)** — single-group `By*` blocks serialize as objects; "Modernize to v6" KPI is 0 while 5 of 7 VMs show a v6 path. *Reproduced.*
+4. **AUD-006 (Medium)** — availability-set and scale-set members still show "Proceed with Resize (change window)". *Reproduced.* **Resolved (r8).**
+5. **AUD-003 (Medium)** — CPU vendor falls back to a naming heuristic that ignores confidence; `Standard_HB60rs` resolves as Intel. *Reproduced.* **Partly resolved (r8):** confidence now reflects it; the catalog still lacks the older series.
+6. **AUD-005 / AUD-004 (Medium)** — single-group `By*` blocks serialize as objects; "Modernize to v6" KPI is 0 while 5 of 7 VMs show a v6 path. *Reproduced.* **AUD-005 resolved (r8); AUD-004 open.**
 7. **AUD-007 (Medium)** — SKU/quota retrieval failures never reach the report: affected VMs show `Manual Review Required` / `LOW` with no stated cause, and with no SKU data the HTML renders no detail panels. *Reproduced (fault-injection runs).*
-8. **AUD-034 (Medium)** — the PowerShell 7.2 CI job references a container tag that does not exist (`lts-7.2-ubuntu-22.04` is the one that carries 7.2.24), so the stated minimum version is never verified. Owner decisions (r6, r7): containers are out of scope and PowerShell 7.2 and later stay supported, so the job is replaced by a Windows job that checks PowerShell 7.2.24 and 7.4.21.
+8. **AUD-034 (Medium)** — the PowerShell 7.2 CI job references a container tag that does not exist (`lts-7.2-ubuntu-22.04` is the one that carries 7.2.24), so the stated minimum version is never verified. Owner decisions (r6, r7): containers are out of scope and PowerShell 7.2 and later stay supported, so the job is replaced by a Windows job that checks PowerShell 7.2.24 and 7.4.21. **Resolved (r8), not yet run in Actions.**
 9. **AUD-009 / AUD-010 / AUD-011 (Medium)** — stale repo links in AVD alert e-mails and the Arc dashboard, wrong dashboard file name, empty root `SECURITY.md`. (AUD-009 and AUD-010 are in folders the owner excluded from remediation; AUD-011 is not.)
 
 ### What is working (verified, do not change unnecessarily)
@@ -210,6 +215,27 @@ Package on Windows (r7; at audit time: a PowerShell 7.2 container job and a Wind
 Columns: Finding ID · Severity · Category · Component · File and line · Finding · Evidence · Impact · Recommended fix · Confidence.
 "Executed" evidence was produced during this audit; in-memory experiments imported the repository modules and the test
 fixtures and wrote nothing to the repository.
+
+### 3.0 Remediation status (r8)
+
+Status of the findings addressed on the branch `modernizationv6` (nothing is pushed; CI has not run on these changes).
+Every row was reproduced with the repository modules before the change and checked after it; the new tests fail against the
+previous code and pass now (V-30). The other findings are unchanged and open, except the five out of scope.
+
+| Finding | Status | Commit | What changed |
+|---|---|---|---|
+| AUD-033 | Resolved | `c2d0781` | The module-hash check is independent of sort order and installer metadata; locks recomputed |
+| AUD-034 | Resolved by replacement | `5194182` | The Linux container job is replaced by a Windows job that checks PowerShell 7.2.24 and 7.4.21 (not yet run in Actions) |
+| AUD-001 | Resolved | `e98a12f` | The cache key now includes `DedicatedHostGroupId`, `DiskControllerReported` and `AcceleratedNicCount`; a test fails if candidate selection or scoring reads a VM property that is not in the key |
+| AUD-005 | Resolved | `ab958e9` | Every `summary.By*` list is an array for zero, one or many groups |
+| AUD-016 | Resolved, one part documented | `ab958e9` | `quota.family`, `quota.regional`, `strategy.ValidationItems` and `strategy.TargetComparison` are always arrays (a one-item list was a bare string); the three CSVs keep their header row when empty. The mixed JSON type of `materialDifferences[].Current/Target` is documented in `output-schema.md`, not changed |
+| AUD-006 | Resolved | `bebe8bb` | New next step `Validate Before Resize` when readiness is `Ready` but confidence is below `HIGH`; `Proceed with Resize (change window)` only for `Ready` + `HIGH` |
+| AUD-022 | Resolved | `bebe8bb` | An older-generation primary gets the validation item "Newer generation unavailable: ..." when a newer valid size of the family and vendor is restricted or not offered |
+| AUD-003 | Partly resolved | `76fe6ea` | A `Partially Verified` CPU vendor (current or recommended size) adds the validation item "CPU vendor not verified for ..." and lowers confidence. **Still open:** extending `processor-catalog.json` to the older HB, NC, G and M series (regenerated with `Update-Catalogs.ps1`; step 2.3) |
+
+**In-scope findings still open after Phase 1: 22 (0 High, 7 Medium, 15 Low)** — 34 recorded, 5 out of scope by owner decision,
+7 resolved (2 High, 3 Medium, 2 Low including AUD-033 and AUD-034), AUD-003 still open. The Medium findings left are AUD-002,
+003, 004, 007, 008, 011 and 012.
 
 ### 3.1 High
 
@@ -425,14 +451,14 @@ in the tool. **Assumed** = a tool heuristic or an embedded list.
 
 ## 9. Remediation Plan
 
-> **Nothing below has been applied.** Phases are ordered by risk reduction and dependency. Every code phase ends with the
+> **Applied so far (r8): step 0.1 and Phase 1** — see [§3.0](#30-remediation-status-r8). Phases 2-5 are open. Phases are ordered by risk reduction and dependency. Every code phase ends with the
 > same regression gate; documentation-only phases need only the link check.
 
 **Scope (owner decision, 2026-10-16):** `AVD`, `azure-arc`, `AzureDashboards` and `AzureWorkbooks` are **not** in scope for
 remediation. Their findings (AUD-009, 010, 028, 029 and the folder-level part of AUD-030) stay in the register for the
 record; steps 5.1 and 5.2 are therefore not scheduled.
 
-**Regression gate for every code phase:** `./build.ps1 -Task Lint,Version,Test` stays green (221 tests today) and, once step 0.1 is done, the Windows CI job is green; regenerate
+**Regression gate for every code phase:** `./build.ps1 -Task Lint,Version,Test` stays green (251 tests after Phase 1) and, once step 0.1 is done, the Windows CI job is green; regenerate
 the sample (`-Task Sample`) and review the diff — only intended changes; `-Task Package` and verify the checksum; run
 `tools/browser-smoke.js` when HTML or CSS changes; add a CHANGELOG entry and update `output-schema.md` when a contract changes.
 
@@ -458,6 +484,17 @@ the sample (`-Task Sample`) and review the diff — only intended changes; `-Tas
 | | 5.3 | AUD-011, 030, 031 | Root `SECURITY.md`; agent front matter; a root licence if the owner wants one (folder licences for azure-arc and AzureDashboards are out of scope) | — | — |
 | | 5.4 | AUD-005, 014, 016, 017 | Correct `output-schema.md` | — | 1.2, 3.2 |
 | | 5.5 | AUD-018, 023, 024, 032 | Footer wording; re-validate the Gen1 OS list; remove or document `SafetyPct`; tooltip note | — | — |
+
+**Deviations from the plan as written (Phase 1, r8).**
+
+- **1.2** — heterogeneous display values (`materialDifferences[].Current/Target`, `TargetComparison`) were **not** stringified:
+  that would turn numbers and booleans into strings for consumers that read them. The mixed type is documented in
+  `output-schema.md` instead; say so if you want the conversion.
+- **1.3** — the "validate before resize" rule is based on confidence (`Ready` + below `HIGH`), not only on availability-set and
+  scale-set membership, so `Proceed with Resize` means that nothing is left open. It also applies to a removed temp disk, reduced
+  disk throughput, an older-generation target and partially verified lifecycle evidence.
+- **1.4** — only the confidence rule is applied. Extending the processor catalog regenerates a data file from Microsoft Learn
+  (`Update-Catalogs.ps1`, network) that the tests and the sample depend on, so it moves to step 2.3 as a reviewed run.
 
 **Dependency chains:** 0.1 → every later phase (CI becomes the validator) · 1.1 → 3.1 · 1.2 → 3.2 → 4.2 · 2.1 → 2.2 → 4.1 · 2.1 → 3.3 · 1.2 + 3.2 → 5.4.
 
@@ -504,6 +541,8 @@ disclaimers, the reproducible sample, SHA-pinned CI and the locked test tooling.
 | V-27 | Fault injection | Orchestrator against the repository mock `az` with one injected fault per run: SKU API denied, invalid JSON, empty; quota API denied, invalid JSON, empty; plus a baseline (executed, 7 runs) | All 7 runs exit 0 and write every output. SKU faults hide the cause and the VM detail panels (AUD-007); quota faults print no warning (AUD-007); malformed quota JSON prints one unwrapped error (AUD-013); null arrays and zero-byte CSVs (AUD-016) |
 | V-28 | Supported PowerShell versions | Official portable archives of PowerShell 7.2.24 and 7.4.21 on Windows, SHA-256 verified against the published hashes: the offline mock assessment, the sample regeneration compared with the committed sample, and the full build gate under 7.4.21 (executed) | 7.2.24 and 7.4.21: assessment completes (7 VMs, 10 files, no warnings); sample equivalent to the committed one except the generated timestamp, as under 7.6.7; full gate (lock check, lint, version, 221 tests) passes under 7.4.21 and 7.6.7. 7.2 cannot run Pester 6.2.0 or PSScriptAnalyzer 1.24.0 (they target .NET 8), so on 7.2 only the runtime is tested |
 | V-29 | Workflow changes | `actionlint` 1.7.12 (official release, checksum verified) on both workflows, with a negative control; the new job's two scripts extracted from the YAML and run locally with the Actions environment, plus a wrong-checksum and a wrong-version case (executed) | No lint problems; negative control flagged; wrong checksum stops the install before extraction; wrong version is rejected; the real run under 7.2.24 produces 10 files and 7 VMs |
+| V-30 | Phase 1 fixes (r8) | For each fix: the behaviour reproduced with the repository modules before the change, the new tests run against the previous modules (expected red) and against the changed ones (expected green), then the full gate `Lint,Version,Test` and a sample regeneration compared with the committed sample (executed) | Cache key: 7 of 8 new cases red before, 8 of 8 green after. Shapes: 8 of 8 red before and green after; zero VMs gave `null` groups, one VM gave objects, one validation item was a bare string, three CSVs were zero-byte. Next step and older generation: 6 of 8 red before (the other 2 guard unchanged behaviour). Vendor confidence: 5 new cases red before. Gate after Phase 1: Lint and Version clean, 251 tests passed (215 unit, 36 integration). The committed sample changed only in the shapes step (`By*` arrays, `[]` for null strategy lists) |
+| V-31 | Phase 1 on the supported PowerShell versions (r8) | The offline mock assessment and the sample regeneration under PowerShell 7.2.24 and 7.4.21 (SHA-256-verified portable archives), and the three reproduction scripts (cache key, JSON and CSV shapes with zero, one and several VMs, readiness) under 7.2.24, 7.4.21 and 7.6.7 (executed) | Assessment exit 0, 7 VMs, 10 files, no warnings on 7.2.24 and 7.4.21; the sample is equivalent to the committed one except the generated timestamp; the output of each reproduction script is byte-identical on all three versions |
 
 ### 10.2 Not tested
 
@@ -514,7 +553,7 @@ disclaimers, the reproducible sample, SHA-pinned CI and the locked test tooling.
 | Live Microsoft Learn parsing | An offline catalog was used | Run `Update-Catalogs.ps1` and diff against the cached catalog |
 | Gen1 → Trusted launch OS-support list and v6/v7 platform constraints | Needs current Microsoft documentation | Compare with Learn guidance (AUD-023) |
 | Large estates and throttling | No such data | Synthetic mock with several thousand VMs; measure time and memory |
-| CI runs of the new Windows job on PowerShell 7.2.24 and 7.4.21 | The job is new and nothing is pushed, so CI has not run it; its scripts were rehearsed locally (V-28) | A Windows CI run |
+| CI runs of the new Windows jobs (tests; PowerShell 7.2.24 and 7.4.21) on the branch, including the Phase 1 changes | The jobs are new and nothing is pushed, so CI has not run them; their scripts were rehearsed locally (V-28, V-29) and Phase 1 was run locally on all three versions (V-31) | A Windows CI run |
 | HTML in browsers without `:has()` | No such browser available | Manual check; the `@supports` fallback shows every block open |
 
 ---
@@ -564,7 +603,7 @@ exit $LASTEXITCODE
 ## Appendix C — Decisions for the owner
 
 1. **Location of this document.** Published at `Assessments/VMSKURetirementReport/docs/REPOSITORY_AUDIT.md` (the repository root has no `docs/` folder); move it if you want it at the root.
-2. **Which remediation phases to start.** Step 0.1 (repair CI) first, then Phase 1 (removes the logic High finding). Phases 1-4 and steps 5.3-5.5 are open; 5.1 and 5.2 are out of scope.
+2. **Which remediation phases to start.** Step 0.1 (repair CI) and Phase 1 (core correctness) are applied on the branch (r8). Phases 2-4 and steps 5.3-5.5 are open; 5.1 and 5.2 are out of scope.
 3. **Contract policy for AUD-005 — resolved by the release facts.** No tag or GitHub Release exists and `main` still ships v1.0.0, so v1.2.0 is unreleased: the array fix can ship inside 1.2.0 with a "Fixed" note in the CHANGELOG, with no separate patch release.
 4. **Parent-repository scope — resolved.** The owner decided on 2026-10-16 that AVD, azure-arc, AzureDashboards and AzureWorkbooks are not in scope for remediation.
 5. **Supported runtime — resolved.** The owner decided on 2026-10-16 that the tool runs through Azure CLI and local PowerShell, as a GitHub Copilot skill and as a standalone script, and is not intended to run on Linux, macOS or in containers, and that PowerShell 7.2 and later (7.4 and later included) stay supported. The committed CI repair stays (it also fixed the Windows job). Still open: the release method (tag workflow on a Windows runner, or manual from the committed `dist/` ZIP).
