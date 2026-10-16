@@ -248,7 +248,7 @@ try {
         $catalogResult.Warning = $null
     }
     else {
-        $catalogResult = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath (Join-Path $skillRoot 'data/retirement-catalog.json') -Offline:$OfflineCatalog
+        $catalogResult = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath (Join-Path $skillRoot 'data/retirement-catalog.json') -Offline:$OfflineCatalog -AsOf $AsOfDate
     }
     if ($SaveSnapshot) { $catalogResult.Catalog | ConvertTo-Json -Depth 20 | Out-File -LiteralPath $snapshotCatalogPath -Encoding utf8 }
     $retCatalog = $catalogResult.Catalog

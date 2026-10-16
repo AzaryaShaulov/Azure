@@ -398,7 +398,7 @@ double-dash form accepted is `--check-modernization`.
 | `-IncludePricing` | on | Retail PAYGO monthly price comparison (informational). Pricing is on by default; the switch is kept for existing scripts |
 | `-SkipPricing` | off | Turn off retail pricing (for example when `prices.azure.com` is blocked, or for a fully offline `-FromSnapshot` replay) |
 | `--check-modernization` | off | Evaluate every VM for a suitable same-vendor and same-architecture v7 SKU, then v6, while retaining the existing recommendation as fallback |
-| `-OfflineCatalog` | off | Use the cached Microsoft catalog instead of fetching Microsoft Learn |
+| `-OfflineCatalog` | off | Use the cached Microsoft catalog instead of fetching Microsoft Learn. The report warns when the cache is more than 90 days older than `-AsOfDate` |
 | `-AuthTimeoutSec` | `60` | Fail fast with `az login` guidance if the CLI token has expired |
 | `-AsOfDate` | today | Date used to compute months remaining |
 | `-SkipHtml` | off | Skip HTML output |

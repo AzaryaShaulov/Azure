@@ -996,6 +996,94 @@ Describe 'Data-collection issues: effect on assessments and outputs' {
     }
 }
 
+Describe 'Retirement catalog currency' {
+    BeforeAll {
+        $script:SeriesMapPath = Join-Path $Root 'data/series-map.json'
+        $learn = @{
+            'retirements-and-capacity-restrictions' = (Get-Content (Join-Path $PSScriptRoot 'fixtures/retired-sizes-list.html') -Raw)
+            'end-of-life-sizes-list'                = (Get-Content (Join-Path $PSScriptRoot 'fixtures/previous-gen-sizes-list.html') -Raw)
+            'retired-sizes-modernization-guide'     = (Get-Content (Join-Path $PSScriptRoot 'fixtures/migration-guide.html') -Raw)
+        }
+        $script:LivePages = {
+            param($Uri)
+            $key = @($learn.Keys | Where-Object { "$Uri" -like "*$_*" })[0]
+            [pscustomobject]@{ Content = $learn[$key] }
+        }.GetNewClosure()
+        function script:Write-TestCache {
+            param([Parameter(Mandatory)]$Catalog)
+            $path = Join-Path $TestDrive ('cache-' + [guid]::NewGuid().ToString('N') + '.json')
+            $Catalog | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $path
+            $path
+        }
+        function script:New-ExtraSeries {
+            param([string]$Key = 'fakeseries', $RetiredList = $true)
+            [pscustomobject]@{ key = $Key; learnNames = @('Fake series'); patterns = @('^Standard_Fake'); retiredList = $(if ($RetiredList) { [pscustomobject]@{ status = 'Retired' } } else { $null }); previousGen = $null; guideFaq = $null; recommendedTargets = @(); guideDifferences = @(); notes = @() }
+        }
+    }
+
+    It 'returns live evidence without a warning when it has everything the cache has' {
+        Mock Invoke-WebRequest -ModuleName Retirement -MockWith $LivePages
+        $r = Get-RetirementCatalog -SeriesMapPath $SeriesMapPath -CachePath (Write-TestCache $Catalog)
+        $r.Source | Should -Be 'Live'
+        $r.Warning | Should -BeNullOrEmpty
+    }
+
+    It 'warns when the live parse lost a series, and does not overwrite the cache with it' {
+        Mock Invoke-WebRequest -ModuleName Retirement -MockWith $LivePages
+        $cached = $Catalog.PSObject.Copy(); $cached.series = @($Catalog.series) + (New-ExtraSeries)
+        $path = Write-TestCache $cached
+        $before = (Get-FileHash $path).Hash
+        $r = Get-RetirementCatalog -SeriesMapPath $SeriesMapPath -CachePath $path -UpdateCache
+        $r.Source | Should -Be 'Live'
+        $r.Warning | Should -Match '1 of the \d+ series in the cached catalog are missing \(fakeseries\)'
+        $r.Warning | Should -Match 'The cache was not updated\.$'
+        (Get-FileHash $path).Hash | Should -Be $before
+    }
+
+    It 'warns when list rows were lost although every series is still there' -ForEach @(
+        @{ List = 'retiredList'; Text = 'the retired-sizes list now covers' }
+        @{ List = 'previousGen'; Text = 'the previous-generation list now covers' }
+    ) {
+        Mock Invoke-WebRequest -ModuleName Retirement -MockWith $LivePages
+        $cached = $Catalog | ConvertTo-Json -Depth 20 | ConvertFrom-Json -Depth 20
+        $without = @($cached.series | Where-Object { -not $_.$List })
+        $without.Count | Should -BeGreaterThan 0 -Because 'the fixture needs a series without this list for the check'
+        $without[0].$List = [pscustomobject]@{ status = 'Retired' }
+        $r = Get-RetirementCatalog -SeriesMapPath $SeriesMapPath -CachePath (Write-TestCache $cached)
+        $r.Warning | Should -Match $Text
+        $r.Warning | Should -Not -Match 'series in the cached catalog are missing'
+    }
+
+    It 'refreshes the cache when nothing was lost' {
+        Mock Invoke-WebRequest -ModuleName Retirement -MockWith $LivePages
+        $path = Write-TestCache $Catalog
+        $before = (Get-FileHash $path).Hash
+        $r = Get-RetirementCatalog -SeriesMapPath $SeriesMapPath -CachePath $path -UpdateCache
+        $r.Warning | Should -BeNullOrEmpty
+        (Get-FileHash $path).Hash | Should -Not -Be $before
+    }
+
+    It 'warns about a cached catalog that is more than 90 days older than the assessment date (<Case>)' -ForEach @(
+        @{ Case = '120 days'; Days = 120; Age = $true }
+        @{ Case = 'exactly 90 days'; Days = 90; Age = $false }
+        @{ Case = 'assessment date before the retrieval'; Days = -10; Age = $false }
+    ) {
+        $path = Write-TestCache $Catalog
+        $r = Get-RetirementCatalog -SeriesMapPath $SeriesMapPath -CachePath $path -Offline -AsOf ([datetime]'2026-09-24').AddDays($Days)
+        $r.Source | Should -Be 'Cached (2026-09-24 00:00 UTC)'
+        $r.Warning | Should -Match '^Offline mode requested\.'
+        if ($Age) { $r.Warning | Should -Match 'retrieved 2026-09-24, 120 days before the assessment date' } else { $r.Warning | Should -Not -Match 'days before the assessment date' }
+    }
+
+    It 'reports the failed live fetch together with the age of the cache it falls back to' {
+        Mock Invoke-WebRequest -ModuleName Retirement -MockWith { throw 'network down' }
+        $r = Get-RetirementCatalog -SeriesMapPath $SeriesMapPath -CachePath (Write-TestCache $Catalog) -AsOf ([datetime]'2027-03-01') 3>$null
+        $r.Source | Should -BeLike 'Cached (*'
+        $r.Warning | Should -Match '^Live fetch failed: network down '
+        $r.Warning | Should -Match '158 days before the assessment date'
+    }
+}
+
 Describe 'Compatibility score' {
     It 'totals the documented weights to 100' {
         ($Weights.weights.PSObject.Properties.Value | Measure-Object -Sum).Sum | Should -Be 100

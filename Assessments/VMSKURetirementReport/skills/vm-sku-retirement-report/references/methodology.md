@@ -61,6 +61,15 @@ they were Modernization Recommended. Microsoft then added them to the retired li
 **2029-11-15**, so they are now Confirmed Retirement (Beyond Horizon with the default 36-month horizon). Ev4/Esv4 are
 not End of Life and remain optional modernization. Refresh the cache with `Update-Catalogs.ps1` after such changes.
 
+**Stale or incomplete evidence is flagged.** The cached catalog (`-OfflineCatalog`, or a failed live fetch) is compared with
+the assessment date: when it was retrieved more than 90 days before `-AsOfDate`, the report carries an evidence warning
+with the retrieval date, because newer Microsoft announcements may be missing. A live fetch is compared with the cache: if
+the live parse lacks series that the cache has, or covers fewer series on the retired-sizes or previous-generation list, the
+report carries a warning that a page format change may have dropped rows (a size whose series was dropped would read as
+"No Retirement Announced"). In that case `Update-Catalogs.ps1` also leaves the cache untouched, so a partial parse never
+replaces a good cache. The warning appears in the console, `retirement-evidence.json` (`catalogWarning`), the executive
+summary and the HTML evidence callout. Cached evidence is always `Partially Verified`, so confidence cannot reach `HIGH`.
+
 ### Urgency
 
 Months are counted from `-AsOfDate` to the Microsoft date:

@@ -23,6 +23,7 @@ if (-not $SkipRetirement) {
     Write-Host 'Refreshing retirement catalog from Microsoft Learn...'
     $r = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath (Join-Path $skillRoot 'data/retirement-catalog.json') -UpdateCache
     if ($r.Source -ne 'Live') { throw "Live fetch failed; cache not updated. $($r.Warning)" }
+    if ($r.Warning) { Write-Warning $r.Warning }
     Write-Host ("  {0} series, {1} unmapped, {2} non-VM-size entries" -f @($r.Catalog.series).Count, @(Get-UnmappedSeriesNames -Catalog $r.Catalog).Count, @(Get-NonVmSizeEntries -Catalog $r.Catalog).Count)
     foreach ($u in @(Get-UnmappedSeriesNames -Catalog $r.Catalog)) { Write-Warning "Unmapped Learn series: $u - add it to data/series-map.json" }
 }

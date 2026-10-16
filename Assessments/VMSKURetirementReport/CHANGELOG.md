@@ -39,6 +39,12 @@ All notable changes to this project are documented here. The format follows
   `RecommendationReason`, and every listed VM without a recommendation gets a detail panel that explains why. Error text now
   also masks the signed-in identity's object id. A REST failure that the `az vm list-skus` fallback covered is noted in
   `run.log` only. Rightsizing and pricing failures are listed with the other problems.
+- **Stale or incomplete retirement evidence did not stand out.** The cached catalog had no maximum age, and a live parse that
+  silently lost series or list rows (for example after a Learn page format change) was used without a word, which would turn
+  retiring sizes into "No Retirement Announced". The report now warns when the cache is more than 90 days older than the
+  assessment date, and when the live parse lacks series that the cache has or covers fewer series on the retired-sizes or
+  previous-generation list; `Update-Catalogs.ps1` then keeps the existing cache. The warning is in the console,
+  `retirement-evidence.json`, the executive summary and the HTML evidence callout.
 - **Malformed JSON from a successful `az` call escaped `-AllowFailure`.** A tolerated call (quota, Resource SKUs, optional
   Resource Graph queries) that exited 0 but printed text that is not JSON still threw, and in the parallel quota runspaces
   that surfaced as an unwrapped `ConvertFrom-Json` error record with no subscription or region. It now returns nothing and
@@ -49,8 +55,11 @@ All notable changes to this project are documented here. The format follows
   vendor must be verified for `HIGH` but never looked at the vendor's data quality, so a size missing from the processor
   catalog (for example an older HB or NC size, resolved as Intel from its name) could still be `HIGH`. A VM whose current
   or recommended size has only a `Partially Verified` vendor now gets the validation item "CPU vendor not verified for ...",
-  and with it `MEDIUM` confidence (or `LOW` together with another item). Extending the processor catalog to the older series
-  is tracked separately, because it is regenerated from Microsoft Learn with `scripts/Update-Catalogs.ps1`.
+  and with it `MEDIUM` confidence (or `LOW` together with another item). The processor catalog was refreshed with
+  `scripts/Update-Catalogs.ps1` and gained eight newer series (Ebdsv5, Ebsv5, Ecasv5/Ecadsv5, Ecasccv5/Ecadsccv5, Ecedsv6,
+  Ecesv6, Laosv5, Lasv5); no existing entry changed. The older series (the original HB, G, F, L and NC) are not covered by
+  Microsoft's current size-series pages, so the generator cannot produce them: their vendor stays inferred from the name and
+  is flagged "not verified" (the original HB, which is AMD, still resolves as Intel until it is checked).
 - **An older-generation target came without a note.** When the newest valid size of the family was restricted or not offered
   for the VM, the primary silently fell back to an older generation and the VM stayed `Ready` with `HIGH` confidence. It now
   gets the validation item "Newer generation unavailable: ..." (naming the size and its availability), which lowers confidence
@@ -62,6 +71,7 @@ All notable changes to this project are documented here. The format follows
   (`[]` when empty). `vm-assessment.csv`, `candidates.csv` and `quota-impact.csv` were zero-byte files when there were no
   rows, which fails a Power BI refresh; they now always contain the header row. The values of
   `materialDifferences[].Current` / `.Target` are documented as display values of mixed type rather than changed.
+- **Replacement sizes could be taken from another VM's evaluation.** VMs with the same size and settings share one
   candidate evaluation, but the sharing key left out whether the VM is placed through a dedicated host group, whether the
   VM reported its disk controller and how many NICs use Accelerated Networking. Which VM was assessed first therefore decided
   whether a VM on a host group lost its Dedicated Host review, whether "controller not reported" showed on the wrong VM and

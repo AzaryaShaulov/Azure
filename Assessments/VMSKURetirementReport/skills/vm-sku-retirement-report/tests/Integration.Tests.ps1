@@ -533,6 +533,22 @@ Describe 'Authentication preflight (mock Azure)' {
     }
 }
 
+Describe 'Age of the cached retirement evidence (mock Azure)' {
+    It 'tells the reader when the offline evidence is much older than the assessment date' {
+        $mockDir = Join-Path $PSScriptRoot 'mock'
+        $out = Join-Path $TestDrive 'old-evidence'
+        $log = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$out' -OfflineCatalog -AsOfDate '2027-06-01' -ThrottleLimit 2 -SkipPricing" 2>&1 | Out-String
+        $log | Should -Match 'Outputs:'
+        $warning = (Get-Content (Join-Path $out 'retirement-evidence.json') -Raw | ConvertFrom-Json -Depth 20).catalogWarning
+        $warning | Should -Match '^Offline mode requested\. The cached catalog was retrieved 2026-10-0\d, \d+ days before the assessment date'
+        (Get-Content (Join-Path $out 'index.html') -Raw) | Should -Match 'Evidence warning:</strong> Offline mode requested\. The cached catalog was retrieved'
+        (Get-Content (Join-Path $out 'executive-summary.md') -Raw) | Should -Match '> \*\*Warning:\*\* Offline mode requested\. The cached catalog was retrieved'
+    }
+    It 'adds no age warning when the offline evidence is recent (the standard run)' {
+        (Get-Content (Join-Path $Out 'retirement-evidence.json') -Raw | ConvertFrom-Json -Depth 20).catalogWarning | Should -Be 'Offline mode requested.'
+    }
+}
+
 Describe 'Data-collection problems (mock Azure with an injected fault)' {
     BeforeAll {
         $script:MockDir = Join-Path $PSScriptRoot 'mock'

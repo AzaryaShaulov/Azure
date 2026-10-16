@@ -382,17 +382,46 @@ function Get-NonVmSizeEntries {
     return @(@($Catalog.nonVmSizeEntries) | Where-Object { $_ })
 }
 
+function Get-CatalogRegressionWarning {
+    <#
+    .SYNOPSIS
+        Compares a freshly parsed catalog with the cached one. Series, or list rows, that the cache has and the live parse lacks
+        usually mean that a Learn page changed format and rows were dropped, which would turn retiring sizes into
+        'No Retirement Announced'. Returns a warning text, or $null when nothing was lost.
+    #>
+    param([Parameter(Mandatory)]$Live, [Parameter(Mandatory)]$Cached)
+    $keysOf = { param($c) @($c.series | ForEach-Object { $_.key }) }
+    $countWith = { param($c, [string]$prop) @($c.series | Where-Object { $_.PSObject.Properties.Name -contains $prop -and $_.$prop }).Count }
+    $found = New-Object System.Collections.Generic.List[string]
+    $liveKeys = & $keysOf $Live
+    $cachedKeys = & $keysOf $Cached
+    $missing = @($cachedKeys | Where-Object { $_ -notin $liveKeys })
+    if ($missing.Count -gt 0) { $found.Add("$($missing.Count) of the $($cachedKeys.Count) series in the cached catalog are missing ($((@($missing | Select-Object -First 8)) -join ', ')$(if ($missing.Count -gt 8) { ', ...' }))") }
+    foreach ($list in @(@('retiredList', 'the retired-sizes list'), @('previousGen', 'the previous-generation list'))) {
+        $liveCount = & $countWith $Live $list[0]
+        $cachedCount = & $countWith $Cached $list[0]
+        if ($liveCount -lt $cachedCount) { $found.Add("$($list[1]) now covers $liveCount series (the cache has $cachedCount)") }
+    }
+    if ($found.Count -eq 0) { return $null }
+    "The live Microsoft Learn parse looks incomplete: $($found -join '; '). A page format change may have dropped rows; validate against Microsoft Learn before relying on 'No Retirement Announced'."
+}
+
 function Get-RetirementCatalog {
     <#
     .SYNOPSIS
         Returns the retirement catalog: live from Microsoft Learn, falling back to the cached catalog.
+    .DESCRIPTION
+        A live parse that lost series or list rows compared with the cache is returned with a warning, and -UpdateCache then
+        leaves the cache untouched. A cached catalog older than -CacheMaxAgeDays at -AsOf is returned with a warning.
     #>
     param(
         [Parameter(Mandatory)][string]$SeriesMapPath,
         [Parameter(Mandatory)][string]$CachePath,
         [switch]$Offline,
         [switch]$UpdateCache,
-        [int]$TimeoutSec = 30
+        [int]$TimeoutSec = 30,
+        [datetime]$AsOf = (Get-Date),
+        [int]$CacheMaxAgeDays = 90
     )
     $seriesMap = Get-SeriesMap -Path $SeriesMapPath
     $liveError = $null
@@ -404,10 +433,16 @@ function Get-RetirementCatalog {
                 $pages[$pair[0]] = @{ Url = $pair[1]; Html = [string]$resp.Content; RetrievedUtc = (Get-Date).ToUniversalTime().ToString('o') }
             }
             $catalog = New-RetirementCatalog -Pages $pages -SeriesMap $seriesMap
-            if ($UpdateCache) {
-                $catalog | ConvertTo-Json -Depth 20 | Out-File -FilePath $CachePath -Encoding utf8
+            $regression = $null
+            if (Test-Path $CachePath) {
+                try { $regression = Get-CatalogRegressionWarning -Live $catalog -Cached (Get-Content $CachePath -Raw | ConvertFrom-Json -Depth 20) }
+                catch { Write-Verbose "The cached catalog could not be compared with the live parse: $($_.Exception.Message)" }
             }
-            return [pscustomobject]@{ Catalog = $catalog; Source = 'Live'; Warning = $null; SeriesMap = $seriesMap }
+            if ($UpdateCache) {
+                if ($regression) { $regression += ' The cache was not updated.' }
+                else { $catalog | ConvertTo-Json -Depth 20 | Out-File -FilePath $CachePath -Encoding utf8 }
+            }
+            return [pscustomobject]@{ Catalog = $catalog; Source = 'Live'; Warning = $regression; SeriesMap = $seriesMap }
         }
         catch {
             $liveError = $_.Exception.Message
@@ -421,10 +456,18 @@ function Get-RetirementCatalog {
     $when = ($cached.sources | ForEach-Object RetrievedUtc | Sort-Object | Select-Object -First 1)
     $parsed = [datetime]::MinValue
     if ($when -is [string] -and [datetime]::TryParse($when, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsed)) { $when = $parsed }
-    if ($when -is [datetime]) { $when = $when.ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC' }
+    $retrieved = if ($when -is [datetime]) { $when.ToUniversalTime() } else { $null }
+    $notes = @(if ($liveError) { "Live fetch failed: $liveError" } else { 'Offline mode requested.' })
+    if ($retrieved) {
+        $ageDays = [int][math]::Floor(($AsOf.Date - $retrieved.Date).TotalDays)
+        if ($ageDays -gt $CacheMaxAgeDays) {
+            $notes += "The cached catalog was retrieved $($retrieved.ToString('yyyy-MM-dd')), $ageDays days before the assessment date, so newer Microsoft retirement announcements may be missing. Run without -OfflineCatalog for live evidence, or refresh the cache with scripts/Update-Catalogs.ps1."
+        }
+        $when = $retrieved.ToString('yyyy-MM-dd HH:mm') + ' UTC'
+    }
     return [pscustomobject]@{
         Catalog = $cached; Source = "Cached ($when)"; SeriesMap = $seriesMap
-        Warning = if ($liveError) { "Live fetch failed: $liveError" } else { 'Offline mode requested.' }
+        Warning = $notes -join ' '
     }
 }
 
