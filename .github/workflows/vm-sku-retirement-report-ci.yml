@@ -23,7 +23,9 @@ jobs:
   powershell-72:
     name: PowerShell 7.2 runtime compatibility
     runs-on: ubuntu-latest
-    container: mcr.microsoft.com/powershell:7.2.24-ubuntu-22.04
+    # PowerShell 7.2.24, the last 7.2 release, pinned by digest. 7.2.24-ubuntu-22.04 is not a published tag, and the
+    # floating 7.2-ubuntu-22.04 tag is a stale 2022 build, so the lts-7.2 tag is the one that carries 7.2.24.
+    container: mcr.microsoft.com/powershell:lts-7.2-ubuntu-22.04@sha256:029c44ac7eaf304b05957e0c9e9e2487a367ce8d7548a7b4d1b00b453ce94f1e
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

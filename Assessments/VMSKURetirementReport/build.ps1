@@ -35,20 +35,30 @@ function Get-RepoVersion {
     return (Get-ToolVersion)
 }
 
-function Get-ModuleTreeHash {
+# Files an installer adds beside a module: PowerShellGet's PSGetModuleInfo.xml, the repository signature and NuGet
+# packaging parts. They differ between installers and operating systems and are not part of the module, so they are not hashed.
+$script:ModuleHashExclude = '^(PSGetModuleInfo\.xml|\.signature\.p7s|\[Content_Types\]\.xml|[^/]+\.nuspec|_rels/.*|package/.*)$'
+
+function Get-ModuleManifest {
+    <# One "relative-path<TAB>sha256" line per module file, in ordinal path order; identical on every OS and installer. #>
     param([Parameter(Mandatory)][string]$ModuleBase)
-    $sha = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        foreach ($file in Get-ChildItem -LiteralPath $ModuleBase -File -Recurse | Sort-Object FullName) {
-            $relative = $file.FullName.Substring($ModuleBase.Length).TrimStart('\', '/').Replace('\', '/')
-            $relativeBytes = [Text.Encoding]::UTF8.GetBytes($relative)
-            [void]$sha.TransformBlock($relativeBytes, 0, $relativeBytes.Length, $null, 0)
-            $content = [IO.File]::ReadAllBytes($file.FullName)
-            [void]$sha.TransformBlock($content, 0, $content.Length, $null, 0)
-        }
-        [void]$sha.TransformFinalBlock([byte[]]::new(0), 0, 0)
-        return [Convert]::ToHexString($sha.Hash).ToLowerInvariant()
+    $base = (Resolve-Path -LiteralPath $ModuleBase).Path
+    $files = @{}
+    # -Force lists hidden files on every OS (a leading dot hides a file on Linux and macOS).
+    foreach ($file in Get-ChildItem -LiteralPath $base -File -Recurse -Force) {
+        $relative = $file.FullName.Substring($base.Length).TrimStart('\', '/').Replace('\', '/')
+        if ($relative -notmatch $script:ModuleHashExclude) { $files[$relative] = $file.FullName }
     }
+    $paths = [string[]]$files.Keys
+    # Sort-Object FullName is culture-sensitive and orders paths differently on Windows and Linux; ordinal order does not.
+    [Array]::Sort($paths, [StringComparer]::Ordinal)
+    foreach ($path in $paths) { "{0}`t{1}" -f $path, (Get-FileHash -LiteralPath $files[$path] -Algorithm SHA256).Hash.ToLowerInvariant() }
+}
+
+function Get-ModuleTreeHash {
+    param([Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Manifest)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { return [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes((@($Manifest) -join "`n") + "`n"))).ToLowerInvariant() }
     finally { $sha.Dispose() }
 }
 
@@ -57,8 +67,14 @@ function Get-LockedModule {
     $lock = $dependencies[$Name]
     $module = Get-Module -ListAvailable $Name | Where-Object Version -eq ([version]$lock.Version) | Select-Object -First 1
     if (-not $module) { throw "$Name $($lock.Version) is not installed. Run ./build.ps1 -Task Bootstrap." }
-    $actual = Get-ModuleTreeHash -ModuleBase $module.ModuleBase
-    if ($actual -ne $lock.TreeHash) { throw "$Name $($lock.Version) failed integrity verification. Expected $($lock.TreeHash), got $actual." }
+    $manifest = @(Get-ModuleManifest -ModuleBase $module.ModuleBase)
+    $actual = Get-ModuleTreeHash -Manifest $manifest
+    if ($actual -ne $lock.TreeHash) {
+        # Written to the host, not the error message, so a CI log keeps the whole manifest for comparison with a local run.
+        Write-Host "$Name $($lock.Version) at $($module.ModuleBase): $($manifest.Count) hashed file(s)"
+        $manifest | ForEach-Object { Write-Host "  $_" }
+        throw "$Name $($lock.Version) failed integrity verification. Expected $($lock.TreeHash), got $actual."
+    }
     return $module
 }
 
