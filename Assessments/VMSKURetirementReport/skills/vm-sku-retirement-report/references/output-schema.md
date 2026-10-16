@@ -1,7 +1,8 @@
 # Output schema (v1.0)
 
-All files are written to the run folder. CSVs are UTF-8 with headers. `assessment.json` is the complete,
-machine-readable result for Azure Workbooks, Power BI, Excel, Logic Apps, PowerShell, Python and pipelines.
+All files are written to the run folder. CSVs are UTF-8 with headers; a CSV with no data rows (for example `candidates.csv`
+when no VM needs a replacement, or every file when no VM was found) contains only its header row. `assessment.json` is the
+complete, machine-readable result for Azure Workbooks, Power BI, Excel, Logic Apps, PowerShell, Python and pipelines.
 
 ## assessment.json
 
@@ -45,6 +46,19 @@ machine-readable result for Azure Workbooks, Power BI, Excel, Logic Apps, PowerS
   } ]
 }
 ```
+
+### Value shapes
+
+Every field written with `[]` above is always a JSON array: no items is `[]` (never `null`) and one item is a one-element
+array (never a bare value). This covers the twelve `summary.By*` groupings, `quota.family`, `quota.regional`,
+`strategy.ValidationItems` and `strategy.TargetComparison`. Objects that can be absent (`recommendation`, `modernization`,
+the per-VM `quota`, `strategy`, `rightsizing`, `pricing`) are `null` instead. Before 1.2.0 a single group, an empty list or
+a single validation item was written as an object, `null` or a bare string, so a consumer that iterated those fields could
+mis-read a single-subscription or single-region estate.
+
+`materialDifferences[].Current` / `.Target` and `TargetComparison[].Current` / `.RetirementTarget` / `.ModernizationTarget` are
+display values whose JSON type follows the `Attribute` (string, number, boolean or `null`); read them together with
+`Attribute`, or as text. The CSV and the reports render them as text.
 
 ### Candidate object
 

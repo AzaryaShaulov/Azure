@@ -534,6 +534,92 @@ Describe 'Candidate cache key' {
     }
 }
 
+Describe 'JSON and CSV output shapes' {
+    BeforeAll {
+        function script:Export-TestOutput {
+            param([object[]]$Assessments, $QuotaImpact = $null)
+            $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory $dir | Out-Null
+            $run = [pscustomobject]@{ GeneratedUtc = '2026-09-24T00:00:00Z'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'n' }; Account = 'a'; Parameters = [ordered]@{ IncludePricing = $false }; Counts = [pscustomobject]@{} }
+            $summary = New-AssessmentSummary -Assessments $Assessments -SubscriptionsScanned 1
+            [void](Export-AssessmentData -OutDir $dir -Run $run -Assessments $Assessments -Summary $summary -QuotaImpact $QuotaImpact -CatalogResult ([pscustomobject]@{ Source = 'Fixture'; Warning = $null; Catalog = $Catalog }) -Inventory $null)
+            $dir
+        }
+        function script:Read-TestJson { param([string]$Dir) Get-Content (Join-Path $Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40 }
+        function script:Get-BuilderColumns {
+            param([string]$File, [string]$Function)
+            $ast = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root "scripts/modules/$File"), [ref]$null, [ref]$null)
+            $fn = @($ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object Name -eq $Function)[0]
+            $row = @($fn.FindAll({ param($n) $n -is [System.Management.Automation.Language.HashtableAst] }, $true) | Sort-Object { $_.KeyValuePairs.Count } -Descending)[0]
+            @($row.KeyValuePairs | ForEach-Object { $_.Item1.Value })
+        }
+        $script:ShapeCatalog = @{ 'standard_d4s_v3' = $SkuCat['standard_d4s_v3']; 'standard_d4s_v6' = $SkuCat['standard_d4s_v6'] }
+        $shapeV7 = $SkuCat['standard_d4s_v6'].PSObject.Copy(); $shapeV7.Name = 'Standard_D4s_v7'; $shapeV7.Family = 'standardDSv7Family'
+        $script:ShapeCatalog['standard_d4s_v7'] = $shapeV7
+    }
+
+    It 'writes every summary grouping as an array whether there are no, one or several groups' -ForEach @(
+        @{ Case = 'no VMs'; Skus = @() }
+        @{ Case = 'one VM'; Skus = @('Standard_DS3_v2') }
+        @{ Case = 'two VMs'; Skus = @('Standard_DS3_v2', 'Standard_D4s_v3') }
+    ) {
+        $set = @(for ($i = 0; $i -lt $Skus.Count; $i++) { Invoke-TestAssessment -Vm (New-TestVm -Name "vm$i" -Sku $Skus[$i] -Gen 'V1') })
+        $by = @((Read-TestJson (Export-TestOutput -Assessments $set)).summary.PSObject.Properties | Where-Object Name -like 'By*')
+        $by.Count | Should -BeGreaterOrEqual 12
+        foreach ($p in $by) { ($p.Value -is [System.Array]) | Should -BeTrue -Because "summary.$($p.Name) must be an array ($Case)" }
+    }
+
+    It 'writes the top-level quota lists as arrays whether they hold no or one row' -ForEach @(
+        @{ Case = 'no quota impact'; Rows = $null; Expected = 0 }
+        @{ Case = 'empty quota impact'; Rows = @(); Expected = 0 }
+        @{ Case = 'one row each'; Rows = @([pscustomobject]@{ SubscriptionId = 's1'; Region = 'eastus2'; QuotaName = 'q'; Status = 'Quota OK' }); Expected = 1 }
+    ) {
+        $impact = if ($null -eq $Rows) { $null } else { [pscustomobject]@{ FamilyRows = $Rows; RegionalRows = $Rows } }
+        $j = Read-TestJson (Export-TestOutput -Assessments @((Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'))) -QuotaImpact $impact)
+        foreach ($list in 'family', 'regional') {
+            ($j.quota.$list -is [System.Array]) | Should -BeTrue -Because "quota.$list must be an array ($Case)"
+            @($j.quota.$list).Count | Should -Be $Expected
+        }
+    }
+
+    It 'writes strategy.ValidationItems and TargetComparison as arrays for zero, one and several items' {
+        $none = Invoke-TestAssessment -Vm (New-TestVm -Name 'none' -Sku 'Standard_D4s_v5')
+        $one = Invoke-TestAssessment -Vm (New-TestVm -Name 'one' -Sku 'Standard_D4s_v3' -Controller 'NVMe' -Accel $false) -Catalog $ShapeCatalog -CheckModernization
+        $many = Invoke-TestAssessment -Vm (New-TestVm -Name 'many' -Sku 'Standard_D4s_v3' -Controller 'NVMe') -Catalog $ShapeCatalog -CheckModernization
+        @($one.Strategy.ValidationItems).Count | Should -Be 1
+        @($many.Strategy.ValidationItems).Count | Should -BeGreaterThan 1
+        $byName = @{}
+        foreach ($vm in (Read-TestJson (Export-TestOutput -Assessments @($none, $one, $many))).vms) { $byName[$vm.row.VM] = $vm }
+        foreach ($name in 'none', 'one', 'many') {
+            ($byName[$name].strategy.ValidationItems -is [System.Array]) | Should -BeTrue -Because "$name ValidationItems"
+            ($byName[$name].strategy.TargetComparison -is [System.Array]) | Should -BeTrue -Because "$name TargetComparison"
+        }
+        @($byName['none'].strategy.ValidationItems).Count | Should -Be 0
+        @($byName['one'].strategy.ValidationItems).Count | Should -Be 1
+        @($byName['one'].strategy.ValidationItems)[0] | Should -Be $one.Strategy.ValidationItems[0]
+    }
+
+    It 'gives every CSV the same header row whether or not there is anything to write' {
+        $expected = @{
+            'vm-assessment' = Get-BuilderColumns 'Assessment.psm1' 'ConvertTo-AssessmentRow'
+            'candidates'    = Get-BuilderColumns 'Output.psm1' 'Export-AssessmentData'
+            'quota-impact'  = Get-BuilderColumns 'Quota.psm1' 'New-QuotaImpactRow'
+        }
+        $empty = Export-TestOutput -Assessments @()
+        $populated = Export-TestOutput -Assessments @((Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')))
+        foreach ($name in $expected.Keys) {
+            $header = '"' + ($expected[$name] -join '","') + '"'
+            $lines = @(Get-Content (Join-Path $empty "$name.csv"))
+            $lines.Count | Should -Be 1 -Because "$name.csv without rows is only the header"
+            $lines[0] | Should -Be $header
+        }
+        foreach ($name in 'vm-assessment', 'candidates') {
+            @(Get-Content (Join-Path $populated "$name.csv"))[0] | Should -Be ('"' + ($expected[$name] -join '","') + '"')
+            @(Import-Csv (Join-Path $populated "$name.csv")).Count | Should -BeGreaterThan 0
+        }
+    }
+}
+
 Describe 'Compatibility score' {
     It 'totals the documented weights to 100' {
         ($Weights.weights.PSObject.Properties.Value | Measure-Object -Sum).Sum | Should -Be 100

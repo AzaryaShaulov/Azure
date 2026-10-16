@@ -24,7 +24,13 @@ All notable changes to this project are documented here. The format follows
   mismatch prints the module's file manifest, and `dependencies.psd1` holds the new hashes.
 - The PowerShell 7.2 compatibility check never ran (its container image tag did not exist). It is replaced by the Windows
   `powershell-compat` job described above.
-- **Replacement sizes could be taken from another VM's evaluation.** VMs with the same size and settings share one
+- **JSON arrays and empty CSV files had unstable shapes.** In `assessment.json` a single group in a `summary.By*` list
+  (a one-subscription or one-region estate, the common case) was written as an object, no groups as `null`; the top-level
+  `quota.family` and `quota.regional` and the per-VM `strategy.ValidationItems` and `strategy.TargetComparison` had the same
+  problem, and a VM with exactly one validation item got a bare string. The documented array fields are now always arrays
+  (`[]` when empty). `vm-assessment.csv`, `candidates.csv` and `quota-impact.csv` were zero-byte files when there were no
+  rows, which fails a Power BI refresh; they now always contain the header row. The values of
+  `materialDifferences[].Current` / `.Target` are documented as display values of mixed type rather than changed.
   candidate evaluation, but the sharing key left out whether the VM is placed through a dedicated host group, whether the
   VM reported its disk controller and how many NICs use Accelerated Networking. Which VM was assessed first therefore decided
   whether a VM on a host group lost its Dedicated Host review, whether "controller not reported" showed on the wrong VM and

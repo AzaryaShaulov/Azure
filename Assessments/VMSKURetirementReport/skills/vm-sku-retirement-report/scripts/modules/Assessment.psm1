@@ -690,7 +690,9 @@ function New-AssessmentSummary {
     $affected = @($rows | Where-Object { $_.AffectedByRetirement -eq 'Yes' })
     $grp = {
         param($sel, [object[]]$set)
-        @($set | Group-Object $sel | Sort-Object Count -Descending | ForEach-Object { [pscustomobject]@{ Key = if ($_.Name) { $_.Name } else { '(none)' }; Count = $_.Count } })
+        # The leading comma returns the array itself: a bare array is unrolled by the pipeline, so zero groups became $null
+        # and one group became a single object in assessment.json instead of an array.
+        , @($set | Group-Object $sel | Sort-Object Count -Descending | ForEach-Object { [pscustomobject]@{ Key = if ($_.Name) { $_.Name } else { '(none)' }; Count = $_.Count } })
     }
     $withRec = @($rows | Where-Object { $_.Action -ne 'No Action Required' })
     [pscustomobject][ordered]@{

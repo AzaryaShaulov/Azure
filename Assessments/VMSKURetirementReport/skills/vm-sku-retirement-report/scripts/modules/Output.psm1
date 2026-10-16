@@ -9,6 +9,42 @@ $script:DisclaimerValidation = 'Findings, retirement timelines, SKU compatibilit
 $script:Disclaimer = "$script:DisclaimerWarranty $script:DisclaimerIndependence`n`n$script:DisclaimerValidation"
 $script:RepositoryUrl = 'https://github.com/AzaryaShaulov/Azure'
 
+# Export-Csv writes a zero-byte file, with no header, when there are no rows; typed consumers such as Power BI then fail on
+# refresh. These lists give those files their header row. A test compares them with the row builders.
+$script:CsvColumns = @{
+    'vm-assessment' = @(
+        'Subscription', 'SubscriptionId', 'ResourceGroup', 'VM', 'VmResourceId', 'Region', 'Zone', 'PowerState', 'OsType', 'HyperVGeneration', 'CurrentSku',
+        'CurrentSkuGeneration', 'VmFamily', 'CpuVendor', 'CpuArchitecture', 'vCPU', 'MemoryGB', 'AffectedByRetirement', 'EvidenceClass', 'RetirementStatus',
+        'RetirementDate', 'TimeRemaining', 'Urgency', 'RecommendedSku', 'RecommendedSkuGeneration', 'TargetCpuVendor', 'TargetCpuArchitecture', 'TargetvCPU',
+        'TargetMemoryGB', 'CompatibilityScore', 'ScoreBand', 'CpuVendorPreserved', 'CpuVendorChangeRequired', 'RegionAvailable', 'CurrentVcpu',
+        'CurrentMemoryGB', 'RecommendedVcpu', 'RecommendedMemoryGB', 'SkuRegionalAvailability', 'QuotaStatus', 'ModernizationStatus', 'RecommendationReason',
+        'QuotaFamily', 'QuotaMinIncreaseFamily', 'QuotaMinIncreaseRegional', 'DeploymentReadiness', 'Confidence', 'Action', 'NextStep', 'Wave',
+        'AlternativeSku', 'AlternativeScore', 'AlternativeReason', 'ThirdCandidateSku', 'NewerGenerationIfConverted', 'NoCandidateReason',
+        'VendorChangeReason', 'MaterialDifferences', 'ValidationItems', 'RightsizingStatus', 'RightsizingSuggestedSku', 'CurrentMonthlyUSD',
+        'TargetMonthlyUSD', 'MicrosoftSource', 'AnnouncementUrl', 'MigrationGuideUrl', 'DQ_RetirementDate', 'DQ_CpuVendor', 'DQ_RegionalAvailability',
+        'DQ_Quota', 'DQ_PhysicalCapacity', 'LifecycleNotes', 'RetirementTargetSku', 'RetirementTargetGeneration', 'RetirementQuotaStatus',
+        'ModernizationTargetSku', 'ModernizationTargetGeneration', 'ModernizationTargetSource', 'ModernizationPath', 'ModernizationComplexity',
+        'ModernizationReadiness', 'ModernizationQuotaStatus', 'ModernizationPeakQuotaStatus', 'MigrationQuotaModel', 'RecommendedMigrationPath',
+        'ModernizationValidationItems', 'LifecycleStage', 'ModernizationMaterialDifferences')
+    'candidates'    = @(
+        'Subscription', 'SubscriptionId', 'ResourceGroup', 'VM', 'Region', 'CurrentSku', 'Role', 'Variant', 'CandidateSku', 'QuotaFamily', 'Generation',
+        'CpuVendor', 'CpuArchitecture', 'vCPU', 'MemoryGB', 'TempDiskGB', 'Availability', 'Score', 'Band', 'Rejected', 'RejectionReason', 'ReviewGates',
+        'VendorPreserved', 'FamilyMatch', 'CapacityHeadroomPct', 'ExistingRecommendationCandidate', 'ModernizationCandidate', 'S_CpuVendor', 'S_Architecture',
+        'S_Family', 'S_vCpu', 'S_Memory', 'S_MemPerVcpu', 'S_Storage', 'S_DiskThroughput', 'S_Network', 'S_NicDiskLimits', 'S_ZoneRegion', 'S_Other')
+    'quota-impact'  = @(
+        'SubscriptionId', 'Region', 'QuotaName', 'QuotaDisplayName', 'VmCount', 'TargetSkus', 'Limit', 'CurrentUsage', 'Remaining', 'RequiredVcpu',
+        'RequiredVcpuAllocatedOnly', 'PostMigrationUsage', 'MinimumIncrease', 'RecommendedIncrease', 'RecommendedNewLimit', 'Status', 'DataQuality', 'Scope',
+        'MigrationQuotaModel', 'SideBySideVmCount', 'SteadyStateRequiredVcpu', 'PeakMigrationRequiredVcpu', 'PeakPostMigrationUsage', 'PeakMinimumIncrease',
+        'PeakRecommendedIncrease', 'PeakRecommendedNewLimit', 'PeakStatus')
+}
+
+function Export-CsvFile {
+    param([AllowEmptyCollection()][object[]]$Rows, [Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][string]$OutDir)
+    $path = Join-Path $OutDir "$Name.csv"
+    if (@($Rows).Count -gt 0) { @($Rows) | Export-Csv -Path $path -NoTypeInformation -Encoding utf8; return }
+    ('"' + ($script:CsvColumns[$Name] -join '","') + '"') | Out-File -FilePath $path -Encoding utf8
+}
+
 function Add-ReportDisclaimerMarkdown {
     param([Parameter(Mandatory)][System.Text.StringBuilder]$Builder)
     [void]$Builder.AppendLine()
@@ -101,7 +137,10 @@ function ConvertTo-AssessmentJsonObject {
         strategy       = if ($A.Strategy) {
             $st = [ordered]@{}
             foreach ($prop in $A.Strategy.PSObject.Properties) {
-                $st[$prop.Name] = if ($prop.Name -in 'RetirementTarget', 'ModernizationTarget') { ConvertTo-CandidateSummary $prop.Value } else { $prop.Value }
+                # Assigned inside each branch (not as the value of an if expression) so an empty or one-item array is not unrolled.
+                if ($prop.Name -in 'RetirementTarget', 'ModernizationTarget') { $st[$prop.Name] = ConvertTo-CandidateSummary $prop.Value }
+                elseif ($prop.Name -in 'ValidationItems', 'TargetComparison') { $st[$prop.Name] = @($prop.Value) }
+                else { $st[$prop.Name] = $prop.Value }
             }
             $st
         } else { $null }
@@ -131,7 +170,7 @@ function Export-AssessmentData {
         $Inventory
     )
     $rows = @($Assessments | ForEach-Object { ConvertTo-AssessmentRow $_ })
-    @(ConvertTo-SafeCsvRows -Rows $rows) | Export-Csv -Path (Join-Path $OutDir 'vm-assessment.csv') -NoTypeInformation -Encoding utf8
+    Export-CsvFile -Rows @(ConvertTo-SafeCsvRows -Rows $rows) -Name 'vm-assessment' -OutDir $OutDir
 
     $candRows = foreach ($a in $Assessments) {
         if (-not $a.Candidates) { continue }
@@ -150,11 +189,11 @@ function Export-AssessmentData {
             }
         }
     }
-    @(ConvertTo-SafeCsvRows -Rows @($candRows)) | Export-Csv -Path (Join-Path $OutDir 'candidates.csv') -NoTypeInformation -Encoding utf8
+    Export-CsvFile -Rows @(ConvertTo-SafeCsvRows -Rows @($candRows)) -Name 'candidates' -OutDir $OutDir
 
     $qRows = @()
     if ($QuotaImpact) { $qRows = @($QuotaImpact.FamilyRows) + @($QuotaImpact.RegionalRows) }
-    @(ConvertTo-SafeCsvRows -Rows @($qRows)) | Export-Csv -Path (Join-Path $OutDir 'quota-impact.csv') -NoTypeInformation -Encoding utf8
+    Export-CsvFile -Rows @(ConvertTo-SafeCsvRows -Rows @($qRows)) -Name 'quota-impact' -OutDir $OutDir
 
     $evidence = [ordered]@{
         schemaVersion = '1.0'; generatedUtc = $Run.GeneratedUtc; catalogSource = $CatalogResult.Source; catalogWarning = $CatalogResult.Warning
@@ -184,7 +223,7 @@ function Export-AssessmentData {
         catalog = [ordered]@{ source = $CatalogResult.Source; warning = $CatalogResult.Warning; sources = $CatalogResult.Catalog.sources; unmappedSeries = $CatalogResult.Catalog.unmappedSeries; nonVmSizeEntries = @(Get-NonVmSizeEntries -Catalog $CatalogResult.Catalog) }
         counts = $Run.Counts
         summary = $Summary
-        quota = [ordered]@{ family = if ($QuotaImpact) { @($QuotaImpact.FamilyRows) } else { @() }; regional = if ($QuotaImpact) { @($QuotaImpact.RegionalRows) } else { @() } }
+        quota = [ordered]@{ family = @(if ($QuotaImpact) { $QuotaImpact.FamilyRows }); regional = @(if ($QuotaImpact) { $QuotaImpact.RegionalRows }) }
         vms = @($Assessments | ForEach-Object { ConvertTo-AssessmentJsonObject $_ })
     }
     $doc | ConvertTo-Json -Depth 14 | Out-File (Join-Path $OutDir 'assessment.json') -Encoding utf8
