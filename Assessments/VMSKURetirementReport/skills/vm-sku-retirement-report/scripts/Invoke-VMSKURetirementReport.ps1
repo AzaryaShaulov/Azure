@@ -70,11 +70,11 @@
     VM tables, details and modernization view. By default the HTML lists only VMs with an announced retirement date and a
     required action. CSV, JSON and Markdown always include every VM.
 .PARAMETER ExtendedDetails
-    Show the full assessment in each HTML VM card: the facts summary, the confidence and readiness explanations, the mandatory requirement
-    checks, and every evaluated size. By default a card lists only the Primary, Secondary and Third recommended sizes.
+    Show the full assessment in each HTML VM details block: the facts summary, the confidence and readiness explanations, the mandatory requirement
+    checks, and every evaluated size. By default the details list only the Primary, Secondary and Third recommended sizes.
     HTML only; it does not change scoring, CSV, JSON or Markdown.
 .PARAMETER HtmlMaxVmDetails
-    Maximum number of expandable per-VM detail blocks per subscription page (default 250, 0 = no limit), in wave order.
+    Maximum number of VMs per subscription page that get collapsible detail blocks under their table row (default 250, 0 = no limit), in wave order.
     Every VM stays in the summary tables, vm-assessment.csv, detailed-report.md and assessment.json; this only keeps very
     large subscription pages fast to open.
 .EXAMPLE

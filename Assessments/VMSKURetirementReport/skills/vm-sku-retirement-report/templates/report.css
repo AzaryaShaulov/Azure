@@ -138,10 +138,8 @@ table.ref td.fam { font-size: 1.05rem; font-weight: 700; color: var(--accent); w
 .tone-green { color: var(--green-fg); } .tone-purple { color: var(--purple-fg); }
 .change-cell { min-width: 150px; }
 .change-cell .spec > span:not(.spec-label) { white-space: nowrap; }
-.vm-table .path-cell { min-width: 180px; }
+.vm-table .path-cell { min-width: 150px; }
 .vm-table .path-primary { font-weight: 700; color: var(--text); }
-.vm-table .recommended-sequence { margin-top: 4px; line-height: 1.35; max-width: 340px; }
-.vm-table .blocker-text { color: var(--text-2); }
 .vm-table td.retirement-target-cell { width: 195px; min-width: 195px; background: var(--retire-tint); box-shadow: inset 3px 0 0 var(--retire); }
 .vm-table td.modernization-target-cell { min-width: 165px; background: var(--modern-tint); box-shadow: inset 3px 0 0 var(--modern); }
 .comparison-table td code, .comparison-table th code { white-space: normal; }
@@ -200,23 +198,68 @@ thead th code { color: var(--text); font-weight: 600; text-transform: none; lett
 .legend-more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .legend-more p { margin: 6px 0 0; font-size: .82rem; line-height: 1.5; }
 
-/* VM detail cards */
-details.vm { border: 1px solid var(--border); border-radius: 12px; margin: 0 0 12px; background: var(--surface); overflow: hidden; }
-details.vm > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 16px 20px; background: var(--surface-2); }
-details.vm > summary::-webkit-details-marker { display: none; }
-details.vm > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
-details.vm > summary::before { content: "\25B8"; color: var(--accent); font-size: 1.1rem; transition: transform .15s; }
-details.vm[open] > summary::before { transform: rotate(90deg); }
-details.vm[open] > summary { border-bottom: 1px solid var(--border); }
-.vm-name { font-weight: 700; font-size: 1.08rem; }
-.vm-move { color: var(--text-2); min-width: 0; overflow-wrap: anywhere; }
-.vm-move code { white-space: normal; }
+/* In-table VM details: a collapsed row under each VM, tinted and edged so it reads as a child of the VM above.
+   The report has no scripts, so expand/collapse is a hidden checkbox + label and a :has() selector. */
+:root { --detail-bg: #eaf4f4; --detail-edge: #0f766e; --detail-card: #ffffff; }
+@media (prefers-color-scheme: dark) { :root { --detail-bg: #12242a; --detail-edge: #2dd4bf; --detail-card: #182831; } }
+.vm-toggle, .vm-toggle-all { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.vm-toggle-label { display: flex; width: fit-content; align-items: center; gap: 4px; margin: 0 0 5px; padding: 0 9px 0 6px; border: 1px solid var(--detail-edge); border-radius: 999px; background: var(--surface); color: var(--detail-edge); font-size: .74rem; font-weight: 650; line-height: 1.6; cursor: pointer; }
+.vm-toggle-label::before { content: "\25B8"; }
+.vm-toggle:checked + .vm-toggle-label { background: var(--detail-edge); color: #fff; }
+.vm-toggle:checked + .vm-toggle-label::before { content: "\25BE"; }
+.vm-toggle:focus-visible + .vm-toggle-label, .vm-toggle-all:focus-visible + .vm-toggle-all-label { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The label is stretched over its row so the whole row toggles; links and tooltips stay above the overlay. */
+.vm-table tr.vm-summary-row { position: relative; }
+.vm-toggle-label::after { content: ""; position: absolute; inset: 0; z-index: 1; cursor: pointer; }
+.vm-table .vm-summary-row a, .vm-table .vm-summary-row .spec[title], .vm-table .vm-summary-row code { position: relative; z-index: 2; }
+.vm-table tbody tr.vm-summary-row.alt { background: #fafafa; }
+.vm-table tbody tr.vm-summary-row:hover { background: var(--accent-soft); }
+.vm-table tbody tr.vm-detail-row, .vm-table tbody tr.vm-detail-row:hover { background: var(--detail-bg); }
+.vm-table tbody td.vm-detail-cell { padding: 0 0 14px; border-bottom: 1px solid var(--border); }
+.vm-table tr.vm-summary-row:has(.vm-toggle:checked) td { border-bottom-color: transparent; }
+.vm-table tr.vm-summary-row:has(.vm-toggle:checked) td:first-child { box-shadow: inset 4px 0 0 var(--detail-edge); }
+.vm-table-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 8px; font-size: .84rem; }
+.vm-table-tools .note { margin: 0; }
+.vm-toggle-all-label { padding: 3px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--accent); font-weight: 650; cursor: pointer; }
+.vm-toggle-all-label .on, .vm-toggle-all:checked + .vm-toggle-all-label .off { display: none; }
+.vm-toggle-all:checked + .vm-toggle-all-label .on { display: inline; }
+@supports selector(:has(*)) {
+  .vm-table tr.vm-detail-row { display: none; }
+  .vm-table tr:has(.vm-toggle:checked) + tr.vm-detail-row, .vm-table-block:has(.vm-toggle-all:checked) tr.vm-detail-row { display: table-row; }
+  .vm-table-block:has(.vm-toggle-all:checked) .vm-toggle-label { background: var(--detail-edge); color: #fff; }
+  .vm-table-block:has(.vm-toggle-all:checked) .vm-toggle-label::before { content: "\25BE"; }
+}
+@supports not selector(:has(*)) { .vm-toggle-label, .vm-table-tools { display: none; } }
+.vm-detail { position: sticky; left: 0; box-sizing: border-box; width: calc(100% - 28px); margin: 0 0 0 14px; padding: 2px 16px 0 18px; border-left: 4px solid var(--detail-edge); font-size: .88rem; }
+.vd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 0 4px; }
+.vd-move { font-weight: 600; min-width: 0; }
+.vd-move code { white-space: normal; }
 .move-arrow { color: #16a34a; font-weight: 900; font-size: 1.25em; line-height: 1; vertical-align: -.05em; }
 @media (prefers-color-scheme: dark) { .move-arrow { color: #4ade80; } }
-.vm-badges { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; min-width: 0; max-width: 100%; }
-.vm-badges .badge { white-space: normal; overflow-wrap: anywhere; }
+.vd-badges { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.vd-badges .badge { white-space: normal; overflow-wrap: anywhere; }
+.vd-meta { flex-basis: 100%; color: var(--text-2); font-size: .84rem; }
+.vd-blockers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 8px; font-size: .8rem; }
+.vd-label { color: var(--text-2); font-size: .7rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.vd-chip { padding: 0 9px; border-radius: 999px; background: var(--orange-bg); color: var(--orange-fg); font-weight: 650; line-height: 1.6; }
+.vd-chip.ok { background: var(--green-bg); color: var(--green-fg); }
+.vd-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.75fr); gap: 10px; margin-bottom: 10px; align-items: start; }
+.vd-card { margin: 0 0 10px; padding: 8px 14px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--detail-card); }
+.vd-cols .vd-card { margin: 0; }
+.vd-card h4 { margin: 0 0 6px; color: var(--detail-edge); font-size: .76rem; letter-spacing: .05em; text-transform: uppercase; }
+.vd-steps { margin: 0; padding-left: 1.2rem; }
+.vd-steps li { margin: .2rem 0; }
+.vd-list { columns: 2 340px; column-gap: 28px; margin: 0; padding-left: 1.1rem; }
+.vd-list li { margin: .15rem 0; break-inside: avoid; }
+.vd-more { margin-top: 6px; }
+.vd-more > summary { width: fit-content; color: var(--accent); font-size: .82rem; font-weight: 600; cursor: pointer; }
+.vd-more[open] > summary { margin-bottom: 6px; }
+.vd-extended { padding-top: 4px; }
+.vd-extended h3 { margin: 10px 0 6px; font-size: .9rem; }
+.vd-card .note { margin: 6px 0 0; }
 .badge[title] { cursor: help; }
-.vm-body { padding: 18px 22px 22px; }
+@media (max-width: 1200px) { .vm-detail { width: calc(100vw - 96px); } }
+@media (max-width: 900px) { .vd-cols { grid-template-columns: minmax(0, 1fr); } }
 .assessment-explanation { white-space: pre-line; overflow-wrap: anywhere; }
 dl.facts { display: grid; grid-template-columns: 190px 1fr; gap: 10px 20px; margin: 0 0 18px; }
 dl.facts dt { font-weight: 650; color: var(--text-2); }
@@ -245,7 +288,6 @@ footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-i
   dl.facts { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
   dl.facts dd { margin-bottom: 10px; overflow-wrap: anywhere; }
   dl.facts code, dl.facts .badge { white-space: normal; }
-  .vm-badges { margin-left: 0; }
   .legend-row { grid-template-columns: minmax(0, 1fr); }
   footer .wrap { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
@@ -262,9 +304,10 @@ footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-i
   .chip { border-color: #999; background: #fff; }
   .card { box-shadow: none; }
   .collapsible-section > .section-body { display: block !important; }
-  details.vm { break-inside: avoid; }
-  details.vm::details-content { content-visibility: visible; display: block; }
-  details.vm > .vm-body { display: block !important; }
+  .vm-detail-row { break-inside: avoid; }
+  .vm-table tr.vm-detail-row { display: table-row !important; }
+  .vm-toggle-label, .vm-table-tools { display: none !important; }
+  .vm-toggle-label::after { display: none; }
   details.legend-more::details-content { content-visibility: visible; display: block; }
   a { color: #000; }
 }
@@ -287,7 +330,7 @@ table.ref tbody td, .comparison-table tbody td { padding: 5px 12px; }
 .table-wrap.compact { width: fit-content; max-width: 100%; }
 .comparison-table { width: auto; }
 .comparison-table td, .comparison-table th { max-width: 250px; }
-.comparison-table td:last-child { max-width: 340px; }
+.comparison-table td:last-child { min-width: 170px; max-width: 340px; }
 .comparison-table th code { display: block; width: max-content; max-width: none; white-space: nowrap; }
 .section-body h3 { margin: 14px 0 6px; font-size: .95rem; }
 .section-body > h3:first-child { margin-top: 0; }
@@ -327,6 +370,7 @@ dl.doc-links { margin: 0; font-size: .85rem; }
     --modern: #b99cf0; --modern-soft: #2a2140; --modern-tint: #221b33;
   }
   tbody tr:nth-child(even) { background: var(--surface-2); }
+  .vm-table tbody tr.vm-summary-row.alt { background: var(--surface-2); }
   tbody tr:hover { background: var(--accent-soft); }
 }
 .track { margin: 28px 0 8px; }

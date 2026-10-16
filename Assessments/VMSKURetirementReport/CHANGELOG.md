@@ -9,11 +9,21 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
-- **One table and one card per VM.** The *VMs with Retiring SKUs* table and each VM card now carry the required
+- **Collapsible VM details under each VM row.** The separate *VMs with Retiring SKUs details* section and its
+  navigation link are gone. Each row of the *VMs with Retiring SKUs* table has a **Details** toggle (and the whole row
+  toggles) that opens a tinted, edged block directly under that VM; an *Expand all details* switch opens every block.
+  The report stays script-free: the toggle is a hidden checkbox + label and a CSS `:has()` rule. Browsers without `:has()`
+  and printed reports show every block open. The block is shorter and ordered by what the reader needs: a header with
+  the move (green arrows), badges, wave, retirement date, next step and *Blockers* chips; *What to do* (one numbered
+  list merging the quota request and remediation steps); *What changes* (only the attributes that differ, with *Show
+  all N attributes*); *Validate before resizing* (two columns, bold topics, wording unchanged); and *Recommended sizes*.
+  `-ExtendedDetails` adds the facts summary, explanations, mandatory checks and every evaluated size. `-HtmlMaxVmDetails`
+  now caps the VMs that get details.
+- **One table and one detail block per VM.** The *VMs with Retiring SKUs* table and each VM's details now carry the required
   retirement target and, with `--check-modernization`, the optional v6/v7 target, path and blockers, so each VM is
   rendered once instead of four times (the sample subscription page is about 15% smaller). The table gains the
   retirement date, stage, material changes, next step, readiness and confidence for every VM; its disk-capability
-  column is replaced by the material changes and the card's comparison table.
+  column is replaced by the material changes and the details' comparison table.
 - The *Current size*, *Retirement target* and *Modernization target* columns of that table use the same layout, one
   attribute per line: Vendor (CPU vendor), vCPU, vRAM, VM Gen (Gen1 or Gen2) and Disk controller (SCSI or NVMe). For a
   target the VM Gen and Disk controller lines list what the size supports, followed by its score and quota status (and
@@ -28,6 +38,9 @@ All notable changes to this project are documented here. The format follows
   new `-ExtendedDetails` switch, and the sizes table lists only the Primary, Secondary and Third sizes (headed
   *Recommended sizes*, with a note of how many more were evaluated); `-ExtendedDetails` lists every evaluated size
   (*Sizes evaluated*, no longer capped at eight). The badge hover text still carries the explanations.
+- The table's v6/v7 *Migration path* column (formerly *Path and blockers*) keeps only the short path label, such as
+  *Gen1 + NVMe + Resize*, *SCSI to NVMe + Resize* or *No Validated Modern Target*. The sequence sentence and the blocker
+  text are no longer repeated there; they are in each VM card (*Blockers and required changes*).
 - The blue *Bottom line* box and the information callouts on the index and subscription pages are slimmer: a thin accent
   edge, smaller radius, tighter padding and smaller type.
 - The tenant index no longer has a *Quota Actions* section (quota actions stay on each subscription page, and the bottom

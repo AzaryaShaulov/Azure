@@ -49,9 +49,15 @@ One row per VM with its Microsoft status, retirement date, required retirement t
 and the retirement target (and, with `--check-modernization`, the modernization target) list the same attributes on
 separate lines (Vendor, vCPU, vRAM, VM Gen and Disk controller) so they can be read side by side; material changes and
 the next step use the same *Label: value* lines. With `--check-modernization`, the optional v6/v7 target and migration
-path appear in the same row, and each VM card compares the current size with both targets.
+path appear in the same row, and each row has collapsible details directly under it that compare the current size with
+both targets.
 
 ![VMs with Retiring SKUs screenshot](docs/images/report-vm-table.png)
+
+Each row's **Details** toggle (or the row itself) opens a tinted block directly under that VM: what to do, what changes,
+what to validate and the recommended sizes.
+
+![VM details screenshot](docs/images/report-vm-detail.png)
 
 ### Upgrade and Modernization Scenarios
 
@@ -69,7 +75,7 @@ its subscription link. GitHub displays HTML source rather than rendering the rep
 
 | Sample output | Contents |
 |---|---|
-| [Subscription report](examples/sample-report/contoso-prod-11111111.html) | One table and one card per retiring VM (current size and retirement target laid out the same way, optional v6/v7 target and a current-vs-target comparison), a Gen1 VMs card, one quota table and a collapsed upgrade guide with recommended steps per migration path and Microsoft Learn links |
+| [Subscription report](examples/sample-report/contoso-prod-11111111.html) | One table per subscription with collapsible details under each retiring VM (current size and retirement target laid out the same way, optional v6/v7 target, what to do, what changes), a Gen1 VMs card, one quota table and a collapsed upgrade guide with recommended steps per migration path and Microsoft Learn links |
 | [Executive summary](examples/sample-report/executive-summary.md) | Estate findings and migration waves |
 | [Detailed report](examples/sample-report/detailed-report.md) | Per-VM recommendations, current-vs-target comparison and validation items |
 | [VM assessment CSV](examples/sample-report/vm-assessment.csv) | All seven VMs, retirement/modernization targets and monthly price estimates |
@@ -80,8 +86,9 @@ its subscription link. GitHub displays HTML source rather than rendering the rep
 
 The default HTML lists End of Life or retired VMs that require action; CSV, JSON and Markdown retain every VM.
 Confidence and readiness badges describe the assessed evidence and platform/quota checks, not guaranteed hardware
-allocation or a successful resize. Hover over a badge to read its explanation. Each VM card lists what to validate
-first, the current-versus-target comparison and the recommended (Primary, Secondary and Third) sizes; add
+allocation or a successful resize. Hover over a badge to read its explanation. Select **Details** on a VM row (or the
+row itself) to open a tinted block under it with what to do, what changes, what to validate and the recommended
+(Primary, Secondary and Third) sizes; *Expand all details* opens every block. Add
 `-ExtendedDetails` to also print the facts summary (status, action, targets, path, quota), the confidence and readiness
 explanations, the mandatory requirement checks and every evaluated size. Badge labels wrap on narrow screens, and VM
 details appear in print.
@@ -404,7 +411,7 @@ double-dash form accepted is `--check-modernization`.
 | `-SaveSnapshot` | off | Record every Azure read of the run to `<OutputPath>/snapshot` so it can be replayed later (no tokens; account masked) |
 | `-FromSnapshot` | - | Replay a run folder captured with `-SaveSnapshot` without calling Azure (only retail pricing goes online; add `-SkipPricing` for a fully offline replay); scope, as-of date and Microsoft evidence come from the snapshot; warns when it is more than 7 days old |
 | `-HtmlIncludeOptionalModernization` | off | Also list optional-modernization VMs (older generations without an announced retirement) in the HTML |
-| `-HtmlMaxVmDetails` | `250` | Maximum expandable per-VM cards per subscription page (`0` = no limit); every VM stays in the table, CSV, JSON and Markdown |
+| `-HtmlMaxVmDetails` | `250` | Maximum VMs per subscription page that get collapsible details under their row (`0` = no limit); every VM stays in the table, CSV, JSON and Markdown |
 | `-ExtendedDetails` | off | HTML only: also show the facts summary, the confidence and readiness explanations, the mandatory requirement checks and every evaluated size in each VM card (by default a card lists only the Primary, Secondary and Third sizes) |
 
 Pricing is applied only after a region's full API response is retrieved. An incomplete region's prices are discarded;
@@ -421,15 +428,15 @@ With the flag, every VM row also separates the **retirement target** (the suppor
 often v5) from the **modernization target** (the strategic v6/v7 size, including sizes that need a Gen1 -> Gen2 Trusted
 launch upgrade or SCSI -> NVMe conversion), with a recommended migration path, complexity, readiness and guest
 validation items (NVMe drivers, MANA, temp disk). `quota-impact.csv` gains a `Modernization` scope with steady-state and
-peak (side-by-side) demand. In the HTML, the *VMs with Retiring SKUs* table and each VM card then show the optional
-modernization target and path next to the required retirement target, the card's *Current vs target size* table compares
+peak (side-by-side) demand. In the HTML, the *VMs with Retiring SKUs* table and the details under each VM then show the
+optional modernization target and path next to the required retirement target, and the details compare
 the current size with both targets.
 
 ## Outputs
 
 | File | Purpose |
 |---|---|
-| `index.html`, `<subscription>-<id>.html` | Browsable report. The tenant index has the summary cards (including the number of Gen1 VMs) and bottom line, a collapsed *Migration Waves* table, the subscription list, the Microsoft evidence and reference sections. Each subscription page has the summary, a *Retirement remediation* band (one *VMs with Retiring SKUs* table and one expandable card per VM, with the v6/v7 target and path as columns when `--check-modernization` is used), and one quota table with steady-state and peak demand; a collapsed upgrade guide (recommended steps per migration path with examples, plus Microsoft Learn links) and collapsed reference sections. Lists only VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action, each labelled with its Microsoft lifecycle stage |
+| `index.html`, `<subscription>-<id>.html` | Browsable report. The tenant index has the summary cards (including the number of Gen1 VMs) and bottom line, a collapsed *Migration Waves* table, the subscription list, the Microsoft evidence and reference sections. Each subscription page has the summary, a *Retirement remediation* band (one table with a collapsible details block under each VM, with the v6/v7 target and path as columns when `--check-modernization` is used), and one quota table with steady-state and peak demand; a collapsed upgrade guide (recommended steps per migration path with examples, plus Microsoft Learn links) and collapsed reference sections. Lists only VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action, each labelled with its Microsoft lifecycle stage |
 | `executive-summary.md` | Estate counts, waves, groupings, quota actions |
 | `detailed-report.md` | Per affected VM: configuration, evidence, recommendation, a current-vs-target comparison (retirement and, with `--check-modernization`, modernization target), validation items |
 | `vm-assessment.csv` | One row per VM (Excel / Power BI) |
@@ -449,7 +456,7 @@ the current size with both targets.
 ## Interpreting results
 
 - Start with `index.html` or `executive-summary.md` for affected counts and migration waves, and with each subscription
-  report (or `executive-summary.md`) for the aggregated quota actions; use the per-VM cards and `detailed-report.md`
+  report (or `executive-summary.md`) for the aggregated quota actions; use the per-VM details and `detailed-report.md`
   before planning a change.
 - **Confirmed retirement** findings are evidence-backed and prioritized by date. **Optional modernization** means a
   newer suitable generation was found; it is not a retirement deadline or an instruction to migrate.

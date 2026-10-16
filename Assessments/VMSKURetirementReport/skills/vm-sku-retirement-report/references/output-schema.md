@@ -95,7 +95,7 @@ TargetComparison = { Attribute, Current, RetirementTarget, RetirementChange, Mod
 
 `TargetComparison` has one row per attribute (vCPU, memory, temp disk, disk controller, Hyper-V generation, IOPS, ...)
 with the result for the retirement target and for the modernization target (`*Change` is Same, Improved, Reduced,
-Changed or Unknown). It is computed once from the material differences of each target and is what the HTML card and
+Changed or Unknown). It is computed once from the material differences of each target and is what the HTML details and
 `detailed-report.md` render. The modernization columns are empty when there is no strategic target (or the VM is already
 modern). Differences for a target that was not ranked as a candidate (for example a convertible newer generation) are
 computed for the comparison only; they are not added to that target's `materialDifferences`.

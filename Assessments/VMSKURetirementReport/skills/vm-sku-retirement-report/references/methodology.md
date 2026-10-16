@@ -415,10 +415,9 @@ before scheduling a change, regardless of the readiness or confidence badge.
 Nested virtualization and physical capacity are always `Unable to Verify` and are reported in data quality. They are
 excluded from the confidence count because no control-plane signal exists.
 
-HTML VM detail cards label confidence and readiness separately. Expand a card by selecting/tapping its summary
-or using Enter/Space to read the same explanations and assessment reasons shown in the hover text. These
-explanations are ordinary visible content, not dependent on hovering. Badge labels wrap on narrow screens;
-VM bodies are shown in print, including when their on-screen disclosure is closed.
+HTML VM details label confidence and readiness separately; the same explanations and assessment reasons are in the badge
+hover text, and with `-ExtendedDetails` they are also printed in the VM's details as ordinary visible content. Badge
+labels wrap on narrow screens; the details are shown in print, including when they are collapsed on screen.
 
 **Action values:**
 
@@ -460,28 +459,28 @@ primary + alternative + third.
 
 The HTML report lists only VMs affected by a Microsoft retirement announcement with a published retirement date and a
 required action (tenant *Migration Waves*, which is collapsed by default, and the subscription *VMs with Retiring SKUs*
-table and cards). Optional
+table and the collapsible details under each VM). Optional
 modernization, unconfirmed and current-generation VMs remain in `vm-assessment.csv`, `assessment.json`
 and the Markdown reports. `-HtmlIncludeOptionalModernization` also lists optional-modernization VMs (older generations
-without an announced retirement). `-HtmlMaxVmDetails` (default 250) caps the expandable per-VM cards per page,
+without an announced retirement). `-HtmlMaxVmDetails` (default 250) caps the VMs that get collapsible details per page,
 in wave order, so very large subscriptions stay fast to open; the summary table and every other output keep all VMs.
 Each page links the Microsoft Learn upgrade path, SCSI to NVMe conversion and Gen1 to Trusted launch guidance.
 
-Subscription pages have one colour-coded band, *Retirement remediation* (orange, required work):
+Subscription pages have one colour-coded band, *Retirement remediation* (orange, required work), holding *VMs with
+Retiring SKUs*: one table in which every VM row has collapsible details directly under it (there is no separate details
+section).
 
-- *VMs with Retiring SKUs* (one table) and *VMs with Retiring SKUs details* (one card per VM).
+There is no separate modernization part: with `--check-modernization` the v6/v7 target and migration path are columns of
+the same table (grouped under *Optional - v6/v7 modernization*) and rows of each VM's comparison.
 
-There is no separate modernization part: with `--check-modernization` the v6/v7 target, path and blockers are columns of
-the same table (grouped under *Optional - v6/v7 modernization*) and rows of each card's comparison.
-
-The band starts with a banner (Required label, icon and short description) and every card in it has a coloured left
-edge. The navigation groups the *Retiring VMs* and *Details* links under *Retirement*, the Overview has a tile (VM count,
+The band starts with a banner (Required label, icon and short description) and has a coloured left edge. The navigation
+groups the *Retiring VMs* link under *Retirement*, the Overview has a tile (VM count,
 earliest retirement date) linking to the band, and the table groups its columns under *Required - retirement
 remediation* and (with the flag) *Optional - v6/v7 modernization*. Labels and icons carry the meaning as well as colour,
 and the colours have dark-mode variants and are kept when printed.
 
-**One table and one card per VM.** Retirement and modernization are two targets for the same VM, so they are shown
-together rather than in separate tables:
+**One table row and one collapsible detail block per VM.** Retirement and modernization are two targets for the same VM,
+so they are shown together rather than in separate tables:
 
 - The table has one row per VM: VM, current size, Microsoft status with the retirement date, the retirement target
   (recommended size) with its score and quota status, the material changes against the current size, the next step with
@@ -495,24 +494,34 @@ together rather than in separate tables:
   *No action required*).
   Status values are coloured text on the same *Label: value* lines (red, orange, yellow, green or purple, as for badges),
   so the value is always readable without the colour. With `--check-modernization`, two more columns show the v6/v7
-  target and the migration path with its blockers.
-- The card header shows the move `current -> retirement target [-> modernization target]` with the Confidence,
-  Readiness and Modernization badges (hover for their explanations). The card body lists the validation
-  items, a *Current vs target size* table (Attribute | Current | Retirement target | Modernization target | Note) and
-  *Recommended sizes*: only the Primary, Secondary and Third sizes (matched by size name). With `-ExtendedDetails`
-  (HTML only; scoring and the other outputs do not change) the card also has the facts summary (Microsoft status,
-  action, sizes, targets, path, quota, candidate series), *Assessment explanations*, one
-  *Mandatory requirement checks* table with a result column per target, and *Sizes evaluated* lists every candidate
-  instead of only the recommended ones.
+  target and the migration path (a short label such as *Gen1 + NVMe + Resize* or *No Validated Modern Target*); the
+  blockers and remediation steps are in the VM's details.
+- Select **Details** on a VM row (or the row itself) to open its details block, which sits directly under the row in a
+  tinted, edged panel so it reads as part of that VM. There are no scripts: the toggle is a hidden checkbox plus a
+  label and a CSS `:has()` rule, and an *Expand all details* switch above the table opens every block. Browsers
+  without `:has()` and printed reports show every block open. The block has, in order:
+  1. a header with the move `current -> retirement target [-> modernization target]` (green arrows), the Confidence,
+     Readiness and Modernization badges (hover for their explanations), the wave, the retirement date and the next step,
+     and a *Blockers* line of short chips;
+  2. *What to do*: one numbered list that merges the quota request and the remediation steps (with Microsoft Learn links);
+  3. *What changes*: only the attributes that differ from the current size (Attribute | Current | Retirement target |
+     Modernization target | Note), with *Show all N attributes* opening the full comparison;
+  4. *Validate before resizing*: the validation items in two columns, each with a bold topic (wording unchanged);
+  5. *Recommended sizes*: only the Primary, Secondary and Third sizes (matched by size name).
+
+  With `-ExtendedDetails` (HTML only; scoring and the other outputs do not change) the block also has an *Extended
+  details* section: the facts summary (Microsoft status, action, sizes, targets, path, quota, candidate series),
+  *Assessment explanations*, one *Mandatory requirement checks* table with a result column per target, and *Sizes
+  evaluated* lists every candidate instead of only the recommended ones.
 - The comparison comes from `Get-TargetStrategy` (`TargetComparison`), computed once from the material differences of each
   target; HTML and `detailed-report.md` render it and do not recompute it. Notes that apply to one target only are
   labelled with that target.
-- Readiness and confidence describe the retirement target, as the card says.
+- Readiness and confidence describe the retirement target, as the details say.
 
 The *Upgrade and Modernization Scenarios* section (collapsed) is one guide: the general upgrade sequence, recommended
 steps with an example for each migration path (Direct Resize, SCSI to NVMe + Resize, Gen1 + NVMe + Resize, Gen1
 Modernization + Resize, Redeploy / Rebuild Review) and the Microsoft Learn links. It is static reference text: the
-path, target and blockers for each VM come from `Get-TargetStrategy` and are shown in the table and the VM cards. The
+path, target and blockers for each VM come from `Get-TargetStrategy` and are shown in the table and the VM details. The
 reference sections (cross-vendor warnings, SKU families, CPU vendor from the size name, known limitations) are collapsed
 and use compact tables.
 

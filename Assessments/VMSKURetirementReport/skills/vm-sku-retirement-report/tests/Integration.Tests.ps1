@@ -122,11 +122,11 @@ Describe 'End-to-end assessment (mock Azure)' {
     It 'lists only VMs on End of Life or retired sizes that need action in the HTML, under Overview' {
         $html = Get-Content (Get-ChildItem $Out -Filter 'contoso-prod-*.html').FullName -Raw
         $html | Should -Match '<h2>VMs with Retiring SKUs</h2>'
-        $html | Should -Match '<h2>VMs with Retiring SKUs details</h2>'
         $html | Should -Not -Match 'VM Assessment</h2>|Recommendations in Detail'
+        # The details are collapsed rows under each VM; there is no separate details section, heading or navigation link.
+        $html | Should -Not -Match "<h2>VMs with Retiring SKUs details</h2>|id='details'|href='#details'"
         $html.IndexOf("id='overview'") | Should -BeLessThan $html.IndexOf("id='vms'")
-        $html.IndexOf("id='vms'") | Should -BeLessThan $html.IndexOf("id='details'")
-        $html.IndexOf("id='details'") | Should -BeLessThan $html.IndexOf("id='quota'")
+        $html.IndexOf("id='vms'") | Should -BeLessThan $html.IndexOf("id='quota'")
         # Part 1 (retirement) is a labelled band containing both retiring-VM sections; there is no modernization part.
         $html | Should -Match "<div class='track track-retirement' id='track-retirement'"
         $html.IndexOf("id='track-retirement'") | Should -BeLessThan $html.IndexOf("id='vms'")
@@ -141,14 +141,18 @@ Describe 'End-to-end assessment (mock Azure)' {
         foreach ($r in $excluded) { $html | Should -Not -Match ">$([regex]::Escape($r.VM))<" }
         $Rows.Count | Should -Be 7
         # One merged table row and one detail card per listed VM; the required retirement date and stage are in the row.
-        $summaryRows = [regex]::Matches($html, "(?s)<tr class='vm-summary-row'>.*?</tr>")
+        $summaryRows = [regex]::Matches($html, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>")
         $summaryRows.Count | Should -Be $retiring.Count
         foreach ($row in $summaryRows) {
             ([regex]::Matches($row.Value, '<td[ >]')).Count | Should -Be 7
             $row.Value | Should -Match "<span class='badge b-(orange|red)'>(End of Life|Retired)</span>"
+            $row.Value | Should -Match "<input type='checkbox' class='vm-toggle' id='tg-vm-[^']+'"
         }
         foreach ($r in @($retiring | Where-Object RetirementDate)) { $html | Should -Match ([regex]::Escape($r.RetirementDate)) }
-        ([regex]::Matches($html, '<details class="vm"')).Count | Should -Be $retiring.Count
+        # Each summary row is followed by its own collapsed detail row spanning the table.
+        ([regex]::Matches($html, "<tr class='vm-detail-row' id='vm-[^']+-details'><td colspan='7' class='vm-detail-cell'>")).Count | Should -Be $retiring.Count
+        ([regex]::Matches($html, "(?s)</tr>\s*<tr class='vm-detail-row'")).Count | Should -Be $retiring.Count
+        $html | Should -Not -Match '<details class="vm"'
         $html | Should -Not -Match 'modernization-vm-detail|modernization-table|Optional &middot; v6/v7 modernization'
     }
     It 'keeps every existing vm-assessment.csv column in its original position and only appends new ones' {
@@ -197,7 +201,7 @@ Describe 'End-to-end assessment (mock Azure)' {
         $sub = Get-ChildItem $Out -Filter 'contoso-prod-*.html'
         (Get-Content $sub.FullName -Raw) | Should -Not -Match "id='modernization'"
         # The v6/v7 status is hidden in the Recommended size column when the check was not run.
-        $vmTable = [regex]::Match((Get-Content $sub.FullName -Raw), "(?s)<table class='vm-table'>.*?</table>").Value
+        $vmTable = [regex]::Match((Get-Content $sub.FullName -Raw), "(?s)<table class='vm-table'>.*?</tbody></table></div></div>").Value
         $vmTable | Should -Not -BeNullOrEmpty
         $vmTable | Should -Not -Match 'Not Evaluated|v6/v7:'
     }
@@ -258,7 +262,7 @@ function global:Start-Sleep { param([int]`$Seconds) }
         (Get-Content (Join-Path $out 'index.html') -Raw) | Should -Match ">${Status}</span>"
         $html = Get-Content (Get-ChildItem $out -Filter 'contoso-prod-*.html').FullName -Raw
         $failedVm = if ($FailedRegion -eq 'eastus2') { 'vm-ds3v2' } else { 'vm-d4sv3' }
-        $failedRow = [regex]::Match($html, "(?s)<tr class='vm-summary-row'><td><a[^>]+>$failedVm</a>.*?</tr>").Value
+        $failedRow = [regex]::Match($html, "(?s)<tr class='vm-summary-row[^']*'[^>]*><td>(<input[^>]+><label[^>]+>Details</label>)?<span class='strong'>$failedVm</span>.*?</tr>").Value
         $failedRow | Should -Not -BeNullOrEmpty
         $failedRow | Should -Not -Match '\$\d'
     }
@@ -340,13 +344,13 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $html | Should -Not -Match "id='modernization'|id='track-modernization'|track-tile-modernization|toc-modernization"
         $html | Should -Not -Match 'v6/v7 Generation Modernization Paths|Migration Path Examples|Contextual Modernization Guidance|Part 2 &middot;|Part 1 &middot;'
         $html | Should -Not -Match 'v6/v7 Modernization Readiness|<th>Complexity</th>|<dt>Complexity</dt>| complexity</span>'
-        $vmTable = [regex]::Match($html, "(?s)<table class='vm-table'>.*?</table>").Value
+        $vmTable = [regex]::Match($html, "(?s)<table class='vm-table'>.*?</tbody></table></div></div>").Value
         $vmTable | Should -Not -BeNullOrEmpty
         $vmTable | Should -Match 'Optional &middot; v6/v7 modernization'
         $headerRows = [regex]::Matches([regex]::Match($vmTable, '(?s)<thead>.*?</thead>').Value, '(?s)<tr>.*?</tr>')
         $headerRows.Count | Should -Be 2
         ([regex]::Matches($headerRows[1].Value, '<th>')).Count | Should -Be 6
-        $summaryRows = [regex]::Matches($vmTable, "(?s)<tr class='vm-summary-row'>.*?</tr>")
+        $summaryRows = [regex]::Matches($vmTable, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>")
         $summaryRows.Count | Should -Be 6
         foreach ($row in $summaryRows) { ([regex]::Matches($row.Value, '<td[ >]')).Count | Should -Be 9 }
         # Both tracks are in the same row: the required retirement date and the optional v6/v7 target and path.
@@ -355,14 +359,23 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $ds3 | Should -Match 'Standard_(<wbr>)?D4ds_v5'
         $ds3 | Should -Match 'Standard_(<wbr>)?D4s_v6'
         $ds3 | Should -Match 'Gen1 \+ NVMe \+ Resize'
+        # The path column keeps only the short path label; the blocker text and the sequence sentence are in the card.
+        $pathCell = [regex]::Match($ds3, "(?s)<td class='path-cell'>.*?</td>").Value
+        $pathCell | Should -Be "<td class='path-cell'><div class='path-primary'>Gen1 + NVMe + Resize</div></td>"
+        $vmTable | Should -Match '<th>Migration path</th>'
+        $vmTable | Should -Not -Match 'Path and blockers|recommended-sequence|blocker-text'
         $vmTable | Should -Not -Match 'v6/v7: |Not Evaluated'
         $html | Should -Not -Match 'modernization-table|modernization-vm-detail|modernization-summary-row|Extended VM details|Top Evaluated Alternatives|Mandatory Compatibility Gates'
-        # One detail card per listed VM with a three-way comparison and one gates table with a result column per target.
-        ([regex]::Matches($html, '<details class="vm"')).Count | Should -Be $summaryRows.Count
-        ([regex]::Matches($html, '<h3>Current vs target size</h3>')).Count | Should -BeGreaterOrEqual 4
+        # One collapsed detail row per listed VM, under its VM: what to do, what changes (with all attributes behind a nested toggle), what to validate, recommended sizes.
+        ([regex]::Matches($vmTable, "<tr class='vm-detail-row' id='vm-[^']+-details'><td colspan='9' class='vm-detail-cell'>")).Count | Should -Be $summaryRows.Count
+        $html | Should -Not -Match '<details class="vm"'
+        ([regex]::Matches($html, '<h4>What to do</h4>')).Count | Should -Be $summaryRows.Count
+        ([regex]::Matches($html, '<h4>What changes</h4>')).Count | Should -Be $summaryRows.Count
+        ([regex]::Matches($html, "<details class='vd-more'><summary>Show all \d+ attributes</summary>")).Count | Should -BeGreaterOrEqual 4
         $html | Should -Match 'Modernization target <code>Standard_(<wbr>)?D4s_v6</code>'
-        $html | Should -Not -Match '<h3>Mandatory requirement checks</h3>|<h3>Assessment explanations</h3>|<h3>Sizes evaluated</h3>'
-        $html | Should -Match '<h3>Recommended sizes</h3>'
+        $html | Should -Not -Match '<h3>Mandatory requirement checks</h3>|<h3>Assessment explanations</h3>|<h3>Sizes evaluated</h3>|<h3>Current vs target size</h3>'
+        $html | Should -Match '<h4>Recommended sizes</h4>'
+        $html | Should -Match 'class=.vm-toggle-all. id=.vm-expand-all.'
         $html | Should -Not -Match "class='chips'"
         # The modernization target cell uses the same layout as the current size and the retirement target.
         $modernCell = [regex]::Match($ds3, "(?s)<td class='target-cell modernization-target-cell'>.*?</td>").Value
@@ -373,7 +386,7 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $modernCell | Should -Match "<span class='spec-label'>Status:</span> <span class='tone-yellow'>Convertible</span>"
         $modernCell | Should -Match "<span class='spec-label'>Quota:</span> <span class='tone-yellow'>Manual Validation Required</span>"
         $modernCell | Should -Not -Match "class='badge|strategic"
-        $html | Should -Match "href='#vm-rg-app-vm-d4sv3'"
+        $html | Should -Not -Match "href='#vm-rg-app-vm-d4sv3'"
         @($ModernRows | Where-Object ModernizationComplexity).Count | Should -BeGreaterThan 0
         $json = Get-Content (Join-Path $ModernOut 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
         @($json.vms | Where-Object { $_.strategy.Complexity }).Count | Should -BeGreaterThan 0
@@ -466,7 +479,8 @@ Describe 'Snapshot capture and replay (mock Azure)' {
         $out = Join-Path $TestDrive 'replay-capped'
         $null = & $NoAz "-FromSnapshot '$Capture' -HtmlMaxVmDetails 2 -OutputPath '$out' -ThrottleLimit 2"
         $html = Get-Content (Get-ChildItem $out -Filter 'contoso-prod-*.html').FullName -Raw
-        ([regex]::Matches($html, '<details class="vm"')).Count | Should -Be 2
+        ([regex]::Matches($html, "<tr class='vm-detail-row'")).Count | Should -Be 2
+        ([regex]::Matches($html, "<input type='checkbox' class='vm-toggle' id=")).Count | Should -Be 2
         $html | Should -Match 'Details are shown for the first 2 VMs'
         @(Import-Csv (Join-Path $out 'vm-assessment.csv')).Count | Should -Be 7
     }

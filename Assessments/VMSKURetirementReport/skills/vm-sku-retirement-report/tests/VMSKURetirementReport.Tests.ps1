@@ -1050,12 +1050,14 @@ Describe 'HTML report safety' {
         $html | Should -Match '\.vm-table td:nth-child\(3\), \.vm-table td:nth-child\(6\) \{ min-width: 125px; \}'
         $html | Should -Not -Match '\.vm-table th, \.vm-table td \{ overflow-wrap: anywhere;'
         $html | Should -Match '\.vm-table thead th\.group-required'
-        $html | Should -Match '<h3>Current vs target size</h3><div class=.table-wrap compact.><table class=.comparison-table.>'
+        $html | Should -Match '<h4>What changes</h4>'
+        $html | Should -Match "<details class='vd-more'><summary>Show all \d+ attributes</summary><div class='table-wrap compact'><table class='comparison-table'>"
         $html | Should -Match '\.table-wrap\.compact \{ width: fit-content; max-width: 100%; \}'
-        ([regex]::Matches($html, "<tr class='vm-summary-row'>")).Count | Should -Be 1
-        ([regex]::Matches([regex]::Match($html, "(?s)<tr class='vm-summary-row'>.*?</tr>").Value, '<td[ >]')).Count | Should -Be 7
+        $rowPattern = "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>"
+        ([regex]::Matches($html, "<tr class='vm-summary-row[^']*'[^>]*>")).Count | Should -Be 1
+        ([regex]::Matches([regex]::Match($html, $rowPattern).Value, '<td[ >]')).Count | Should -Be 7
         # Current size and retirement target use the same layout: size, then Vendor, vCPU, vRAM, VM Gen and Disk controller on separate lines.
-        $cells = [regex]::Matches([regex]::Match($html, "(?s)<tr class='vm-summary-row'>.*?</tr>").Value, '(?s)<td[^>]*>.*?</td>')
+        $cells = [regex]::Matches([regex]::Match($html, $rowPattern).Value, '(?s)<td[^>]*>.*?</td>')
         $rec = $a.Candidates.Primary.Record
         $targetGens = (@($rec.HyperVGenerations) | ForEach-Object { $_ -replace '^V', 'Gen' }) -join ', '
         $specOrder = { param($vendor, $vcpu, $mem, $gen, $ctl) "(?s)Vendor:</span> $vendor</div>.*?vCPU:</span> $vcpu vCPU</div>.*?vRAM:</span> $mem GB</div>.*?VM Gen:</span> $gen</div>.*?Disk controller:</span> $ctl</div>" }
@@ -1504,10 +1506,14 @@ Describe 'HTML anchors and encoding' {
         $run = [pscustomobject]@{ GeneratedUtc = 'now'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'tenant' }; Account = 'x'; Parameters = @{}; Counts = @{} }
         Export-HtmlReports -OutDir $out -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $sum -Assessments $as -QuotaImpact $null -CatalogResult ([pscustomobject]@{ Catalog = $Catalog; Source = 'Live'; Warning = $null }) -ProcessorCatalog $Proc
         $html = Get-Content (Get-ChildItem $out -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
-        $html | Should -Match 'id="vm-rg-east-app01"'
-        $html | Should -Match 'id="vm-rg-west-app01"'
-        $html | Should -Match "href='#vm-rg-east-app01'"
-        $html | Should -Match "href='#vm-rg-west-app01'"
+        # Each VM has its own toggle and a detail row keyed by the resource-group-qualified anchor, so same-named VMs never collide.
+        $html | Should -Match "<tr class='vm-summary-row[^']*' id='vm-rg-east-app01'>"
+        $html | Should -Match "<tr class='vm-summary-row[^']*' id='vm-rg-west-app01'>"
+        $html | Should -Match "<input type='checkbox' class='vm-toggle' id='tg-vm-rg-east-app01'"
+        $html | Should -Match "<label class='vm-toggle-label' for='tg-vm-rg-west-app01'>Details</label>"
+        $html | Should -Match "<tr class='vm-detail-row' id='vm-rg-east-app01-details'>"
+        $html | Should -Match "<tr class='vm-detail-row' id='vm-rg-west-app01-details'>"
+        @([regex]::Matches($html, "id='tg-[^']+'") | ForEach-Object Value | Select-Object -Unique).Count | Should -Be 2
         $html | Should -Match 'zone 1&lt;b&gt;'
         $html | Should -Not -Match 'zone 1<b>'
         $html | Should -Match 'Owner&#39;s workload &lt;script&gt;alert\(1\)&lt;/script&gt;'
@@ -1561,8 +1567,8 @@ Describe 'HTML anchors and encoding' {
         $html | Should -Not -Match '<h3>Assessment explanations</h3>'
         $html | Should -Not -Match '<dd class="assessment-explanation">'
         $html | Should -Not -Match '<h3>Mandatory requirement checks</h3>'
-        $html | Should -Not -Match '<h3>Sizes evaluated</h3>'
-        $html | Should -Match '<h3>Recommended sizes</h3>'
+        $html | Should -Not -Match '<h4>Sizes evaluated</h4>'
+        $html | Should -Match '<h4>Recommended sizes</h4>'
     }
     It 'shows explanations, requirement checks and every evaluated size only with -ExtendedDetails' {
         $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
@@ -1574,17 +1580,18 @@ Describe 'HTML anchors and encoding' {
             Export-HtmlReports -OutDir $out -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $sum -Assessments @($a) -QuotaImpact $null -CatalogResult ([pscustomobject]@{ Catalog = $Catalog; Source = 'Live'; Warning = $null }) -ProcessorCatalog $Proc
             Get-Content (Get-ChildItem $out -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
         }
-        $sizeRows = { param($html, $heading) ([regex]::Matches(([regex]::Match($html, "(?s)<h3>$heading</h3>.*?</details>").Value), '<tr><td>')).Count }
+        $sizeRows = { param($html, $heading) ([regex]::Matches(([regex]::Match($html, "(?s)<h4>$heading</h4>.*?</section>").Value), '<tr><td>')).Count }
         $recommended = @(@($a.Candidates.Primary, $a.Candidates.Secondary, $a.Candidates.Third) | Where-Object { $_ } | ForEach-Object SkuName | Select-Object -Unique)
         $all = @($a.Candidates.Candidates).Count
 
         $default = & $render $false
         & $sizeRows $default 'Recommended sizes' | Should -Be $recommended.Count
-        $default | Should -Not -Match '<h3>Assessment explanations</h3>|<h3>Mandatory requirement checks</h3>|<h3>Sizes evaluated</h3>'
+        $default | Should -Not -Match '<h3>Assessment explanations</h3>|<h3>Mandatory requirement checks</h3>|<h4>Sizes evaluated</h4>|<h4>Extended details</h4>'
         $default | Should -Not -Match '<dl class="facts">|<dt>Recommended size</dt>|<dt>Candidate series</dt>'
         if ($all -gt $recommended.Count) { $default | Should -Match "<p class='note'>\d+ more evaluated sizes? (is|are) shown when the report is generated with <code>-ExtendedDetails</code>" }
 
         $extended = & $render $true
+        $extended | Should -Match '<h4>Extended details</h4>'
         $extended | Should -Match '<h3>Assessment explanations</h3>'
         $extended | Should -Match '<dt>Microsoft status</dt>'
         $extended | Should -Match '<dt>Recommended size</dt>'
@@ -1593,7 +1600,54 @@ Describe 'HTML anchors and encoding' {
         $extended | Should -Match '<dd class="assessment-explanation">Readiness of the recommended size:'
         $extended | Should -Match '<h3>Mandatory requirement checks</h3>'
         & $sizeRows $extended 'Sizes evaluated' | Should -Be $all
-        $extended | Should -Not -Match '<h3>Recommended sizes</h3>|more evaluated sizes? (is|are) shown'
+        $extended | Should -Not -Match '<h4>Recommended sizes</h4>|more evaluated sizes? (is|are) shown'
+    }
+}
+
+Describe 'In-table collapsible VM details' {
+    BeforeAll {
+        $script:Pair = @((Invoke-TestAssessment (New-TestVm -Name 'a1' -Sku 'Standard_DS3_v2' -Gen 'V1')), (Invoke-TestAssessment (New-TestVm -Name 'b2' -Sku 'Standard_DS3_v2' -Gen 'V2')))
+        $Pair[0].ValidationItems = @($Pair[0].ValidationItems) + 'Guest NVMe readiness: confirm the guest OS has NVMe drivers'
+        $sum = New-AssessmentSummary -Assessments $Pair -SubscriptionsScanned 1
+        $script:DetailOut = Join-Path $TestDrive 'detail-rows'; New-Item -ItemType Directory $DetailOut | Out-Null
+        $run = [pscustomobject]@{ GeneratedUtc = 'now'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'tenant' }; Account = 'x'; Parameters = @{}; Counts = @{} }
+        Export-HtmlReports -OutDir $DetailOut -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $sum -Assessments $Pair -QuotaImpact $null -CatalogResult ([pscustomobject]@{ Catalog = $Catalog; Source = 'Live'; Warning = $null }) -ProcessorCatalog $Proc
+        $script:DetailHtml = Get-Content (Get-ChildItem $DetailOut -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
+    }
+    It 'puts a collapsed detail row under each VM and drops the separate details section' {
+        ([regex]::Matches($DetailHtml, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>\s*<tr class='vm-detail-row'")).Count | Should -Be 2
+        $DetailHtml | Should -Match "<td colspan='7' class='vm-detail-cell'><div class=.vm-detail.>"
+        $DetailHtml | Should -Not -Match "id='details'|<h2>VMs with Retiring SKUs details</h2>|href='#details'|<details class=.vm."
+        $DetailHtml | Should -Not -Match '<script'
+        # The checkbox sits directly before its label, which the CSS selectors rely on.
+        $DetailHtml | Should -Match "<input type='checkbox' class='vm-toggle' id='tg-[^']+' aria-label='[^']+'><label class='vm-toggle-label' for='tg-"
+        $DetailHtml | Should -Match "<input type='checkbox' class='vm-toggle-all' id='vm-expand-all'[^>]*><label class='vm-toggle-all-label' for='vm-expand-all'><span class='off'>Expand all details</span><span class='on'>Collapse all details</span></label>"
+    }
+    It 'styles the toggle with CSS only, with print and no-:has() fallbacks' {
+        $DetailHtml | Should -Match '@supports selector\(:has\(\*\)\) \{'
+        $DetailHtml | Should -Match '\.vm-table tr\.vm-detail-row \{ display: none; \}'
+        $DetailHtml | Should -Match 'tr:has\(\.vm-toggle:checked\) \+ tr\.vm-detail-row'
+        $DetailHtml | Should -Match '\.vm-table-block:has\(\.vm-toggle-all:checked\) tr\.vm-detail-row'
+        $DetailHtml | Should -Match '@supports not selector\(:has\(\*\)\) \{ \.vm-toggle-label, \.vm-table-tools \{ display: none; \} \}'
+        $DetailHtml | Should -Match '\.vm-table tr\.vm-detail-row \{ display: table-row !important; \}'
+        $DetailHtml | Should -Match '--detail-bg: #eaf4f4; --detail-edge: #0f766e;'
+        $DetailHtml | Should -Match '\.vm-detail \{ position: sticky; left: 0;'
+    }
+    It 'shows what to do, what changes, what to validate and the recommended sizes in that order' {
+        $first = [regex]::Match($DetailHtml, "(?s)<tr class='vm-detail-row'.*?</div>\s*</td></tr>").Value
+        $first | Should -Not -BeNullOrEmpty
+        $order = '<div class="vd-head">', '<h4>What to do</h4>', '<h4>What changes</h4>', '<h4>Validate before resizing</h4>', '<h4>Recommended sizes</h4>'
+        $last = -1
+        foreach ($marker in $order) { $i = $first.IndexOf($marker); $i | Should -BeGreaterThan $last; $last = $i }
+        $first | Should -Match "<ol class='vd-steps'><li>"
+        $first | Should -Match "<span class='move-arrow'>&rarr;</span>"
+        # "Topic: text" validation items get a bold topic; the compact table lists only differences and the full list is one click away.
+        $first | Should -Match '<li><strong>[^<:]+:</strong> '
+        $first | Should -Match "<details class='vd-more'><summary>Show all \d+ attributes</summary>"
+        $compact = [regex]::Match($first, "(?s)<h4>What changes</h4>(.*?)<details class='vd-more'>").Groups[1].Value
+        $full = [regex]::Match($first, "(?s)<details class='vd-more'>(.*?)</details>").Groups[1].Value
+        ([regex]::Matches($compact, '<tr><td>')).Count | Should -BeLessThan ([regex]::Matches($full, '<tr><td>')).Count
+        $compact | Should -Not -Match '<td>Processor</td>|<td>CPU Vendor</td>'
     }
 }
 
