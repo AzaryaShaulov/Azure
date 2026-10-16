@@ -119,6 +119,12 @@ function Get-MigrationConfidence {
     $items = @($ValidationItems | Where-Object { $_ })
     if ($Lifecycle.DataQuality -ne 'Verified') { $items += 'Lifecycle evidence partially verified' }
     if ($QuotaStatus -eq 'Quota Increase Required') { $items += 'Quota increase required' }
+    $unverifiedVendor = @()
+    if ($Current.VendorQuality -ne 'Verified') { $unverifiedVendor += "current size $($Current.SkuName) ($($Current.Vendor))" }
+    if ($Primary -and $Primary.VendorQuality -ne 'Verified') { $unverifiedVendor += "target size $($Primary.SkuName) ($($Primary.CpuVendor))" }
+    if ($unverifiedVendor.Count -gt 0) {
+        $items += "CPU vendor not verified for $($unverifiedVendor -join ' and '): it is inferred from the VM size naming convention, not from the Microsoft processor tables; confirm it before relying on the vendor-preservation result"
+    }
     $level = if ($low.Count -gt 0) { 'LOW' } elseif ($items.Count -eq 0) { 'HIGH' } elseif ($items.Count -eq 1) { 'MEDIUM' } else { 'LOW' }
     [pscustomobject]@{ Level = $level; LowReasons = $low.ToArray(); ValidationItems = @($items) }
 }

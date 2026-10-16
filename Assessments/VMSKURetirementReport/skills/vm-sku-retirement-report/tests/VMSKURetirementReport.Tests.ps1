@@ -1058,12 +1058,50 @@ Describe 'HTML VM scope' {
 Describe 'Confidence, readiness, actions and waves' {
     It 'HIGH only when nothing is left to validate' {
         $lc = [pscustomobject]@{ EvidenceClass = 'Confirmed Retirement'; DataQuality = 'Verified' }
-        $p = [pscustomobject]@{ Availability = 'Available' }
-        $cur = [pscustomobject]@{ CapsKnown = $true }
+        $p = [pscustomobject]@{ Availability = 'Available'; SkuName = 'Standard_D4s_v5'; CpuVendor = 'Intel'; VendorQuality = 'Verified' }
+        $cur = [pscustomobject]@{ CapsKnown = $true; SkuName = 'Standard_D4s_v3'; Vendor = 'Intel'; VendorQuality = 'Verified' }
         (Get-MigrationConfidence -Lifecycle $lc -Primary $p -Current $cur -VendorChangeRequired $false -QuotaStatus 'Quota OK').Level | Should -Be 'HIGH'
         (Get-MigrationConfidence -Lifecycle $lc -Primary $p -Current $cur -VendorChangeRequired $false -QuotaStatus 'Quota Increase Required').Level | Should -Be 'MEDIUM'
         (Get-MigrationConfidence -Lifecycle $lc -Primary $p -Current $cur -VendorChangeRequired $true -QuotaStatus 'Quota OK').Level | Should -Be 'LOW'
         (Get-MigrationConfidence -Lifecycle $lc -Primary $p -Current $cur -VendorChangeRequired $false -QuotaStatus 'Quota Information Unavailable').Level | Should -Be 'LOW'
+    }
+    It 'asks to confirm a CPU vendor that is not verified against the Microsoft processor tables' -ForEach @(
+        @{ Case = 'the current size'; CurrentQuality = 'Partially Verified'; TargetQuality = 'Verified'; Level = 'MEDIUM'; Named = @('current size Standard_HB60rs (Intel)'); NotNamed = @('target size') }
+        @{ Case = 'the target size'; CurrentQuality = 'Verified'; TargetQuality = 'Partially Verified'; Level = 'MEDIUM'; Named = @('target size Standard_D4s_v5 (Intel)'); NotNamed = @('current size') }
+        @{ Case = 'both sizes (one item)'; CurrentQuality = 'Partially Verified'; TargetQuality = 'Partially Verified'; Level = 'MEDIUM'; Named = @('current size Standard_HB60rs (Intel) and target size Standard_D4s_v5 (Intel)'); NotNamed = @() }
+        @{ Case = 'neither size'; CurrentQuality = 'Verified'; TargetQuality = 'Verified'; Level = 'HIGH'; Named = @(); NotNamed = @('CPU vendor not verified') }
+    ) {
+        $lc = [pscustomobject]@{ EvidenceClass = 'Confirmed Retirement'; DataQuality = 'Verified' }
+        $p = [pscustomobject]@{ Availability = 'Available'; SkuName = 'Standard_D4s_v5'; CpuVendor = 'Intel'; VendorQuality = $TargetQuality }
+        $cur = [pscustomobject]@{ CapsKnown = $true; SkuName = 'Standard_HB60rs'; Vendor = 'Intel'; VendorQuality = $CurrentQuality }
+        $c = Get-MigrationConfidence -Lifecycle $lc -Primary $p -Current $cur -VendorChangeRequired $false -QuotaStatus 'Quota OK'
+        $c.Level | Should -Be $Level
+        $vendorItems = @($c.ValidationItems | Where-Object { $_ -like 'CPU vendor not verified*' })
+        @($Named).Count | Should -Be @($vendorItems).Count -Because 'a single combined item is expected when a vendor is unverified'
+        foreach ($text in $Named) { $vendorItems[0] | Should -BeLike "*$text*" }
+        foreach ($text in $NotNamed) { ($c.ValidationItems -join ' | ') | Should -Not -BeLike "*$text*" }
+    }
+    It 'counts an unverified CPU vendor like any other open validation item' {
+        $lc = [pscustomobject]@{ EvidenceClass = 'Confirmed Retirement'; DataQuality = 'Verified' }
+        $p = [pscustomobject]@{ Availability = 'Available'; SkuName = 'Standard_D4s_v5'; CpuVendor = 'Intel'; VendorQuality = 'Verified' }
+        $cur = [pscustomobject]@{ CapsKnown = $true; SkuName = 'Standard_HB60rs'; Vendor = 'Intel'; VendorQuality = 'Partially Verified' }
+        (Get-MigrationConfidence -Lifecycle $lc -Primary $p -Current $cur -VendorChangeRequired $false -QuotaStatus 'Quota Increase Required').Level | Should -Be 'LOW'
+        (Get-MigrationConfidence -Lifecycle $lc -Primary $null -Current $cur -VendorChangeRequired $false -QuotaStatus 'Quota OK').ValidationItems | Should -BeLike 'CPU vendor not verified for current size*'
+    }
+    It 'keeps a VM whose CPU vendor comes only from the size name out of "Proceed with Resize"' {
+        $noDsv3 = $Proc | ConvertTo-Json -Depth 30 | ConvertFrom-Json -Depth 30
+        [void]$noDsv3.series.PSObject.Properties.Remove('dsv3')
+        $vm = New-TestVm -Sku 'Standard_D4s_v3'
+        $lc = Resolve-SkuLifecycle -SkuName $vm.SkuName -Catalog $Catalog -AsOf $AsOf
+        $a = New-VmAssessment -Vm $vm -Lifecycle $lc -RegionCatalog $SkuCat -ProcessorCatalog $noDsv3 -RetirementCatalog $Catalog -LifecycleCache @{} -CandidateCache @{} -Weights $Weights -AsOf $AsOf -SubscriptionName 'sub1'
+        $quota = [pscustomobject]@{ Status = 'Quota OK'; DataQuality = 'Verified'; Family = [pscustomobject]@{ QuotaDisplayName = 'x'; MinimumIncrease = 0; RecommendedIncrease = 0; CurrentUsage = 0; Limit = 100; RequiredVcpu = 4 }; Regional = [pscustomobject]@{ MinimumIncrease = 0 } }
+        $a = Complete-VmAssessment -Assessment $a -QuotaResult $quota -Usage @{}
+        $a.Current.VendorQuality | Should -Be 'Partially Verified'
+        $a.Readiness | Should -Be 'Ready'
+        $a.Confidence.Level | Should -Be 'MEDIUM'
+        $a.NextStep | Should -Be 'Validate Before Resize'
+        @($a.ValidationItems | Where-Object { $_ -like 'CPU vendor not verified for current size Standard_D4s_v3 (Intel)*' }).Count | Should -Be 1
+        (Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3')).Confidence.Level | Should -Be 'HIGH'
     }
     It 'maps urgency to documented action values' -ForEach @(
         @{ Class = 'Already Retired'; Urgency = 'Already Retired'; Expected = 'Immediate Migration Required' }

@@ -123,7 +123,12 @@ Deallocated VMs are included. They do not consume quota today but will when star
 - **CPU vendor / processor** come from `data/processor-catalog.json`. It is built by `Update-Catalogs.ps1` from the
   `Processor` row of every Learn size-series spec table. An exact series-key match is **Verified**. A broader
   base-series match or the Azure naming convention (`a` = AMD, `p` = ARM, otherwise Intel) is **Partially Verified**.
-  For example, Lsv2 is AMD EPYC 7551 even though its name has no `a`.
+  For example, Lsv2 is AMD EPYC 7551 even though its name has no `a`. The naming convention is only a hint: a size whose
+  series is missing from the catalog (some older HB, NC, G and M sizes) can be assigned the wrong vendor, and then the
+  vendor-preservation check compares against the wrong baseline. Whenever the vendor of the current or the recommended
+  size is only Partially Verified, the VM gets the validation item "CPU vendor not verified for ...", which lowers
+  confidence (and keeps the next step at `Validate Before Resize`); the vendor and its quality are shown in the details
+  and in `DQ_CpuVendor`.
 - **Architecture** comes from `CpuArchitectureType` (Verified).
 - **Network bandwidth** is not exposed by the Resource SKUs API. It is listed as Unknown and shown in material
   differences with a pointer to the Learn size page.
@@ -416,6 +421,7 @@ before scheduling a change, regardless of the readiness or confidence badge.
   - disk-throughput reduction
   - availability set or PPG
   - an older-generation target because a newer valid size is restricted or not offered for the VM
+  - CPU vendor of the current or recommended size only inferred from the size name (Partially Verified)
   - cached / partially verified lifecycle evidence
 - **HIGH:** no outstanding items in the assessed evidence, not certification of guest/workload readiness.
 

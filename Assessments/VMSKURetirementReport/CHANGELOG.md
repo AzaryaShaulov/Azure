@@ -29,6 +29,12 @@ All notable changes to this project are documented here. The format follows
   mismatch prints the module's file manifest, and `dependencies.psd1` holds the new hashes.
 - The PowerShell 7.2 compatibility check never ran (its container image tag did not exist). It is replaced by the Windows
   `powershell-compat` job described above.
+- **A CPU vendor inferred from the size name no longer leaves confidence at `HIGH`.** The confidence calculation says CPU
+  vendor must be verified for `HIGH` but never looked at the vendor's data quality, so a size missing from the processor
+  catalog (for example an older HB or NC size, resolved as Intel from its name) could still be `HIGH`. A VM whose current
+  or recommended size has only a `Partially Verified` vendor now gets the validation item "CPU vendor not verified for ...",
+  and with it `MEDIUM` confidence (or `LOW` together with another item). Extending the processor catalog to the older series
+  is tracked separately, because it is regenerated from Microsoft Learn with `scripts/Update-Catalogs.ps1`.
 - **An older-generation target came without a note.** When the newest valid size of the family was restricted or not offered
   for the VM, the primary silently fell back to an older generation and the VM stayed `Ready` with `HIGH` confidence. It now
   gets the validation item "Newer generation unavailable: ..." (naming the size and its availability), which lowers confidence
