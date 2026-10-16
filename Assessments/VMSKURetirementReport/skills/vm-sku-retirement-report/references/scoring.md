@@ -39,6 +39,15 @@ For example, Standard_DS3_v2 (12,800 IOPS) -> Standard_D4ds_v5 (6,400 IOPS). Whe
 - the smallest same-series size that preserves the caps is evaluated as a *Capability-preserving* variant and is
   offered as an alternative. This lets the owner choose between licensing/cost (matching vCPU) and throughput parity.
 
+## A larger size than the closest fit
+
+When a series' closest size does not qualify (a size-dependent mandatory check fails, or the size is restricted or not
+offered for the VM), the next sizes of that series are evaluated as the *Larger size* variant (see *Larger sizes, only when
+the smallest size does not qualify* in [methodology.md](methodology.md)). They are scored like any other candidate: the
+extra vCPU and memory lower the *vCPU match* and *Memory match* points (table above), so a larger size scores below an
+otherwise equivalent closest size. A recommended size that is larger than the closest fit always carries the validation
+item *"Larger size: ... is larger than the closest fit ..., which does not qualify (...)"*.
+
 ## Candidate CSV columns
 
 `candidates.csv` includes each criterion's points (`S_CpuVendor`, `S_Architecture`, `S_Family`, `S_vCpu`, `S_Memory`,

@@ -187,6 +187,21 @@ these hold:
    smallest size in the same series that preserves them (up to 2x vCPU) is also evaluated, as the
    *Capability-preserving* variant.
 
+**Larger sizes, only when the smallest size does not qualify.** When a series' smallest fitting size is rejected by a
+size-dependent mandatory check (NIC count, data disk count, Write Accelerator, zone or region availability, Ultra Disk,
+ephemeral OS disk and similar) or passes every check but is restricted or not offered for the VM, the next sizes of that
+series are evaluated, at most `primarySelection.maxLargerSizeSteps` of them (`data/scoring-weights.json`; default 2, 0
+turns the step off), and the first one that qualifies is added as the *Larger size* variant. The pool rules above still
+apply, so a larger size is never smaller than the current one, and sizes outside the permitted series are never added. A
+failure that no size of a series can pass (CPU architecture, VM generation, disk controller, security type, confidential
+computing) does not trigger the step. When the smallest size qualifies, no larger size is evaluated and nothing changes.
+
+A recommendation that is larger than the closest fit says so. A validation item names both sizes and why the closest one
+does not qualify, so confidence is below HIGH and the next step is *Validate Before Resize* (the larger size can change
+licensing and cost); the same sentence is added to the modernization reason, and a short note to the alternative's reason
+when the alternative is the larger size. When no size qualifies, `NoCandidateReason` lists the larger sizes that were tried
+with the reason each failed, and states that larger sizes beyond the bound were not evaluated.
+
 **Headroom policy.** Sizes come in discrete steps, so capacity is preserved (>=) rather than inflated by a fixed
 10-20%. The newer generation provides the compute headroom. `CapacityHeadroomPct` reports the actual vCPU/memory
 headroom per candidate. Capability reductions are never hidden: see [scoring.md](scoring.md).

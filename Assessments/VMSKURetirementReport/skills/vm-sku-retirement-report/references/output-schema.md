@@ -167,7 +167,10 @@ renamed or removed within 1.x.
 ## candidates.csv
 
 One row per VM x evaluated candidate: `Role` (Primary/Secondary/Third/Candidate), `Variant` (Closest size /
-Capability-preserving), availability, score, band, rejection reason, review gates, and the 12 score-component columns.
+Capability-preserving / Larger size), availability, score, band, rejection reason, review gates, and the 12 score-component
+columns. `Larger size` marks a size added because the closest size of its series did not qualify; the VM's
+`ValidationItems` (and `NoCandidateReason` when nothing qualifies) say why. `assessment.json` carries the same value as
+`recommendation.primary.variant` (and `secondary`, `third`).
 
 ## quota-impact.csv
 

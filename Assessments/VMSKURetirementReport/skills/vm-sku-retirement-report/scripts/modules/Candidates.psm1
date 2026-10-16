@@ -200,6 +200,32 @@ function Get-MaterialDifferences {
     return $d.ToArray()
 }
 
+# Gates whose result is the same for every size of a series. When the closest size fails one of them, no larger size of that
+# series can qualify, so none is tried.
+$script:SeriesLevelGates = @('CPU Architecture', 'VM Generation', 'Disk Controller', 'Security Type', 'Confidential Computing')
+
+function Get-MaxLargerSizeSteps {
+    <# How many larger sizes of a series are tried when its closest size does not qualify: primarySelection.maxLargerSizeSteps (default 2; 0 turns it off). #>
+    param($Weights)
+    $selection = $Weights.PSObject.Properties['primarySelection']
+    if ($selection -and $selection.Value -and $selection.Value.PSObject.Properties['maxLargerSizeSteps']) { return [math]::Max(0, [int]$selection.Value.maxLargerSizeSteps) }
+    return 2
+}
+
+function Test-LargerSizeMayHelp {
+    <# $true when a larger size of the series could qualify where this evaluated (closest) size did not: it fails only size-dependent gates, or it passes every gate but is restricted or not offered for this VM. #>
+    param([Parameter(Mandatory)]$Evaluated)
+    if ($Evaluated.Rejected) { return @($Evaluated.FailedGates | Where-Object { $_ -in $script:SeriesLevelGates }).Count -eq 0 }
+    return $Evaluated.Availability -ne 'Available'
+}
+
+function Get-LargerSizeNote {
+    <# Names the closest-fit size that did not qualify when a candidate is larger than it; '' for any other candidate. #>
+    param($Candidate)
+    if (-not $Candidate -or -not $Candidate.PSObject.Properties['ClosestSizeSku'] -or -not $Candidate.ClosestSizeSku) { return '' }
+    "$($Candidate.SkuName) ($($Candidate.vCPUs) vCPU / $($Candidate.MemoryGB) GB) is larger than the closest fit $($Candidate.ClosestSizeSku), which does not qualify ($($Candidate.ClosestSizeIssue))"
+}
+
 function Find-ReplacementCandidates {
     <#
     .SYNOPSIS
@@ -207,7 +233,9 @@ function Find-ReplacementCandidates {
     .DESCRIPTION
         Pool: sizes offered in the VM's region whose own lifecycle is 'No Retirement Announced', same CPU architecture,
         within Microsoft's recommended target series for the retiring series (migration guide) or otherwise the same
-        workload family, with vCPU and memory >= current (never downsized). One (smallest fitting) size per series.
+        workload family, with vCPU and memory >= current (never downsized). One (smallest fitting) size per series; when that
+        size does not qualify for a size-dependent reason (NIC or data disk limit, restriction, zone), up to
+        primarySelection.maxLargerSizeSteps larger sizes of the series are tried and the first one that qualifies is added.
         Same CPU vendor is mandatory preference; cross-vendor (Intel<->AMD) only if no same-vendor candidate passes gates.
     #>
     param(
@@ -276,29 +304,9 @@ function Find-ReplacementCandidates {
             })
     }
 
-    # Smallest fitting size per series (never downsize, avoid over-provisioning). When that size lowers the VM-level
-    # disk throughput caps, also evaluate the smallest size in the same series that preserves them (design rule: capability
-    # regressions are never hidden; the preserving option is offered as an alternative).
-    $perSeries = New-Object System.Collections.Generic.List[object]
-    foreach ($sg in ($pool | Group-Object { $_.Info.SeriesKey })) {
-        $sorted = @($sg.Group | Sort-Object { $_.Record.vCPUsAvailable }, { $_.Record.MemoryGB })
-        $first = $sorted[0]
-        $first | Add-Member -NotePropertyName Variant -NotePropertyValue 'Closest size' -Force
-        $perSeries.Add($first)
-        if ($Current.UncachedDiskIOPS -and $Current.UncachedDiskMBps -and $first.Record.UncachedDiskIOPS -and $first.Record.UncachedDiskMBps -and
-            ($first.Record.UncachedDiskIOPS -lt $Current.UncachedDiskIOPS -or $first.Record.UncachedDiskMBps -lt $Current.UncachedDiskMBps)) {
-            $keep = $sorted | Where-Object {
-                $_.Record.UncachedDiskIOPS -ge $Current.UncachedDiskIOPS -and $_.Record.UncachedDiskMBps -ge $Current.UncachedDiskMBps -and
-                $_.Record.vCPUsAvailable -le (2 * $Current.vCPUs)
-            } | Select-Object -First 1
-            if ($keep -and $keep.Record.Name -ne $first.Record.Name) {
-                $keep | Add-Member -NotePropertyName Variant -NotePropertyValue 'Capability-preserving' -Force
-                $perSeries.Add($keep)
-            }
-        }
-    }
-
-    $evaluated = foreach ($c in $perSeries) {
+    # Gates, availability and score of one pool entry.
+    $evaluate = {
+        param($c, [string]$variant)
         $gates = Test-CandidateGates -Vm $Vm -Current $Current -Candidate $c.Record -CandidateProc $c.Proc
         $avail = Get-CandidateAvailability -Vm $Vm -Candidate $c.Record
         $score = Get-CompatibilityScore -Vm $Vm -Current $Current -Candidate $c.Record -CandidateProc $c.Proc -FamilyMatch $c.FamilyMatch -Availability $avail -Weights $Weights
@@ -309,7 +317,7 @@ function Find-ReplacementCandidates {
         $headroom = [math]::Round(([math]::Min($cv, $cm) - 1) * 100, 0)
         [pscustomobject]@{
             SkuName            = $c.Record.Name
-            Variant            = $c.Variant
+            Variant            = $variant
             SeriesKey          = $c.Info.SeriesKey
             Family             = $c.Record.Family
             WorkloadFamily     = $c.Info.Family
@@ -342,9 +350,63 @@ function Find-ReplacementCandidates {
             Record             = $c.Record
             ExistingEligible   = $c.ExistingEligible
             ModernizationEligible = $c.ModernizationEligible
+            ClosestSizeSku     = $null
+            ClosestSizeIssue   = $null
         }
     }
-    $evaluated = @($evaluated)
+
+    # Smallest fitting size per series (never downsize, avoid over-provisioning). When that size lowers the VM-level
+    # disk throughput caps, also evaluate the smallest size in the same series that preserves them (design rule: capability
+    # regressions are never hidden; the preserving option is offered as an alternative). When the smallest size does not
+    # qualify for a size-dependent reason (NIC or data disk limit, restriction, zone), the next sizes of that series are
+    # tried, up to maxLargerSizeSteps, and the first one that qualifies is added as a 'Larger size' candidate.
+    $maxLarger = Get-MaxLargerSizeSteps -Weights $Weights
+    $evaluatedList = New-Object System.Collections.Generic.List[object]
+    $largerTried = New-Object System.Collections.Generic.List[object]
+    $largerNotEvaluated = 0
+    foreach ($sg in ($pool | Group-Object { $_.Info.SeriesKey })) {
+        $sorted = @($sg.Group | Sort-Object { $_.Record.vCPUsAvailable }, { $_.Record.MemoryGB }, { $_.Record.Name })
+        $first = $sorted[0]
+        $closest = & $evaluate $first 'Closest size'
+        $seriesList = New-Object System.Collections.Generic.List[object]
+        $seriesList.Add($closest)
+        $keepEvaluated = $null
+        if ($Current.UncachedDiskIOPS -and $Current.UncachedDiskMBps -and $first.Record.UncachedDiskIOPS -and $first.Record.UncachedDiskMBps -and
+            ($first.Record.UncachedDiskIOPS -lt $Current.UncachedDiskIOPS -or $first.Record.UncachedDiskMBps -lt $Current.UncachedDiskMBps)) {
+            $keep = $sorted | Where-Object {
+                $_.Record.UncachedDiskIOPS -ge $Current.UncachedDiskIOPS -and $_.Record.UncachedDiskMBps -ge $Current.UncachedDiskMBps -and
+                $_.Record.vCPUsAvailable -le (2 * $Current.vCPUs)
+            } | Select-Object -First 1
+            if ($keep -and $keep.Record.Name -ne $first.Record.Name) {
+                $keepEvaluated = & $evaluate $keep 'Capability-preserving'
+                $seriesList.Add($keepEvaluated)
+            }
+        }
+        if ($closest.Rejected -or $closest.Availability -ne 'Available') {
+            if ($maxLarger -gt 0 -and (Test-LargerSizeMayHelp -Evaluated $closest)) {
+                $attempted = 0
+                $qualified = $false
+                for ($i = 1; $i -lt $sorted.Count -and $attempted -lt $maxLarger -and -not $qualified; $i++) {
+                    $attempted++
+                    $larger = if ($keepEvaluated -and $sorted[$i].Record.Name -eq $keepEvaluated.SkuName) { $keepEvaluated } else { & $evaluate $sorted[$i] 'Larger size' }
+                    if (-not $larger.Rejected -and $larger.Availability -eq 'Available') {
+                        $qualified = $true
+                        if (-not [object]::ReferenceEquals($larger, $keepEvaluated)) { $seriesList.Add($larger) }
+                    }
+                    else {
+                        $largerTried.Add([pscustomobject]@{ SkuName = $larger.SkuName; Score = $larger.Score; Reason = if ($larger.Rejected) { $larger.RejectionReason } else { "availability: $($larger.Availability)" } })
+                    }
+                }
+                if (-not $qualified) { $largerNotEvaluated += $sorted.Count - 1 - $attempted }
+            }
+            $closestIssue = if ($closest.Rejected) { $closest.RejectionReason } else { "availability: $($closest.Availability)" }
+            foreach ($x in $seriesList) {
+                if (-not [object]::ReferenceEquals($x, $closest)) { $x.ClosestSizeSku = $closest.SkuName; $x.ClosestSizeIssue = $closestIssue }
+            }
+        }
+        foreach ($x in $seriesList) { $evaluatedList.Add($x) }
+    }
+    $evaluated = $evaluatedList.ToArray()
 
     $valid = @($evaluated | Where-Object { -not $_.Rejected -and $_.ExistingEligible })
     $sameVendor = @($valid | Where-Object VendorPreserved)
@@ -419,9 +481,16 @@ function Find-ReplacementCandidates {
 
     $noCandidateReason = $null
     if (-not $primary) {
+        # Say which larger sizes were tried, and that sizes beyond the bound were not evaluated.
+        $largerNote = ''
+        if ($largerTried.Count -gt 0) {
+            $shown = @($largerTried | Sort-Object @{ e = 'Score'; Descending = $true }, SkuName | Select-Object -First 3 | ForEach-Object { "$($_.SkuName) [$($_.Reason)]" })
+            $largerNote = " Up to $maxLarger larger size$(if ($maxLarger -ne 1) { 's' }) per series $(if ($maxLarger -ne 1) { 'were' } else { 'was' }) also evaluated and none qualified: $($shown -join '; ')$(if ($largerTried.Count -gt $shown.Count) { "; and $($largerTried.Count - $shown.Count) more" })."
+            if ($largerNotEvaluated -gt 0) { $largerNote += ' Larger sizes beyond that were not evaluated.' }
+        }
         $noCandidateReason = if ($evaluated.Count -eq 0) { "No current-generation size with >= $($Current.vCPUs) vCPU / $(if ($Current.MemoryGB) { "$($Current.MemoryGB) GB" } else { 'unknown GB (current size not in Resource SKUs API)' }) in the permitted series ($(if ($allowedSeries.Count) { $allowedSeries -join ', ' } else { "$($curInfo.Family)-series" })) is offered in $($Vm.Region) for this subscription" }
-        elseif ($selectable.Count -gt 0) { 'Valid candidates exist but none is available (restricted/zone) in the VM region for this subscription' }
-        else { 'All candidates fail mandatory requirements: ' + ((@($evaluated | Sort-Object Score -Descending | Select-Object -First 3) | ForEach-Object { "$($_.SkuName) [$($_.RejectionReason)]" }) -join '; ') }
+        elseif ($selectable.Count -gt 0) { 'Valid candidates exist but none is available (restricted/zone) in the VM region for this subscription' + $(if ($largerNote) { ".$largerNote" }) }
+        else { 'All candidates fail mandatory requirements: ' + ((@($evaluated | Sort-Object @{ e = 'Score'; Descending = $true }, SkuName | Select-Object -First 3) | ForEach-Object { "$($_.SkuName) [$($_.RejectionReason)]" }) -join '; ') + $(if ($largerNote) { ".$largerNote" }) }
     }
     $modernization = $null
     if ($CheckModernization) {
@@ -449,6 +518,8 @@ function Find-ReplacementCandidates {
             "No same-vendor v6/v7 size passed all workload requirements$(if ($details.Count) { ': ' + ($details -join '; ') } else { '.' })"
         }
         if (-not $modernPrimary -and $existingPrimary) { $reason += " Retaining existing recommendation $($existingPrimary.SkuName)." }
+        $sizeNote = Get-LargerSizeNote $modernPrimary
+        if ($sizeNote) { $reason += " $sizeNote." }
         $modernization = [pscustomobject]@{
             Enabled = $true
             Candidate = $modernPrimary
@@ -472,4 +543,4 @@ function Find-ReplacementCandidates {
     }
 }
 
-Export-ModuleMember -Function New-CurrentProfile, Get-CandidateAvailability, Test-CandidateGates, Get-MaterialDifferences, Find-ReplacementCandidates
+Export-ModuleMember -Function New-CurrentProfile, Get-CandidateAvailability, Test-CandidateGates, Get-MaterialDifferences, Find-ReplacementCandidates, Get-LargerSizeNote

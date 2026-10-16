@@ -250,6 +250,8 @@ function Resolve-ModernizationQuotaChoices {
             $a.Modernization.Status = "Modernize to v$($selected.Generation)"
             $quotaReason = if ($selectedQuotaVerified) { 'with sufficient aggregate quota' } else { 'whose quota requires manual validation' }
             $a.Modernization.Reason = "$($selected.SkuName) is the newest suitable modernization option $quotaReason that preserves $($a.Current.Vendor) / $($a.Current.Architecture) and passes the workload capability gates."
+            $sizeNote = Get-LargerSizeNote $selected
+            if ($sizeNote) { $a.Modernization.Reason += " $sizeNote." }
         }
         else {
             $a.Modernization.Candidate = $null
@@ -328,6 +330,8 @@ function Complete-VmAssessment {
             $newer = @($c.NewerGenerationUnavailable)[0]
             $reviews += "Newer generation unavailable: $($newer.SkuName) (v$($newer.Generation)) meets the mandatory checks but is $($newer.Availability) for this VM in $($vm.Region), so the older generation $($primary.SkuName) (v$($primary.Generation)) is recommended; re-check availability before the change"
         }
+        $sizeNote = Get-LargerSizeNote $primary
+        if ($sizeNote) { $reviews += "Larger size: $sizeNote; validate licensing and cost impact" }
         $manual = $c.VendorChangeRequired -or ($primary -and @($primary.ReviewGates | Where-Object { $_ -in 'Dedicated Host', 'Confidential Computing', 'GPU' }).Count -gt 0) -or ($a.Lifecycle.EvidenceClass -eq 'Unable to Confirm')
         $capSensitive = [bool]($vm.ProximityPlacementGroup -or $vm.DedicatedHostId -or $vm.CapacityReservationGroup -or $vm.UsesUltraDisk -or ($a.Current.GPUs -gt 0) -or ($primary -and $primary.vCPUs -ge 64))
         $a.Readiness = Get-DeploymentReadiness -Primary $primary -QuotaStatus $quotaStatus -ManualReview $manual -CapacitySensitive $capSensitive
@@ -354,6 +358,7 @@ function Complete-VmAssessment {
             $why = New-Object System.Collections.Generic.List[string]
             if ($quotaStatus -eq 'Quota Increase Required' -and $secFits -and $secondary.Family -ne $primary.Family) { $why.Add("Quota: $($secondary.Family) has headroom while the primary family needs an increase") }
             if ($secondary.Variant -eq 'Capability-preserving') { $why.Add("Preserves disk throughput caps of the current size ($($secondary.vCPUs) vCPU - validate licensing/cost impact)") }
+            if (Get-LargerSizeNote $secondary) { $why.Add("Larger size: the closest fit $($secondary.ClosestSizeSku) does not qualify - validate licensing/cost impact") }
             if ($secondary.CpuVendor -ne $primary.CpuVendor) { $why.Add("CPU vendor alternative ($($secondary.CpuVendor))") }
             if ($secondary.Family -ne $primary.Family -and -not ($why | Where-Object { $_ -like 'Quota:*' })) { $why.Add("Different quota family ($($secondary.Family)) - fallback if primary quota, capacity or regional availability is constrained") }
             if (($secondary.TempDiskGB -gt 0) -ne ($primary.TempDiskGB -gt 0)) { $why.Add($(if ($secondary.TempDiskGB -gt 0) { "Feature: includes $($secondary.TempDiskGB) GB temp disk" } else { 'Feature: no temp disk (lower cost where local scratch is unused)' })) }

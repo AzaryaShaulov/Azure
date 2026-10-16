@@ -39,11 +39,12 @@ BeforeAll {
             [datetime]$AsOfDate = $script:AsOf,
             [int]$MaxCandidates = 3,
             [switch]$CheckModernization,
-            [string]$QuotaStatus = 'Quota OK'
+            [string]$QuotaStatus = 'Quota OK',
+            $ScoringWeights = $script:Weights
         )
         $lc = Resolve-SkuLifecycle -SkuName $Vm.SkuName -Catalog $RetirementCatalog -AsOf $AsOfDate
         $a = New-VmAssessment -Vm $Vm -Lifecycle $lc -RegionCatalog $Catalog -ProcessorCatalog $script:Proc -RetirementCatalog $RetirementCatalog `
-            -LifecycleCache @{} -CandidateCache @{} -Weights $script:Weights -AsOf $AsOfDate -SubscriptionName 'sub1' -MaxCandidates $MaxCandidates `
+            -LifecycleCache @{} -CandidateCache @{} -Weights $ScoringWeights -AsOf $AsOfDate -SubscriptionName 'sub1' -MaxCandidates $MaxCandidates `
             -CheckModernization:$CheckModernization
         $q = [pscustomobject]@{ Status = $QuotaStatus; DataQuality = 'Verified'; Family = [pscustomobject]@{ QuotaDisplayName = 'x'; MinimumIncrease = 0; RecommendedIncrease = 0; CurrentUsage = 0; Limit = 100; RequiredVcpu = 4 }; Regional = [pscustomobject]@{ MinimumIncrease = 0 } }
         Complete-VmAssessment -Assessment $a -QuotaResult $q -Usage @{}
@@ -678,7 +679,8 @@ Describe 'Primary older than the newest valid generation' {
     BeforeAll {
         $script:RestrictedCatalog = @{}
         foreach ($key in $SkuCat.Keys) { $RestrictedCatalog[$key] = $SkuCat[$key] }
-        foreach ($key in 'standard_d4ds_v5', 'standard_d4s_v5', 'standard_d4s_v6', 'standard_d4as_v5') {
+        # Every v5 size that could replace D4s_v3 is restricted, including the larger D8s_v5, so no v5 size is deployable.
+        foreach ($key in 'standard_d4ds_v5', 'standard_d4s_v5', 'standard_d8s_v5', 'standard_d4s_v6', 'standard_d4as_v5') {
             $restricted = $SkuCat[$key].PSObject.Copy()
             $restricted.LocationRestricted = $true
             $restricted.RestrictionReasons = @('NotAvailableForSubscription')
@@ -710,6 +712,163 @@ Describe 'Primary older than the newest valid generation' {
         $a.Candidates.PSObject.Properties.Name | Should -Contain 'NewerGenerationUnavailable'
         @($a.Candidates.NewerGenerationUnavailable).Count | Should -Be 0
         @($a.ValidationItems | Where-Object { $_ -like 'Newer generation unavailable:*' }).Count | Should -Be 0
+    }
+}
+
+Describe 'Larger sizes of a series' {
+    BeforeAll {
+        # One series (Ddsv5) whose NIC and data disk limits grow with the size, so the closest size is not always the first that fits.
+        function script:New-DdsV5Size {
+            param([string]$Name, [int]$Vcpu, [int]$Nics, [int]$Disks)
+            $size = $SkuCat['standard_d4ds_v5'].PSObject.Copy()
+            $size.Name = $Name; $size.vCPUs = $Vcpu; $size.vCPUsAvailable = $Vcpu; $size.MemoryGB = 4 * $Vcpu; $size.MaxNICs = $Nics; $size.MaxDataDisks = $Disks
+            $size
+        }
+        function script:New-SeriesCatalog {
+            $catalog = @{ 'standard_d4s_v3' = $SkuCat['standard_d4s_v3'] }
+            foreach ($size in @((New-DdsV5Size 'Standard_D4ds_v5' 4 2 8), (New-DdsV5Size 'Standard_D8ds_v5' 8 4 16), (New-DdsV5Size 'Standard_D16ds_v5' 16 8 32), (New-DdsV5Size 'Standard_D32ds_v5' 32 8 32))) {
+                $catalog[$size.Name.ToLowerInvariant()] = $size
+            }
+            $catalog
+        }
+        function script:New-WeightsWithSteps {
+            param($Steps)
+            $copy = $Weights | ConvertTo-Json -Depth 5 | ConvertFrom-Json
+            if ($null -eq $Steps) { $copy.primarySelection.PSObject.Properties.Remove('maxLargerSizeSteps') } else { $copy.primarySelection.maxLargerSizeSteps = $Steps }
+            $copy
+        }
+    }
+
+    It 'ships a bound of two larger sizes' {
+        $Weights.primarySelection.maxLargerSizeSteps | Should -Be 2
+    }
+
+    It 'keeps the closest size, and evaluates no larger one, when the closest size qualifies' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3') -Catalog (New-SeriesCatalog)
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D4ds_v5'
+        $a.Candidates.Primary.Variant | Should -Be 'Closest size'
+        $a.Candidates.Primary.ClosestSizeSku | Should -BeNullOrEmpty
+        @($a.Candidates.Candidates | ForEach-Object SkuName) | Should -Be @('Standard_D4ds_v5')
+        @($a.ValidationItems | Where-Object { $_ -like 'Larger size:*' }).Count | Should -Be 0
+    }
+
+    It 'recommends the next size, never a smaller one, when the closest size fails on <Case>' -ForEach @(
+        @{ Case = 'the NIC limit'; Nics = 3; Disks = 0; Zone = $null; Restrict = $false; Issue = 'NIC Count: VM has 3 NICs; target max 2' }
+        @{ Case = 'the data disk limit'; Nics = 1; Disks = 12; Zone = $null; Restrict = $false; Issue = 'Data Disk Count: VM has 12 data disks; target max 8' }
+        @{ Case = 'a subscription restriction'; Nics = 1; Disks = 0; Zone = $null; Restrict = $true; Issue = 'availability: Restricted' }
+        @{ Case = 'zone availability'; Nics = 1; Disks = 0; Zone = '1'; Restrict = $false; Issue = 'Region / Zone: Not Available in zone 1' }
+    ) {
+        $catalog = New-SeriesCatalog
+        if ($Restrict) { $catalog['standard_d4ds_v5'].LocationRestricted = $true }
+        if ($Zone) { $catalog['standard_d4ds_v5'].Zones = @('2', '3') }
+        $vmArgs = @{ Sku = 'Standard_D4s_v3'; Nics = $Nics }
+        if ($Zone) { $vmArgs.Zones = @($Zone) }
+        $vm = New-TestVm @vmArgs
+        $vm.DataDiskCount = $Disks
+        $a = Invoke-TestAssessment $vm -Catalog $catalog
+        $primary = $a.Candidates.Primary
+        $primary.SkuName | Should -Be 'Standard_D8ds_v5'
+        $primary.Variant | Should -Be 'Larger size'
+        $primary.ClosestSizeSku | Should -Be 'Standard_D4ds_v5'
+        $primary.vCPUs | Should -BeGreaterThan 4
+        $a.Candidates.NoCandidateReason | Should -BeNullOrEmpty
+        $a.Readiness | Should -Be 'Ready'
+        $a.NextStep | Should -Be 'Validate Before Resize'
+        ($a.ValidationItems -join ' | ') | Should -Match ([regex]::Escape("Larger size: Standard_D8ds_v5 (8 vCPU / 32 GB) is larger than the closest fit Standard_D4ds_v5, which does not qualify ($Issue); validate licensing and cost impact"))
+        # Sizes after the first one that qualifies are not evaluated.
+        @($a.Candidates.Candidates | ForEach-Object SkuName) | Should -Not -Contain 'Standard_D16ds_v5'
+    }
+
+    It 'tries up to two larger sizes by default' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Nics 5) -Catalog (New-SeriesCatalog)
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D16ds_v5'
+        $a.Candidates.Primary.ClosestSizeSku | Should -Be 'Standard_D4ds_v5'
+    }
+
+    It 'falls back to two larger sizes when the weights file does not set the bound' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Nics 5) -Catalog (New-SeriesCatalog) -ScoringWeights (New-WeightsWithSteps $null)
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D16ds_v5'
+    }
+
+    It 'stops at the configured bound and says the larger sizes beyond it were not evaluated' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Nics 5) -Catalog (New-SeriesCatalog) -ScoringWeights (New-WeightsWithSteps 1)
+        $a.Candidates.Primary | Should -BeNullOrEmpty
+        $a.Candidates.NoCandidateReason | Should -Be 'All candidates fail mandatory requirements: Standard_D4ds_v5 [NIC Count: VM has 5 NICs; target max 2]. Up to 1 larger size per series was also evaluated and none qualified: Standard_D8ds_v5 [NIC Count: VM has 5 NICs; target max 4]. Larger sizes beyond that were not evaluated.'
+    }
+
+    It 'is switched off by a bound of 0, which restores the closest-size-only search' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Nics 5) -Catalog (New-SeriesCatalog) -ScoringWeights (New-WeightsWithSteps 0)
+        $a.Candidates.Primary | Should -BeNullOrEmpty
+        $a.Candidates.NoCandidateReason | Should -Be 'All candidates fail mandatory requirements: Standard_D4ds_v5 [NIC Count: VM has 5 NICs; target max 2]'
+        @($a.Candidates.Candidates | ForEach-Object SkuName) | Should -Be @('Standard_D4ds_v5')
+    }
+
+    It 'names every larger size that was tried when none qualifies' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Nics 9) -Catalog (New-SeriesCatalog)
+        $a.Candidates.Primary | Should -BeNullOrEmpty
+        $reason = $a.Candidates.NoCandidateReason
+        $reason | Should -Match '^All candidates fail mandatory requirements: Standard_D4ds_v5 \[NIC Count: VM has 9 NICs; target max 2\]\. Up to 2 larger sizes per series were also evaluated and none qualified: '
+        $reason | Should -Match 'Standard_D8ds_v5 \[NIC Count: VM has 9 NICs; target max 4\]'
+        $reason | Should -Match 'Standard_D16ds_v5 \[NIC Count: VM has 9 NICs; target max 8\]'
+        $reason | Should -Match 'Larger sizes beyond that were not evaluated\.$'
+        $reason | Should -Not -Match 'Standard_D32ds_v5'
+        $a.Readiness | Should -Be 'Manual Review Required'
+        $a.Confidence.Level | Should -Be 'LOW'
+    }
+
+    It 'does not try larger sizes when the closest size fails a gate that no size of the series can pass' {
+        $catalog = @{ 'standard_d4s_v3' = $SkuCat['standard_d4s_v3']; 'standard_d4s_v6' = $SkuCat['standard_d4s_v6'] }
+        $larger = $SkuCat['standard_d4s_v6'].PSObject.Copy()
+        $larger.Name = 'Standard_D8s_v6'; $larger.vCPUs = 8; $larger.vCPUsAvailable = 8; $larger.MemoryGB = 32
+        $catalog['standard_d8s_v6'] = $larger
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Gen 'V1') -Catalog $catalog
+        $a.Candidates.Primary | Should -BeNullOrEmpty
+        @($a.Candidates.Candidates | ForEach-Object SkuName) | Should -Be @('Standard_D4s_v6')
+        @($a.Candidates.Candidates)[0].FailedGates | Should -Contain 'VM Generation'
+        $a.Candidates.NoCandidateReason | Should -Not -Match 'larger size'
+    }
+
+    It 'explains a larger alternative as well as a larger primary' {
+        $catalog = New-SeriesCatalog
+        $catalog['standard_d4s_v5'] = $SkuCat['standard_d4s_v5']
+        $catalog['standard_d8s_v5'] = $SkuCat['standard_d8s_v5']
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Nics 3) -Catalog $catalog
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D8ds_v5'
+        $a.Candidates.Secondary.SkuName | Should -Be 'Standard_D8s_v5'
+        $a.SecondaryReason | Should -Match 'Larger size: the closest fit Standard_D4s_v5 does not qualify'
+    }
+
+    It 'explains a larger size that is also the capability-preserving size' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_DS3_v2' -Nics 3)
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D8s_v5'
+        $a.Candidates.Primary.Variant | Should -Be 'Capability-preserving'
+        ($a.ValidationItems -join ' | ') | Should -Match 'Larger size: Standard_D8s_v5 \(8 vCPU / 32 GB\) is larger than the closest fit Standard_D4s_v5, which does not qualify \(NIC Count: VM has 3 NICs; target max 2\)'
+    }
+
+    It 'carries a larger v6 size into the modernization recommendation and says why' {
+        $closest = $SkuCat['standard_d4s_v6'].PSObject.Copy()
+        $larger = $SkuCat['standard_d4s_v6'].PSObject.Copy()
+        $larger.Name = 'Standard_D8s_v6'; $larger.vCPUs = 8; $larger.vCPUsAvailable = 8; $larger.MemoryGB = 32; $larger.MaxNICs = 4
+        $catalog = @{ 'standard_d4s_v3' = $SkuCat['standard_d4s_v3']; 'standard_d4s_v6' = $closest; 'standard_d8s_v6' = $larger }
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Controller 'NVMe' -Nics 3) -Catalog $catalog -CheckModernization
+        $a.Modernization.Status | Should -Be 'Modernize to v6'
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D8s_v6'
+        $a.Modernization.Reason | Should -Match 'Standard_D8s_v6 \(8 vCPU / 32 GB\) is larger than the closest fit Standard_D4s_v6, which does not qualify \(NIC Count: VM has 3 NICs; target max 2\)\.'
+    }
+
+    It 'adds no note for a candidate without a failed closest size' {
+        Get-LargerSizeNote $null | Should -BeNullOrEmpty
+        Get-LargerSizeNote ([pscustomobject]@{ SkuName = 'Standard_D4ds_v5' }) | Should -BeNullOrEmpty
+        Get-LargerSizeNote ([pscustomobject]@{ SkuName = 'Standard_D4ds_v5'; ClosestSizeSku = $null }) | Should -BeNullOrEmpty
+    }
+
+    It 'exports the larger size with its variant' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3' -Nics 3) -Catalog (New-SeriesCatalog)
+        $dir = Export-TestOutput -Assessments @($a)
+        @(Import-Csv (Join-Path $dir 'candidates.csv') | Where-Object { $_.CandidateSku -eq 'Standard_D8ds_v5' -and $_.Variant -eq 'Larger size' -and $_.Role -eq 'Primary' }).Count | Should -Be 1
+        $json = Read-TestJson $dir
+        $json.vms[0].recommendation.primary.sku | Should -Be 'Standard_D8ds_v5'
+        $json.vms[0].recommendation.primary.variant | Should -Be 'Larger size'
     }
 }
 

@@ -77,6 +77,18 @@ All notable changes to this project are documented here. The format follows
   whether a VM on a host group lost its Dedicated Host review, whether "controller not reported" showed on the wrong VM and
   which NIC count appeared in a rejection. The key now includes all three, and a test fails if candidate selection or
   scoring ever reads a VM property that is not in the key.
+- **A larger size of a series was never tried.** Only the smallest fitting size of each series was checked, so when that
+  size failed a size-dependent check (more NICs or data disks than it allows, or zone availability) or was restricted, the
+  whole series was dropped even though the next size would pass. A VM with three NICs got `Manual Review Required` / `LOW`
+  with no recommendation although a same-series size with four NICs was offered, or silently fell back to an older
+  generation or another CPU vendor. When the smallest size of a series does not qualify for such a reason, the next sizes are
+  now evaluated (`primarySelection.maxLargerSizeSteps` in `data/scoring-weights.json`, default 2, 0 turns it off) and the
+  first one that qualifies is offered as the new *Larger size* variant, never smaller than the current size. The
+  recommendation then carries the validation item "Larger size: ... is larger than the closest fit ..., which does not qualify
+  (...)", so confidence is below `HIGH` and the next step is `Validate Before Resize`; the same sentence is added to the
+  modernization reason. When nothing qualifies, `NoCandidateReason` lists the larger sizes that were tried and says that
+  sizes beyond the bound were not evaluated. Nothing changes for a VM whose closest size qualifies. The new `Variant` value
+  appears in `candidates.csv` and `recommendation.*.variant`.
 
 ## [1.2.0] - 2026-10-12
 
