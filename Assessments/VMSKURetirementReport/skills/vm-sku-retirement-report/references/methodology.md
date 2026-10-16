@@ -212,6 +212,12 @@ with the required Gen1 and/or SCSI -> NVMe path. Guest readiness is never assume
      Generation numbers are compared only within a family: Bsv2 is the current B-series while D-series is on v6/v7;
    - then pick by highest score, then **feature similarity** to the current size (fewest added or removed feature
      letters; e.g. E8s_v3 -> E8ds_v5 rather than the specialised E8bds_v5), then closest size.
+
+   The primary can be older than the newest valid generation when that generation is restricted or not offered for the VM
+   (zone or subscription). When newer sizes of the same workload family and CPU vendor pass every mandatory check but are
+   not `Available`, the VM gets the validation item "Newer generation unavailable: ...", which lowers confidence and makes
+   the next step `Validate Before Resize`. Sizes that fail a mandatory check or use another CPU vendor are not reported
+   this way.
 3. **Secondary:** never older than the primary's generation (no ageing fallback such as v4 for a v3 -> v5 move).
    Prefers a different quota family, as a real fallback for quota, capacity or regional constraints.
    Its reason text states quota headroom, capability preservation, vendor, family and temp-disk differences.
@@ -409,6 +415,7 @@ before scheduling a change, regardless of the readiness or confidence badge.
   - temp disk removed
   - disk-throughput reduction
   - availability set or PPG
+  - an older-generation target because a newer valid size is restricted or not offered for the VM
   - cached / partially verified lifecycle evidence
 - **HIGH:** no outstanding items in the assessed evidence, not certification of guest/workload readiness.
 
@@ -439,7 +446,14 @@ labels wrap on narrow screens; the details are shown in print, including when th
 - Request Quota Increase
 - Validate Regional Capacity
 - Manual Review Required
+- Validate Before Resize
 - Proceed with Resize
+
+`Proceed with Resize (change window)` is used only when readiness is `Ready` **and** confidence is `HIGH`. When the VM is
+`Ready` but confidence is lower (the validation items are listed with the VM), the next step is `Validate Before Resize`:
+for example an availability-set member (all VMs in the set may have to be deallocated), a scale-set member (resize through
+the scale-set model), a removed temp disk, reduced disk throughput, an older-generation target or partially verified
+lifecycle evidence. Earlier versions said `Proceed with Resize` for these VMs.
 
 **Waves** (`H` = `-HorizonMonths`, 12-120, default 36):
 

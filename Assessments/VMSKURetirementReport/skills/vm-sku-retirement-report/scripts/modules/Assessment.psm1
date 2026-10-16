@@ -319,6 +319,10 @@ function Complete-VmAssessment {
                 $reviews += "Capability reduced ($($reduced -join ', ')); validate against observed disk throughput or use the capability-preserving alternative"
             }
         }
+        if ($primary -and @($c.NewerGenerationUnavailable).Count -gt 0) {
+            $newer = @($c.NewerGenerationUnavailable)[0]
+            $reviews += "Newer generation unavailable: $($newer.SkuName) (v$($newer.Generation)) meets the mandatory checks but is $($newer.Availability) for this VM in $($vm.Region), so the older generation $($primary.SkuName) (v$($primary.Generation)) is recommended; re-check availability before the change"
+        }
         $manual = $c.VendorChangeRequired -or ($primary -and @($primary.ReviewGates | Where-Object { $_ -in 'Dedicated Host', 'Confidential Computing', 'GPU' }).Count -gt 0) -or ($a.Lifecycle.EvidenceClass -eq 'Unable to Confirm')
         $capSensitive = [bool]($vm.ProximityPlacementGroup -or $vm.DedicatedHostId -or $vm.CapacityReservationGroup -or $vm.UsesUltraDisk -or ($a.Current.GPUs -gt 0) -or ($primary -and $primary.vCPUs -ge 64))
         $a.Readiness = Get-DeploymentReadiness -Primary $primary -QuotaStatus $quotaStatus -ManualReview $manual -CapacitySensitive $capSensitive
@@ -327,7 +331,9 @@ function Complete-VmAssessment {
         $a.Confidence = Get-MigrationConfidence -Lifecycle $a.Lifecycle -Primary $primary -Current $a.Current -VendorChangeRequired $c.VendorChangeRequired -QuotaStatus $quotaStatus -ValidationItems $items
         $a.ValidationItems = @($a.Confidence.ValidationItems)
         $a.NextStep = switch ($a.Readiness) {
-            'Ready' { if ($a.Action -eq 'No Action Required') { 'None' } else { 'Proceed with Resize (change window)' } }
+            # 'Proceed with Resize' only when nothing is left to validate; availability set / scale set membership, a removed
+            # temp disk, reduced disk throughput or an older-generation target keep confidence below HIGH.
+            'Ready' { if ($a.Action -eq 'No Action Required') { 'None' } elseif ($a.Confidence.Level -eq 'HIGH') { 'Proceed with Resize (change window)' } else { 'Validate Before Resize' } }
             'Quota Increase Required' { 'Request Quota Increase' }
             'SKU Restricted' { 'Validate Regional Capacity' }
             'Regional Limitation' { 'Validate Regional Capacity' }

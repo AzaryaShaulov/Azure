@@ -620,6 +620,82 @@ Describe 'JSON and CSV output shapes' {
     }
 }
 
+Describe 'Next step for a VM that is ready to resize' {
+    BeforeAll {
+        $script:AvailabilitySetId = '/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Compute/availabilitySets/as1'
+        $script:ScaleSetId = '/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Compute/virtualMachineScaleSets/vmss1'
+    }
+
+    It 'says to proceed only when nothing is left to validate' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3')
+        $a.Readiness | Should -Be 'Ready'
+        $a.Confidence.Level | Should -Be 'HIGH'
+        $a.NextStep | Should -Be 'Proceed with Resize (change window)'
+    }
+
+    It 'asks to validate first for <Case>' -ForEach @(
+        @{ Case = 'an availability set member'; InSet = $true; InScaleSet = $false; Level = 'MEDIUM'; Item = 'Availability Set: ' }
+        @{ Case = 'a scale set member'; InSet = $false; InScaleSet = $true; Level = 'MEDIUM'; Item = 'VM Scale Set \(Flexible\): ' }
+        @{ Case = 'both an availability set and a scale set'; InSet = $true; InScaleSet = $true; Level = 'LOW'; Item = 'Availability Set: ' }
+    ) {
+        $vm = New-TestVm -Sku 'Standard_D4s_v3'
+        if ($InSet) { $vm.AvailabilitySetId = $AvailabilitySetId }
+        if ($InScaleSet) { $vm.VmssId = $ScaleSetId }
+        $a = Invoke-TestAssessment $vm
+        $a.Readiness | Should -Be 'Ready'
+        $a.Confidence.Level | Should -Be $Level
+        $a.NextStep | Should -Be 'Validate Before Resize'
+        ($a.ValidationItems -join ' | ') | Should -Match $Item
+    }
+
+    It 'keeps the blocking steps ahead of the validation step' {
+        $vm = New-TestVm -Sku 'Standard_D4s_v3'
+        $vm.AvailabilitySetId = $AvailabilitySetId
+        $a = Invoke-TestAssessment $vm -QuotaStatus 'Quota Increase Required'
+        $a.Readiness | Should -Be 'Quota Increase Required'
+        $a.NextStep | Should -Be 'Request Quota Increase'
+    }
+}
+
+Describe 'Primary older than the newest valid generation' {
+    BeforeAll {
+        $script:RestrictedCatalog = @{}
+        foreach ($key in $SkuCat.Keys) { $RestrictedCatalog[$key] = $SkuCat[$key] }
+        foreach ($key in 'standard_d4ds_v5', 'standard_d4s_v5', 'standard_d4s_v6', 'standard_d4as_v5') {
+            $restricted = $SkuCat[$key].PSObject.Copy()
+            $restricted.LocationRestricted = $true
+            $restricted.RestrictionReasons = @('NotAvailableForSubscription')
+            $RestrictedCatalog[$key] = $restricted
+        }
+    }
+
+    It 'names the restricted newer generation, lowers confidence and asks to validate' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3') -Catalog $RestrictedCatalog
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D4ds_v4'
+        $a.Readiness | Should -Be 'Ready'
+        $a.Confidence.Level | Should -Be 'MEDIUM'
+        $a.NextStep | Should -Be 'Validate Before Resize'
+        $item = @($a.ValidationItems | Where-Object { $_ -like 'Newer generation unavailable:*' })
+        $item.Count | Should -Be 1
+        $item[0] | Should -Match 'Standard_D4ds_v5 \(v5\) meets the mandatory checks but is Restricted for this VM in eastus2'
+        $item[0] | Should -Match 'older generation Standard_D4ds_v4 \(v4\) is recommended'
+    }
+
+    It 'lists only newer sizes of the same family and CPU vendor that pass every mandatory check' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3') -Catalog $RestrictedCatalog
+        # D4s_v6 is NVMe only (rejected for this SCSI VM) and D4as_v5 is AMD; both are restricted but are not the reason for an older target.
+        @($a.Candidates.NewerGenerationUnavailable | ForEach-Object SkuName) | Should -Be @('Standard_D4ds_v5', 'Standard_D4s_v5')
+    }
+
+    It 'adds nothing when the primary is the newest valid generation' {
+        $a = Invoke-TestAssessment (New-TestVm -Sku 'Standard_D4s_v3')
+        $a.Candidates.Primary.SkuName | Should -Be 'Standard_D4ds_v5'
+        $a.Candidates.PSObject.Properties.Name | Should -Contain 'NewerGenerationUnavailable'
+        @($a.Candidates.NewerGenerationUnavailable).Count | Should -Be 0
+        @($a.ValidationItems | Where-Object { $_ -like 'Newer generation unavailable:*' }).Count | Should -Be 0
+    }
+}
+
 Describe 'Compatibility score' {
     It 'totals the documented weights to 100' {
         ($Weights.weights.PSObject.Properties.Value | Measure-Object -Sum).Sum | Should -Be 100

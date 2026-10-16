@@ -205,7 +205,7 @@ Contents:
 | DeploymentReadiness | Ready, Quota Increase Required, SKU Restricted, Regional Limitation, Capacity Validation Required, Manual Review Required, Not Applicable |
 | Confidence | HIGH, MEDIUM, LOW, N/A |
 | Action | No Action Required, Modernization Optional, Plan Migration, Migration Required Within 36/24/12 Months, Immediate Migration Required, Manual Review Required |
-| NextStep | Proceed with Resize (change window), Request Quota Increase, Validate Regional Capacity, Manual Review Required, None |
+| NextStep | Proceed with Resize (change window) (readiness `Ready` and confidence `HIGH`), Validate Before Resize (readiness `Ready` but confidence below `HIGH`; the open items are in `ValidationItems`), Request Quota Increase, Validate Regional Capacity, Manual Review Required, None |
 | Wave | Wave 1 - Urgent, Wave 2 - Near Term, Wave 3 - Planned, Beyond Horizon, Review - Unconfirmed, Wave 4 - Modernization, None |
 | Data quality | Verified, Partially Verified, Unable to Verify, Not Evaluated |
 | RetirementQuotaStatus, ModernizationQuotaStatus, ModernizationPeakQuotaStatus, PeakStatus | Same values as QuotaStatus |

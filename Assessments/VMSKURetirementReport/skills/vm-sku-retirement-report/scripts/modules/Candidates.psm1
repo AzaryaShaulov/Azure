@@ -407,6 +407,16 @@ function Find-ReplacementCandidates {
         (-not $primary -or ($_.WorkloadFamily -eq $primary.WorkloadFamily -and $_.Generation -gt $primary.Generation))
     } | Sort-Object @{ e = 'Generation'; Descending = $true }, @{ e = 'Score'; Descending = $true } | Select-Object -First 1
 
+    # Newer generations of the primary's workload family that meet every requirement but are restricted or not offered for
+    # this VM: the primary is then older than what the region would otherwise provide, and the report has to say so.
+    $newerUnavailable = @()
+    if ($primary) {
+        $newerUnavailable = @($evaluated | Where-Object {
+                -not $_.Rejected -and $_.WorkloadFamily -eq $primary.WorkloadFamily -and $_.CpuVendor -eq $primary.CpuVendor -and
+                $_.Generation -gt $primary.Generation -and $_.Availability -ne 'Available'
+            } | Sort-Object @{ e = 'Generation'; Descending = $true }, @{ e = 'Score'; Descending = $true }, SkuName)
+    }
+
     $noCandidateReason = $null
     if (-not $primary) {
         $noCandidateReason = if ($evaluated.Count -eq 0) { "No current-generation size with >= $($Current.vCPUs) vCPU / $(if ($Current.MemoryGB) { "$($Current.MemoryGB) GB" } else { 'unknown GB (current size not in Resource SKUs API)' }) in the permitted series ($(if ($allowedSeries.Count) { $allowedSeries -join ', ' } else { "$($curInfo.Family)-series" })) is offered in $($Vm.Region) for this subscription" }
@@ -453,6 +463,7 @@ function Find-ReplacementCandidates {
         Secondary            = $secondary
         Third                = $third
         FutureGeneration     = $future
+        NewerGenerationUnavailable = $newerUnavailable
         VendorChangeRequired = $vendorChange
         VendorChangeReason   = $vendorReason
         NoCandidateReason    = $noCandidateReason

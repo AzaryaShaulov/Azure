@@ -7,6 +7,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- **A "Ready" VM no longer says "Proceed with Resize" when something is still open.** The next step is now
+  `Validate Before Resize` whenever readiness is `Ready` but confidence is below `HIGH` (availability-set or scale-set
+  member, removed temp disk, reduced disk throughput, an older-generation target, partially verified lifecycle evidence);
+  `Proceed with Resize (change window)` is kept for `Ready` VMs with `HIGH` confidence. `NextStep` in the CSV, JSON, HTML and
+  Markdown can therefore contain the new value; the other values are unchanged.
 - **CI and the release workflow run on Windows only.** The tool runs through Azure CLI and local PowerShell, as a GitHub
   Copilot skill or as a standalone script; Linux, macOS and containers are not supported. The Linux and macOS test legs
   and the Linux container job were removed, and the Package and release jobs moved to a Windows runner. PowerShell 7.2 and
@@ -24,6 +29,10 @@ All notable changes to this project are documented here. The format follows
   mismatch prints the module's file manifest, and `dependencies.psd1` holds the new hashes.
 - The PowerShell 7.2 compatibility check never ran (its container image tag did not exist). It is replaced by the Windows
   `powershell-compat` job described above.
+- **An older-generation target came without a note.** When the newest valid size of the family was restricted or not offered
+  for the VM, the primary silently fell back to an older generation and the VM stayed `Ready` with `HIGH` confidence. It now
+  gets the validation item "Newer generation unavailable: ..." (naming the size and its availability), which lowers confidence
+  and sets the next step to `Validate Before Resize`.
 - **JSON arrays and empty CSV files had unstable shapes.** In `assessment.json` a single group in a `summary.By*` list
   (a one-subscription or one-region estate, the common case) was written as an object, no groups as `null`; the top-level
   `quota.family` and `quota.regional` and the per-VM `strategy.ValidationItems` and `strategy.TargetComparison` had the same
