@@ -1,6 +1,6 @@
 # Locked build tools. TreeHash is the SHA-256 of the module's file manifest ("relative path<TAB>file SHA-256" in ordinal
 # path order, installer metadata such as PSGetModuleInfo.xml excluded; see Get-ModuleManifest in build.ps1), so it is
-# the same on every operating system and for every installer. PackageHash is recorded for reference; the build does not
+# independent of the culture-specific sort order and of the installer. PackageHash is recorded for reference; the build does not
 # verify it.
 @{
     Pester = @{

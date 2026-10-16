@@ -11,7 +11,7 @@ All notable changes to this project are documented here. The format follows
   the installed module folder in culture-sensitive order, including the install-specific `PSGetModuleInfo.xml`, so the
   committed hashes only matched the machine they were computed on and every "Lint and test" job stopped in Bootstrap on
   Windows, Linux and macOS. The hash now covers a manifest of the module files in ordinal path order, includes hidden
-  files and ignores installer metadata, so it is the same on every operating system and for every installer. A mismatch
+  files and ignores installer metadata, so it is independent of the culture-specific sort order and of the installer. A mismatch
   prints the module's file manifest, and `dependencies.psd1` holds the new hashes.
 - The PowerShell 7.2 compatibility job pulled the container tag `7.2.24-ubuntu-22.04`, which does not exist, so it never
   started. It now uses `lts-7.2-ubuntu-22.04` (PowerShell 7.2.24), pinned by digest.
