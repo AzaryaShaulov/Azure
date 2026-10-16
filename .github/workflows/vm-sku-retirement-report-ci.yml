@@ -1,5 +1,8 @@
 name: VMSKURetirementReport CI
 
+# The tool is supported on Windows only (Azure CLI and local PowerShell, as a GitHub Copilot skill or a standalone script),
+# so CI and release run on Windows only.
+
 on:
   push:
     branches: [main]
@@ -20,33 +23,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  powershell-72:
-    name: PowerShell 7.2 runtime compatibility
-    runs-on: ubuntu-latest
-    # PowerShell 7.2.24, the last 7.2 release, pinned by digest. 7.2.24-ubuntu-22.04 is not a published tag, and the
-    # floating 7.2-ubuntu-22.04 tag is a stale 2022 build, so the lts-7.2 tag is the one that carries 7.2.24.
-    container: mcr.microsoft.com/powershell:lts-7.2-ubuntu-22.04@sha256:029c44ac7eaf304b05957e0c9e9e2487a367ce8d7548a7b4d1b00b453ce94f1e
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Run offline assessment smoke test
-        shell: pwsh
-        run: |
-          $root = Resolve-Path ./Assessments/VMSKURetirementReport/skills/vm-sku-retirement-report
-          $out = Join-Path $env:RUNNER_TEMP 'pwsh72-smoke'
-          $env:PATH = "$(Join-Path $root 'tests/mock')$([IO.Path]::PathSeparator)$env:PATH"
-          & (Join-Path $root 'scripts/Invoke-VMSKURetirementReport.ps1') -OutputPath $out -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2
-          if ($LASTEXITCODE -ne 0) { throw "Assessment failed with exit code $LASTEXITCODE" }
-          $report = Get-Content (Join-Path $out 'assessment.json') -Raw | ConvertFrom-Json
-          if ($report.summary.TotalVmsScanned -ne 7) { throw 'PowerShell 7.2 smoke test returned an unexpected VM count.' }
-
   test:
-    name: Lint and test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+    name: Lint and test (Windows)
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -64,13 +43,66 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: pester-${{ matrix.os }}
+          name: pester-results
           path: Assessments/VMSKURetirementReport/TestResults/pester.xml
           if-no-files-found: ignore
 
+  powershell-compat:
+    name: PowerShell ${{ matrix.version }} runtime check (Windows)
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The supported floor (the last 7.2 release) and the latest 7.4 release; the main job above runs the runner's own,
+          # newer PowerShell. To move a version, update it here together with the SHA-256 from the release's hashes.sha256.
+          - version: '7.2.24'
+            sha256: 'a1ccb6d8ad52f917470a136c3752af4465f261bcbe570cf44f52aa69ae6e867e'
+          - version: '7.4.21'
+            sha256: 'b47ee814b9fe5fe6b713a26667998cadd6bbb74cb3889fadea56c775f11953a2'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install PowerShell ${{ matrix.version }} (official archive, checksum verified)
+        shell: pwsh
+        env:
+          PWSH_VERSION: ${{ matrix.version }}
+          PWSH_SHA256: ${{ matrix.sha256 }}
+        run: |
+          $name = "PowerShell-$env:PWSH_VERSION-win-x64.zip"
+          $zip = Join-Path $env:RUNNER_TEMP $name
+          Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v$env:PWSH_VERSION/$name" -OutFile $zip
+          $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $env:PWSH_SHA256) { throw "$name failed checksum verification: expected $env:PWSH_SHA256, got $actual." }
+          $dest = Join-Path $env:RUNNER_TEMP "pwsh-$env:PWSH_VERSION"
+          Expand-Archive -LiteralPath $zip -DestinationPath $dest
+          "PWSH_EXE=$(Join-Path $dest 'pwsh.exe')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run the offline mock assessment under PowerShell ${{ matrix.version }}
+        shell: pwsh
+        env:
+          EXPECTED_PWSH_VERSION: ${{ matrix.version }}
+        run: |
+          $smoke = @'
+          $ErrorActionPreference = 'Stop'
+          if ($PSVersionTable.PSVersion.ToString() -ne $env:EXPECTED_PWSH_VERSION) { throw "Expected PowerShell $env:EXPECTED_PWSH_VERSION but is running $($PSVersionTable.PSVersion)." }
+          $root = Join-Path $env:GITHUB_WORKSPACE 'Assessments/VMSKURetirementReport/skills/vm-sku-retirement-report'
+          $out = Join-Path $env:RUNNER_TEMP 'pwsh-smoke-output'
+          $env:PATH = (Join-Path $root 'tests/mock') + [IO.Path]::PathSeparator + $env:PATH
+          & (Join-Path $root 'scripts/Invoke-VMSKURetirementReport.ps1') -OutputPath $out -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2 -SkipPricing
+          if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "Assessment failed with exit code $LASTEXITCODE" }
+          $report = Get-Content (Join-Path $out 'assessment.json') -Raw | ConvertFrom-Json
+          if ($report.summary.TotalVmsScanned -ne 7) { throw "Unexpected VM count: $($report.summary.TotalVmsScanned)" }
+          '@
+          $file = Join-Path $env:RUNNER_TEMP 'pwsh-smoke.ps1'
+          Set-Content -LiteralPath $file -Value $smoke
+          & $env:PWSH_EXE -NoProfile -File $file
+          if ($LASTEXITCODE -ne 0) { throw "The assessment failed under PowerShell $env:EXPECTED_PWSH_VERSION (exit code $LASTEXITCODE)." }
+
   package:
     name: Package skill
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

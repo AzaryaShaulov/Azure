@@ -1,5 +1,8 @@
 name: VMSKURetirementReport Release
 
+# The tool is supported on Windows only (Azure CLI and local PowerShell, as a GitHub Copilot skill or a standalone script),
+# so the release is built and published from a Windows runner.
+
 on:
   push:
     tags: ['v*.*.*']
@@ -10,7 +13,7 @@ permissions:
 jobs:
   build:
     name: Build release artifacts
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,7 +43,7 @@ jobs:
 
   release:
     name: Publish release
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: build
     permissions:
       contents: write
