@@ -38,7 +38,7 @@ All notable changes to this project are documented here. The format follows
   `LICENSE` and `THIRD-PARTY-NOTICES.md` (26 files instead of 35). `./build.ps1 -Task Package` compares the finished ZIP with
   the skill folder and fails on a missing or unexpected file; `-DistPath <folder>` builds somewhere other than `dist/`.
   The installation through `npx skills add` copies the skill folder from the repository as it is, so it still includes
-  `tests/`. The checksummed ZIP in `dist/` is not rebuilt here; it is rebuilt when the release is made.
+  `tests/`. The checksummed ZIP in `dist/` was rebuilt from this branch (26 files, no `tests/`) and its `.sha256` updated.
 - **CI checks the sample and the HTML, and the release tag names the project.** A new `sample-diff` job runs the new
   `./build.ps1 -Task SampleDiff`, which rebuilds the sample offline in a scratch folder and fails when it differs from
   `examples/sample-report` (generation time and line endings are ignored), so a change that alters the sample but was
