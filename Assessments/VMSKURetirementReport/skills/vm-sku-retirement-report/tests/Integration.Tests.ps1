@@ -739,3 +739,224 @@ Describe 'Data-collection problems (mock Azure with an injected fault)' {
         }
     }
 }
+
+Describe 'End-to-end I/O boundaries and options (mock Azure)' {
+    BeforeAll {
+        $script:MockDir = Join-Path $PSScriptRoot 'mock'
+        $script:StartScript = Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1'
+        # A pause is a no-op in the run, so a retried call does not make the test wait.
+        $script:NoSleep = 'function global:Start-Sleep { param([double]$Seconds) }'
+        # One report run in its own process against the mock az. $Prelude is PowerShell that runs first (shims, environment variables).
+        $script:RunReport = {
+            param([string]$Name, [string]$Prelude = '', [string]$Arguments = '')
+            $dir = Join-Path $TestDrive $Name
+            $log = & pwsh -NoProfile -Command "$Prelude `$env:PATH='$MockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$StartScript' -OutputPath '$dir' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2 $Arguments" 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
+            [pscustomobject]@{ Dir = $dir; Log = $log; Flat = ($log -replace '\s+', ' '); ExitCode = $exitCode }
+        }
+    }
+
+    Context 'Resource Graph pages, throttling and denial' {
+        BeforeAll {
+            $state = Join-Path $TestDrive 'throttle-state'
+            New-Item -ItemType Directory -Path $state | Out-Null
+            $script:ThrottleState = $state
+            $script:PagedCalls = Join-Path $TestDrive 'paged-calls.log'
+            $script:Paged = & $RunReport 'paged' "$PricesShim; $NoSleep; `$env:MOCK_AZ_GRAPH_PAGE_SIZE='3'; `$env:MOCK_AZ_THROTTLE='graph query=2'; `$env:MOCK_AZ_STATE_DIR='$state'; `$env:MOCK_AZ_CALL_LOG='$PagedCalls';"
+            $script:PageDenied = & $RunReport 'page-denied' "$PricesShim; $NoSleep; `$env:MOCK_AZ_GRAPH_PAGE_SIZE='3'; `$env:MOCK_AZ_FAULT='graph-page2-denied';"
+            $script:OptionalDenied = & $RunReport 'optional-denied' "$PricesShim; $NoSleep; `$env:MOCK_AZ_FAULT='graph-optional-denied';"
+        }
+
+        It 'reads an inventory that comes in pages through a throttled Resource Graph and gets the same results as the unpaged run' {
+            $Paged.ExitCode | Should -Be 0
+            $Paged.Log | Should -Match 'Outputs:'
+            $Paged.Log | Should -Not -Match 'Data-collection issues'
+            foreach ($name in 'vm-assessment.csv', 'candidates.csv', 'quota-impact.csv') {
+                (Get-Content (Join-Path $Paged.Dir $name) -Raw) | Should -Be (Get-Content (Join-Path $Out $name) -Raw) -Because "$name must not depend on the page size"
+            }
+        }
+
+        It 'follows every skip token and repeats a throttled call' {
+            $calls = @(Get-Content $PagedCalls)
+            # 7 VMs and 7 NICs read 3 rows at a time are 3 calls each; disks, disk-encryption extensions, Advisor and Service Health
+            # are one call each; and 2 calls were answered with HTTP 429 and made again.
+            $calls.Count | Should -Be 12
+            @($calls | Where-Object { $_ -match ' --skip-token ' }).Count | Should -Be 4
+            (Get-Content (Join-Path $ThrottleState 'throttle-count.txt') -Raw).Trim() | Should -Be '2'
+        }
+
+        It 'stops with the reason, and writes no assessment, when a later page of the inventory is denied' {
+            $PageDenied.ExitCode | Should -Not -Be 0
+            $PageDenied.Flat | Should -Match 'az graph query .* failed \(exit 1\)'
+            $PageDenied.Flat | Should -Match 'AuthorizationFailed'
+            $PageDenied.Flat | Should -Match "The client 'a\*\*\*\*@contoso\.example' with object id '\*\*\*\*'"
+            $PageDenied.Flat | Should -Not -Match 'admin@contoso\.example|99999999-9999'
+            $PageDenied.Log | Should -Not -Match 'Outputs:'
+            foreach ($name in 'assessment.json', 'vm-assessment.csv', 'executive-summary.md') { Join-Path $PageDenied.Dir $name | Should -Not -Exist }
+        }
+
+        It 'completes without the optional queries that were denied and names each of them' {
+            $OptionalDenied.ExitCode | Should -Be 0
+            $OptionalDenied.Log | Should -Match 'Outputs:'
+            $OptionalDenied.Flat | Should -Match 'Data-collection issues: 3\.'
+            $json = Get-Content (Join-Path $OptionalDenied.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+            $issues = @($json.collectionIssues)
+            $issues.Count | Should -Be 3
+            $issues.api | Should -Contain 'Resource Graph: Azure Advisor retirement recommendations'
+            $issues.api | Should -Contain 'Resource Graph: Service Health retirement events'
+            $issues.api | Should -Contain 'Resource Graph: disk-encryption extensions'
+            foreach ($issue in $issues) {
+                $issue.message | Should -Match 'AuthorizationFailed'
+                $issue.message | Should -Not -Match 'admin@contoso\.example|99999999-9999'
+            }
+            @($issues | Where-Object { $_.api -like '*Advisor*' -or $_.api -like '*Service Health*' } | ForEach-Object effect | Where-Object { $_ -match 'lifecycle evidence is not affected' }).Count | Should -Be 2
+            @(Import-Csv (Join-Path $OptionalDenied.Dir 'vm-assessment.csv')).Count | Should -Be 7
+        }
+    }
+
+    Context 'options and Azure Monitor' {
+        BeforeAll {
+            # Offline REST for the run: fixture prices, no pauses, and an Azure Monitor that either answers or refuses with HTTP 403
+            # (SHIM_METRICS_MODE). Every metrics request is written to SHIM_METRICS_LOG.
+            $script:MetricsShim = Join-Path $TestDrive 'metrics-boundary-shim.ps1'
+            Set-Content -LiteralPath $MetricsShim -Value @'
+function global:Invoke-RestMethod {
+    param([string]$Uri, [string]$Method, $Headers, [string]$ContentType, $Body, [int]$TimeoutSec)
+    if ($Uri -like 'https://prices.azure.com/*') { return (Get-Content -LiteralPath $env:SHIM_PRICES -Raw | ConvertFrom-Json) }
+    if ($Uri -notlike 'https://*.metrics.monitor.azure.com/*') { throw "Test is offline; blocked request to $Uri" }
+    Add-Content -LiteralPath $env:SHIM_METRICS_LOG -Value $Uri
+    if ($env:SHIM_METRICS_MODE -eq 'forbidden') {
+        $record = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('Response status code does not indicate success: 403 (Forbidden).'), 'WebCmdletWebResponseException', [System.Management.Automation.ErrorCategory]::InvalidOperation, $Uri)
+        $record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('{"error":{"code":"AuthorizationFailed","message":"The client ''admin@contoso.example'' with object id ''99999999-9999-9999-9999-999999999999'' does not have authorization to perform action ''microsoft.insights/metrics/read'' over scope ''/subscriptions/11111111-1111-1111-1111-111111111111''."}}')
+        throw $record
+    }
+    $values = foreach ($id in @(($Body | ConvertFrom-Json).resourceids)) {
+        $cpu = @(1..50 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]5; maximum = [double]20 } })
+        $mem = @(1..50 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double](12 * 1GB) } })
+        [pscustomobject]@{ resourceid = $id; value = @(
+                [pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = $cpu }) },
+                [pscustomobject]@{ name = [pscustomobject]@{ value = 'Available Memory Bytes' }; timeseries = @([pscustomobject]@{ data = $mem }) }) }
+    }
+    [pscustomobject]@{ values = @($values) }
+}
+'@
+            $script:RunWithMetrics = {
+                param([string]$Name, [string]$Mode, [string]$Arguments)
+                $uris = Join-Path $TestDrive "$Name-metrics-requests.log"
+                $prices = Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json'
+                $run = & $RunReport $Name ". '$MetricsShim'; $NoSleep; `$env:SHIM_PRICES='$prices'; `$env:SHIM_METRICS_LOG='$uris'; `$env:SHIM_METRICS_MODE='$Mode';" $Arguments
+                $run | Add-Member -NotePropertyName Requests -NotePropertyValue @(if (Test-Path -LiteralPath $uris) { Get-Content -LiteralPath $uris }) -PassThru
+            }
+            $script:Options = & $RunWithMetrics 'options' 'ok' '-QuotaSafetyPct 60 -RightsizingLookbackDays 7 -IncludeRightsizing -SkipHtml'
+            $script:Forbidden = & $RunWithMetrics 'metrics-forbidden' 'forbidden' '-IncludeRightsizing'
+            $script:Operator = & $RunWithMetrics 'metrics-forbidden-operator' 'forbidden' '-IncludeRightsizing -IncludeOperatorAccount'
+            $optionalVm = "`$env:MOCK_AZ_EXTRA_VMS='optional:Standard_D4ds_v4:V2';"
+            $script:OptionalOff = & $RunReport 'optional-off' "$PricesShim; $optionalVm"
+            $script:OptionalOn = & $RunReport 'optional-on' "$PricesShim; $optionalVm" '-HtmlIncludeOptionalModernization'
+        }
+
+        It 'writes every output except the HTML with -SkipHtml and records the options in assessment.json' {
+            $Options.ExitCode | Should -Be 0
+            $Options.Log | Should -Match 'Outputs:'
+            foreach ($f in 'assessment.json', 'vm-assessment.csv', 'candidates.csv', 'quota-impact.csv', 'retirement-evidence.json', 'executive-summary.md', 'detailed-report.md', 'run.log') { Join-Path $Options.Dir $f | Should -Exist }
+            @(Get-ChildItem $Options.Dir -Filter '*.html').Count | Should -Be 0
+            $parameters = (Get-Content (Join-Path $Options.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).parameters
+            $parameters.QuotaSafetyPct | Should -Be 60
+            $parameters.RightsizingLookbackDays | Should -Be 7
+            $parameters.IncludeRightsizing | Should -BeTrue
+        }
+
+        It 'reads the Azure Monitor metrics of the last -RightsizingLookbackDays days in one batch' {
+            # All four VMs that are rightsizing targets are in one subscription and region.
+            $Options.Requests.Count | Should -Be 1
+            $window = [regex]::Match($Options.Requests[0], 'starttime=(?<start>[^&]+)Z&endtime=(?<end>[^&]+)Z')
+            $window.Success | Should -BeTrue
+            $start = [datetime]::ParseExact($window.Groups['start'].Value, 's', [cultureinfo]::InvariantCulture)
+            $end = [datetime]::ParseExact($window.Groups['end'].Value, 's', [cultureinfo]::InvariantCulture)
+            ($end - $start).TotalDays | Should -Be 7
+        }
+
+        It 'adds -QuotaSafetyPct to the recommended quota increase, and only where an increase is needed' {
+            $known = @(Import-Csv (Join-Path $Options.Dir 'quota-impact.csv') | Where-Object { $_.Limit })
+            $known.Count | Should -BeGreaterThan 0
+            @($known | Where-Object { [int]$_.MinimumIncrease -gt 0 }).Count | Should -BeGreaterThan 0 -Because 'the fixture has a family that needs an increase'
+            foreach ($row in $known) {
+                $expected = if ([int]$row.MinimumIncrease -gt 0) { [int][math]::Ceiling([int]$row.MinimumIncrease + ([int]$row.RequiredVcpu * 60 / 100)) } else { 0 }
+                [int]$row.RecommendedIncrease | Should -Be $expected -Because "$($row.Scope) $($row.QuotaName)"
+            }
+            $family = { param($Path) Import-Csv $Path | Where-Object { $_.Scope -eq 'Retirement' -and $_.QuotaName -eq 'standardddsv5family' } }
+            [int](& $family (Join-Path $Options.Dir 'quota-impact.csv')).RecommendedIncrease | Should -BeGreaterThan ([int](& $family (Join-Path $Out 'quota-impact.csv')).RecommendedIncrease)
+        }
+
+        It 'rejects a lookback of <Days> days before it collects anything' -ForEach @(@{ Days = 5 }, @{ Days = 94 }) {
+            $run = & $RunReport "lookback-$Days" '' "-RightsizingLookbackDays $Days"
+            $run.ExitCode | Should -Not -Be 0
+            $run.Flat | Should -Match "Cannot validate argument on parameter 'RightsizingLookbackDays'"
+            $run.Dir | Should -Not -Exist
+        }
+
+        It 'records one data-collection issue for the subscription and region when Azure Monitor refuses the metrics' {
+            $Forbidden.ExitCode | Should -Be 0
+            $Forbidden.Log | Should -Match 'Outputs:'
+            $Forbidden.Flat | Should -Match 'Data-collection issues: 1\.'
+            # Three attempts at the one batch.
+            $Forbidden.Requests.Count | Should -Be 3
+            $issues = @((Get-Content (Join-Path $Forbidden.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).collectionIssues)
+            $issues.Count | Should -Be 1
+            $issues[0].api | Should -Be 'Azure Monitor metrics (rightsizing)'
+            $issues[0].subscriptionId | Should -Be '11111111-1111-1111-1111-111111111111'
+            $issues[0].region | Should -Be 'eastus2'
+            $issues[0].message | Should -Match '403'
+            $issues[0].message | Should -Match 'AuthorizationFailed'
+            $issues[0].message | Should -Match 'microsoft\.insights/metrics/read'
+            $issues[0].message | Should -Match "'a\*\*\*\*@contoso\.example'"
+            $issues[0].message | Should -Match "The client 'a\*\*\*\*@contoso\.example' with object id '\*\*\*\*' does not have authorization"
+            $issues[0].effect | Should -Be 'Rightsizing shows Insufficient Data for 4 VM(s) in this scope.'
+            (Get-Content (Join-Path $Forbidden.Dir 'executive-summary.md') -Raw) | Should -Match 'Azure Monitor metrics \(rightsizing\)'
+            foreach ($file in Get-ChildItem $Forbidden.Dir -File -Recurse) {
+                $content = Get-Content $file.FullName -Raw
+                $content | Should -Not -Match 'admin@contoso\.example' -Because "$($file.Name) must not contain the raw account"
+                $content | Should -Not -Match '99999999-9999' -Because "$($file.Name) must not contain the raw object id"
+            }
+        }
+
+        It 'masks the account and the object id in run.log, where PowerShell wrote the error before the report could sanitize it' {
+            $runLog = Get-Content (Join-Path $Forbidden.Dir 'run.log') -Raw
+            $runLog | Should -Match 'TerminatingError' -Because 'the caught error is in the transcript, so the check is meaningful'
+            $runLog | Should -Match "The client (?:'|\\u0027)a\*\*\*\*@contoso\.example(?:'|\\u0027) with object id (?:'|\\u0027)\*\*\*\*(?:'|\\u0027)"
+        }
+
+        It 'keeps the account the operator asked to see in run.log and still masks the object id' {
+            $Operator.ExitCode | Should -Be 0
+            $runLog = Get-Content (Join-Path $Operator.Dir 'run.log') -Raw
+            $runLog | Should -Match 'Account: admin@contoso\.example'
+            $runLog | Should -Not -Match '99999999-9999'
+            $json = Get-Content (Join-Path $Operator.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+            $json.parameters.IncludeOperatorAccount | Should -BeTrue
+            $json.signedInAccount | Should -Be 'admin@contoso.example'
+        }
+
+        It 'leaves the retirement recommendations alone and shows Insufficient Data for each VM that has no metrics' {
+            $rows = @(Import-Csv (Join-Path $Forbidden.Dir 'vm-assessment.csv'))
+            $rows.Count | Should -Be 7
+            @($rows | Where-Object RightsizingStatus -eq 'Insufficient Data').Count | Should -Be 4
+            foreach ($row in $rows) {
+                $row.Action | Should -Be $ByVm[$row.VM].Action -Because $row.VM
+                $row.RecommendedSku | Should -Be $ByVm[$row.VM].RecommendedSku -Because $row.VM
+            }
+        }
+
+        It 'lists a VM that only has an optional modernization in the HTML only with -HtmlIncludeOptionalModernization' {
+            foreach ($run in $OptionalOff, $OptionalOn) {
+                $run.ExitCode | Should -Be 0
+                $row = @(Import-Csv (Join-Path $run.Dir 'vm-assessment.csv') | Where-Object VM -eq 'vm-optional')
+                $row.Count | Should -Be 1
+                $row[0].Action | Should -Be 'Modernization Optional'
+            }
+            (Get-Content (Get-ChildItem $OptionalOff.Dir -Filter 'contoso-prod-*.html').FullName -Raw) | Should -Not -Match 'vm-optional'
+            (Get-Content (Get-ChildItem $OptionalOn.Dir -Filter 'contoso-prod-*.html').FullName -Raw) | Should -Match 'vm-optional'
+            (Get-Content (Join-Path $OptionalOff.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).parameters.HtmlIncludeOptionalModernization | Should -BeFalse
+            (Get-Content (Join-Path $OptionalOn.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).parameters.HtmlIncludeOptionalModernization | Should -BeTrue
+        }
+    }
+}

@@ -70,6 +70,18 @@ All notable changes to this project are documented here. The format follows
   `RecommendationReason`, and every listed VM without a recommendation gets a detail panel that explains why. Error text now
   also masks the signed-in identity's object id. A REST failure that the `az vm list-skus` fallback covered is noted in
   `run.log` only. Rightsizing and pricing failures are listed with the other problems.
+- **A refused Azure Monitor call was only a verbose log line.** When the metrics call failed after its retries (typically a
+  missing Monitoring Reader role) the VMs silently showed `Insufficient Data` and nothing said why. It is now recorded once
+  for each subscription and region, with the reason from the body of the error answer and the number of VMs that get no
+  data, and shown in the console, `run.log`, `assessment.json` (`collectionIssues`), the executive summary and the HTML
+  callout. The retirement recommendations are not affected.
+- **`run.log` could hold the signed-in account and its object id.** PowerShell writes a caught error to the transcript as it
+  is raised, before the report can sanitize it, and the body of an Azure REST error (Azure Monitor, a tenant-scoped Resource
+  Graph query, the Resource SKUs call) names the caller: "The client 'jane.doe@contoso.com' with object id '...' does not
+  have authorization ...". The transcript is now checked again after it is closed, and email addresses and object ids in
+  it are masked; with `-IncludeOperatorAccount` the operator's own account stays. The error text that the report shows had
+  a second gap: PowerShell re-serializes a JSON error body and writes each quote as `\u0027`, and the object id after such
+  a quote was not masked. Both are fixed. The rightsizing warning in the console is sanitized like the recorded message.
 - **Stale or incomplete retirement evidence did not stand out.** The cached catalog had no maximum age, and a live parse that
   silently lost series or list rows (for example after a Learn page format change) was used without a word, which would turn
   retiring sizes into "No Retirement Announced". The report now warns when the cache is more than 90 days older than the

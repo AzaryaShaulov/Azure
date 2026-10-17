@@ -369,7 +369,7 @@ try {
         Write-Phase "Rightsizing telemetry (Azure Monitor, $RightsizingLookbackDays days): $($targets.Count) VMs"
         if ($targets.Count -eq 0) { Write-PhaseDone 'no running VMs with an action' }
         else { try {
-            $util = Get-VmUtilization -Vms @($targets | ForEach-Object Vm) -LookbackDays $RightsizingLookbackDays -TenantId $argTenant
+            $util = Get-VmUtilization -Vms @($targets | ForEach-Object Vm) -LookbackDays $RightsizingLookbackDays -TenantId $argTenant -IssueSink $issueSink
             foreach ($a in $targets) {
                 $key = "$($a.Vm.SubscriptionId)|$($a.Vm.Region)".ToLowerInvariant()
                 $a.Rightsizing = Get-RightsizingOpportunity -Utilization $util[$a.Vm.Id] -Primary $a.Candidates.Primary -RegionCatalog $skuCatalogs[$key] -MemoryGB $a.Current.MemoryGB -Vm $a.Vm -Current $a.Current -ProcessorCatalog $procCatalog
@@ -377,8 +377,9 @@ try {
             Write-PhaseDone "$(@($targets | Where-Object { $_.Rightsizing -and $_.Rightsizing.Status -eq 'Potential Rightsizing Opportunity' }).Count) potential opportunities"
         }
         catch {
-            Write-Warning "Rightsizing telemetry unavailable: $($_.Exception.Message)"
-            Add-CollectionIssue -Sink $issueSink -Api 'Azure Monitor metrics (rightsizing)' -Message (ConvertTo-SafeCliMessage $_.Exception.Message) -Effect 'Rightsizing opportunities are not shown.'
+            $safe = ConvertTo-SafeCliMessage $_.Exception.Message
+            Write-Warning "Rightsizing telemetry unavailable: $safe"
+            Add-CollectionIssue -Sink $issueSink -Api 'Azure Monitor metrics (rightsizing)' -Message $safe -Effect 'Rightsizing opportunities are not shown.'
         } }
     }
 
@@ -453,5 +454,8 @@ try {
 }
 finally {
     Stop-Transcript | Out-Null
+    # A caught error is written to the transcript as it is raised, so an HTTP error body that names the signed-in account and its
+    # object id is in run.log before the report can sanitize it. The account the operator asked to see stays.
+    Protect-RunLog -Path (Join-Path $OutputPath 'run.log') -Keep @(if ($IncludeOperatorAccount) { $accountName })
     & $restoreSnapshotEnv
 }

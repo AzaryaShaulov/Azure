@@ -152,6 +152,95 @@ Describe 'Personal data in outputs and messages' {
         $msg | Should -Match 'j\*\*\*\*@contoso\.com'
         $msg | Should -Not -Match 'jane\.doe'
     }
+    It 'masks the account and the object id in "<Name>"' -ForEach @(
+        @{ Name = 'quoted text'; Text = "The client 'jane.doe@contoso.com' with object id '11111111-2222-3333-4444-555555555555' cannot act."; Expected = "The client 'j****@contoso.com' with object id '****' cannot act." }
+        @{ Name = 'unquoted text'; Text = 'object id 11111111-2222-3333-4444-555555555555 belongs to jane.doe@contoso.com'; Expected = 'object id **** belongs to j****@contoso.com' }
+        @{ Name = 'double quotes in any case'; Text = 'Object ID "11111111-2222-3333-4444-555555555555"'; Expected = 'Object ID "****"' }
+        @{ Name = 'a JSON error body that PowerShell re-serialized'; Text = 'The client \u0027jane.doe@contoso.com\u0027 with object id \u002711111111-2222-3333-4444-555555555555\u0027 cannot act.'; Expected = 'The client \u0027j****@contoso.com\u0027 with object id \u0027****\u0027 cannot act.' }
+        @{ Name = 'text that has already been masked'; Text = "The client 'j****@contoso.com' with object id '****' cannot act."; Expected = "The client 'j****@contoso.com' with object id '****' cannot act." }
+        @{ Name = 'text with a subscription id'; Text = "scope '/subscriptions/66666666-7777-8888-9999-000000000000' for jane.doe@contoso.com"; Expected = "scope '/subscriptions/66666666-7777-8888-9999-000000000000' for j****@contoso.com" }
+        @{ Name = 'several lines'; Text = "first jane.doe@contoso.com`r`nsecond john@fabrikam.org`r`n"; Expected = "first j****@contoso.com`r`nsecond j****@fabrikam.org`r`n" }
+    ) {
+        Hide-Identity $Text | Should -Be $Expected
+    }
+    It 'keeps the accounts it is told to keep, and still masks the others' {
+        Hide-Identity 'jane.doe@contoso.com and john@fabrikam.org' -Keep 'JANE.DOE@contoso.com' | Should -Be 'jane.doe@contoso.com and j****@fabrikam.org'
+        Hide-Identity $null | Should -BeNullOrEmpty
+        Hide-Identity '' | Should -Be ''
+    }
+    It 'shows the quote of a re-serialized JSON error body as a quote and still masks the object id' {
+        $raw = "{`n  `"error`": {`n    `"code`": `"AuthorizationFailed`",`n    `"message`": `"The client \u0027jane.doe@contoso.com\u0027 with object id \u002711111111-2222-3333-4444-555555555555\u0027 does not have authorization.`"`n  }`n}"
+        $safe = ConvertTo-SafeCliMessage $raw
+        $safe | Should -Match "The client 'j\*\*\*\*@contoso\.com' with object id '\*\*\*\*' does not have authorization"
+        $safe | Should -Not -Match 'jane\.doe|11111111-2222'
+        $safe | Should -Not -Match '\\u0027'
+    }
+}
+
+Describe 'Protecting run.log' {
+    BeforeAll {
+        # What PowerShell wrote to a real transcript for a caught Invoke-RestMethod 403 (checked against a local HTTP listener).
+        $script:LeakedTranscript = @'
+**********************
+PowerShell transcript start
+**********************
+=== Rightsizing telemetry (Azure Monitor, 30 days): 4 VMs ===
+PS>TerminatingError(Invoke-RestMethod): "
+{
+  "error": {
+    "code": "AuthorizationFailed",
+    "message": "The client \u0027admin@contoso.example\u0027 with object id \u002799999999-9999-9999-9999-999999999999\u0027 does not have authorization to perform action \u0027microsoft.insights/metrics/read\u0027."
+  }
+}"
+Account: a****@contoso.example
+**********************
+PowerShell transcript end
+**********************
+'@
+    }
+
+    It 'masks the account and the object id that a caught REST error left in the transcript, and changes nothing else' {
+        $path = Join-Path $TestDrive 'leaked.log'
+        [System.IO.File]::WriteAllText($path, $LeakedTranscript, [System.Text.UTF8Encoding]::new($false))
+        Protect-RunLog -Path $path
+        $text = [System.IO.File]::ReadAllText($path)
+        $text | Should -Not -Match 'admin@contoso\.example|99999999-9999'
+        $text | Should -Match 'The client \\u0027a\*\*\*\*@contoso\.example\\u0027 with object id \\u0027\*\*\*\*\\u0027 does not have authorization to perform action \\u0027microsoft\.insights/metrics/read\\u0027'
+        $restored = $text.Replace('a****@contoso.example\u0027 with', 'admin@contoso.example\u0027 with').Replace('object id \u0027****', 'object id \u002799999999-9999-9999-9999-999999999999')
+        $restored | Should -BeExactly $LeakedTranscript
+    }
+
+    It 'keeps the account the operator asked to see and masks the object id' {
+        $path = Join-Path $TestDrive 'kept.log'
+        [System.IO.File]::WriteAllText($path, $LeakedTranscript, [System.Text.UTF8Encoding]::new($false))
+        Protect-RunLog -Path $path -Keep 'admin@contoso.example'
+        $text = [System.IO.File]::ReadAllText($path)
+        $text | Should -Match 'The client \\u0027admin@contoso\.example\\u0027 with object id \\u0027\*\*\*\*\\u0027'
+        $text | Should -Not -Match '99999999-9999'
+    }
+
+    It 'leaves a transcript that names no account exactly as it was' {
+        $path = Join-Path $TestDrive 'clean.log'
+        [System.IO.File]::WriteAllBytes($path, [System.Text.Encoding]::UTF8.GetBytes("Tenant: Contoso  Account: j****@contoso.com`r`nScope: 1 subscription(s)`r`n"))
+        $before = (Get-FileHash -LiteralPath $path).Hash
+        Protect-RunLog -Path $path
+        (Get-FileHash -LiteralPath $path).Hash | Should -Be $before
+    }
+
+    It 'does nothing when there is no transcript' {
+        { Protect-RunLog -Path (Join-Path $TestDrive 'missing.log') } | Should -Not -Throw
+        Join-Path $TestDrive 'missing.log' | Should -Not -Exist
+    }
+
+    It 'warns instead of failing when the transcript cannot be rewritten' {
+        $path = Join-Path $TestDrive 'locked.log'
+        [System.IO.File]::WriteAllText($path, $LeakedTranscript)
+        $stream = [System.IO.File]::Open($path, 'Open', 'ReadWrite', 'None')
+        try { $warnings = @(Protect-RunLog -Path $path 3>&1) }
+        finally { $stream.Dispose() }
+        $warnings.Count | Should -Be 1
+        $warnings[0].Message | Should -Match '^run\.log could not be checked for account names and object ids: '
+    }
 }
 
 Describe 'Microsoft Learn lifecycle parsing' {
@@ -1159,6 +1248,79 @@ Describe 'Data-collection issues: Resource SKU collection' {
     }
 }
 
+Describe 'Resource SKUs over REST' {
+    BeforeAll {
+        $script:SkuItems = @(Get-Content (Join-Path $PSScriptRoot 'fixtures/skus-eastus2.json') -Raw | ConvertFrom-Json)
+        # A fake az that logs every call and hands out a token.
+        $script:TokenAz = { param([string]$Log) "Add-Content -LiteralPath '$Log' -Value (`$args -join ' ')`nWrite-Output '{`"accessToken`":`"t`"}'`nexit 0" }
+    }
+    BeforeEach {
+        Mock Start-Sleep -ModuleName SkuCatalog {}
+        $env:VMSKU_TEST_CALLS = '0'
+    }
+    AfterEach { Remove-Item Env:\VMSKU_TEST_CALLS -ErrorAction SilentlyContinue }
+
+    It 'asks for the subscription''s own token and reads the sizes of the region with it' {
+        $items = $SkuItems
+        Mock Invoke-RestMethod -ModuleName SkuCatalog -MockWith { [pscustomobject]@{ value = $items } }.GetNewClosure()
+        $log = Join-Path $TestDrive 'token.log'
+        $catalog = Use-FakeAz -Body (& $TokenAz $log) -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' }
+        $catalog.Count | Should -Be $SkuItems.Count
+        $catalog.ContainsKey('standard_d4s_v5') | Should -BeTrue
+        @(Get-Content $log) | Should -Be @('account get-access-token --subscription s1 --resource https://management.azure.com -o json --only-show-errors')
+        Should -Invoke Invoke-RestMethod -ModuleName SkuCatalog -Times 1 -Exactly -ParameterFilter {
+            $Uri -eq "https://management.azure.com/subscriptions/s1/providers/Microsoft.Compute/skus?api-version=2021-07-01&`$filter=location eq 'eastus2'" -and $Headers.Authorization -eq 'Bearer t'
+        }
+    }
+
+    It 'follows nextLink and merges the sizes of every page' {
+        $first = $SkuItems[0..7]; $second = $SkuItems[8..($SkuItems.Count - 1)]
+        # A closure does not see the parameters of the mocked command, so the pages are told apart by the order of the calls.
+        $page = {
+            $env:VMSKU_TEST_CALLS = 1 + [int]$env:VMSKU_TEST_CALLS
+            if ([int]$env:VMSKU_TEST_CALLS -eq 1) { [pscustomobject]@{ value = $first; nextLink = 'https://management.azure.com/next-page' } }
+            else { [pscustomobject]@{ value = $second } }
+        }.GetNewClosure()
+        Mock Invoke-RestMethod -ModuleName SkuCatalog -MockWith $page
+        $sink = New-CollectionIssueSink
+        $catalog = Use-FakeAz -Body (& $TokenAz (Join-Path $TestDrive 'next.log')) -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $catalog.Count | Should -Be $SkuItems.Count
+        Should -Invoke Invoke-RestMethod -ModuleName SkuCatalog -Times 2 -Exactly
+        Should -Invoke Invoke-RestMethod -ModuleName SkuCatalog -Times 1 -Exactly -ParameterFilter { $Uri -eq 'https://management.azure.com/next-page' }
+        @(Get-CollectionIssue -Sink $sink).Count | Should -Be 0
+    }
+
+    It 'retries a page that fails and does not fall back to az when a retry succeeds' {
+        $items = $SkuItems
+        Mock Invoke-RestMethod -ModuleName SkuCatalog -MockWith {
+            $env:VMSKU_TEST_CALLS = 1 + [int]$env:VMSKU_TEST_CALLS
+            if ([int]$env:VMSKU_TEST_CALLS -lt 3) { throw 'Response status code does not indicate success: 429 (Too Many Requests).' }
+            [pscustomobject]@{ value = $items }
+        }.GetNewClosure()
+        $sink = New-CollectionIssueSink
+        $log = Join-Path $TestDrive 'retry.log'
+        $catalog = Use-FakeAz -Body (& $TokenAz $log) -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' -IssueSink $sink }
+        $catalog.Count | Should -Be $SkuItems.Count
+        Should -Invoke Invoke-RestMethod -ModuleName SkuCatalog -Times 3 -Exactly
+        Should -Invoke Start-Sleep -ModuleName SkuCatalog -Times 2 -Exactly
+        @(Get-Content $log | Where-Object { $_ -match 'list-skus' }).Count | Should -Be 0
+        @(Get-CollectionIssue -Sink $sink).Count | Should -Be 0
+    }
+
+    It 'falls back to az vm list-skus after three failed attempts at the same page' {
+        Mock Invoke-RestMethod -ModuleName SkuCatalog { throw 'Response status code does not indicate success: 503.' }
+        $log = Join-Path $TestDrive 'fallback.log'
+        $fixture = Join-Path $PSScriptRoot 'fixtures/skus-eastus2.json'
+        $body = "Add-Content -LiteralPath '$log' -Value (`$args -join ' ')`nif (`"`$args`" -match 'get-access-token') { Write-Output '{`"accessToken`":`"t`"}'; exit 0 }`nGet-Content -LiteralPath '$fixture' -Raw; exit 0"
+        $catalog = Use-FakeAz -Body $body -Action { Get-RegionSkuCatalog -SubscriptionId 's1' -Region 'eastus2' 6>$null }
+        $catalog.Count | Should -Be $SkuItems.Count
+        Should -Invoke Invoke-RestMethod -ModuleName SkuCatalog -Times 3 -Exactly
+        $calls = @(Get-Content $log)
+        $calls.Count | Should -Be 2
+        $calls[1] | Should -Match '^vm list-skus --location eastus2 --resource-type virtualMachines --all --subscription s1'
+    }
+}
+
 Describe 'Data-collection issues: effect on assessments and outputs' {
     BeforeAll {
         $script:SkuIssue = [pscustomobject]@{ SubscriptionId = 's1'; Region = 'eastus2'; Api = 'Resource SKUs'; Message = 'az vm list-skus failed: (AuthorizationFailed) access denied'; Effect = 'No replacement size can be recommended for VMs in this scope.' }
@@ -1909,6 +2071,79 @@ Describe 'Rightsizing' {
             $u[$vm.Id].CpuP95 | Should -Be 4
             $u[$vm.Id].MemAvailP05Bytes | Should -BeNullOrEmpty
         }
+
+        Context 'when a call still fails after its retries' {
+            BeforeAll {
+                $script:Forbidden = {
+                    $record = [System.Management.Automation.ErrorRecord]::new([System.Net.Http.HttpRequestException]::new('Response status code does not indicate success: 403 (Forbidden).'), 'Forbidden', [System.Management.Automation.ErrorCategory]::PermissionDenied, $null)
+                    $record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('{"error":{"code":"AuthorizationFailed","message":"The client ''jane.doe@contoso.com'' with object id ''11111111-2222-3333-4444-555555555555'' does not have authorization to perform action ''microsoft.insights/metrics/read'' over scope ''/subscriptions/s1''."}}')
+                    throw $record
+                }
+            }
+
+            It 'records it once per subscription and region with the number of VMs that get no data, and keeps the other scopes' {
+                Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith $SeriesMock
+                Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith $Forbidden -ParameterFilter { $Uri -like 'https://eastus2.*' }
+                $vms = @(1..60 | ForEach-Object { & $MetricVm $_ 'eastus2' }) + @(61..65 | ForEach-Object { & $MetricVm $_ 'westus2' })
+                $sink = New-CollectionIssueSink
+                $u = Get-VmUtilization -Vms $vms -IssueSink $sink
+                @($u.Keys).Count | Should -Be 5
+                @($u.Keys | Where-Object { $_ -match 'vm6[1-5]$' }).Count | Should -Be 5
+                # Two failing batches (50 and 10 VMs) of three attempts each, and one batch that works.
+                Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 7 -Exactly
+                $issues = @(Get-CollectionIssue -Sink $sink)
+                $issues.Count | Should -Be 1
+                $issues[0].Api | Should -Be 'Azure Monitor metrics (rightsizing)'
+                $issues[0].SubscriptionId | Should -Be 's1'
+                $issues[0].Region | Should -Be 'eastus2'
+                $issues[0].Effect | Should -Be 'Rightsizing shows Insufficient Data for 60 VM(s) in this scope.'
+            }
+
+            It 'gives the reason that the body of the answer states, with the identity masked' {
+                Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith $Forbidden
+                $sink = New-CollectionIssueSink
+                [void](Get-VmUtilization -Vms @(& $MetricVm 1 'eastus2') -IssueSink $sink)
+                $message = @(Get-CollectionIssue -Sink $sink)[0].Message
+                $message | Should -Match '403 \(Forbidden\)'
+                $message | Should -Match 'AuthorizationFailed'
+                $message | Should -Match 'microsoft\.insights/metrics/read'
+                $message | Should -Match "object id '\*\*\*\*'"
+                $message | Should -Match 'j\*\*\*\*@contoso\.com'
+                $message | Should -Not -Match 'jane\.doe|11111111-2222'
+            }
+
+            It 'records an answer that is empty' {
+                Mock Invoke-RestMethod -ModuleName Rightsizing { $null }
+                $sink = New-CollectionIssueSink
+                $u = Get-VmUtilization -Vms @(& $MetricVm 1 'eastus2') -IssueSink $sink
+                @($u.Keys).Count | Should -Be 0
+                @(Get-CollectionIssue -Sink $sink)[0].Message | Should -Be 'The call returned no data.'
+            }
+
+            It 'writes a warning when it has no sink to record to' {
+                Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith $Forbidden
+                $output = @(Get-VmUtilization -Vms @(& $MetricVm 1 'eastus2') 3>&1)
+                $warnings = @($output | Where-Object { $_ -is [System.Management.Automation.WarningRecord] })
+                $warnings.Count | Should -Be 1
+                "$($warnings[0])" | Should -Match '^Azure Monitor metrics \(rightsizing\) \(eastus2, subscription s1\): .*AuthorizationFailed.* Rightsizing shows Insufficient Data for 1 VM\(s\) in this scope\.$'
+            }
+
+            It 'records a replayed call that the snapshot has no answer for, without calling Azure' {
+                Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith $SeriesMock
+                $snapshot = Join-Path $TestDrive 'empty-snapshot'
+                New-Item -ItemType Directory $snapshot -Force | Out-Null
+                $env:VMSKU_SNAPSHOT_DIR = $snapshot; $env:VMSKU_SNAPSHOT_MODE = 'Replay'
+                try {
+                    $sink = New-CollectionIssueSink
+                    $u = Get-VmUtilization -Vms @(& $MetricVm 1 'eastus2') -IssueSink $sink
+                }
+                finally { Remove-Item Env:\VMSKU_SNAPSHOT_DIR, Env:\VMSKU_SNAPSHOT_MODE -ErrorAction SilentlyContinue }
+                @($u.Keys).Count | Should -Be 0
+                Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 0 -Exactly
+                @(Get-CollectionIssue -Sink $sink).Count | Should -Be 1
+                @(Get-CollectionIssue -Sink $sink)[0].Message | Should -Match 'The snapshot has no recorded response'
+            }
+        }
     }
 
     Describe 'Opportunity' {
@@ -2055,6 +2290,259 @@ Describe 'Output writers (offline)' {
         $idx | Should -Match 'Dsv\d|Dasv\d'
         $idx | Should -Match '<td><strong>VM inventory \(Azure Resource Graph\)</strong></td>'
         $idx | Should -Match '<td><strong>Physical regional capacity</strong></td><td><span class=''badge b-yellow''>Not verifiable</span>'
+    }
+}
+
+Describe 'Azure CLI calls: retries and failures' {
+    BeforeAll {
+        # A fake az that answers the first $FailFirst calls with an error and then prints $Output. Every call is a new process,
+        # so the number of calls is kept in a file.
+        function script:New-FlakyAz {
+            param([int]$FailFirst, [string]$ErrorText, [string]$Output = '[{"n":1}]')
+            $counter = Join-Path $TestDrive ('flaky-' + [guid]::NewGuid().ToString('N') + '.txt')
+            $body = @"
+`$counter = '$counter'
+`$seen = if (Test-Path -LiteralPath `$counter) { [int](Get-Content -LiteralPath `$counter -Raw) } else { 0 }
+Set-Content -LiteralPath `$counter -Value (`$seen + 1)
+if (`$seen -lt $FailFirst) { Write-Error '$ErrorText' -ErrorAction Continue; exit 1 }
+Write-Output '$Output'
+exit 0
+"@
+            [pscustomobject]@{ Counter = $counter; Body = $body }
+        }
+        function script:Get-FakeAzCalls { param($Az) [int](Get-Content -LiteralPath $Az.Counter -Raw) }
+        $script:SleepLog = Join-Path $TestDrive 'sleeps.txt'
+        function script:Get-Sleeps { if (Test-Path -LiteralPath $script:SleepLog) { @(Get-Content -LiteralPath $script:SleepLog | ForEach-Object { [double]$_ }) } else { @() } }
+    }
+    BeforeEach {
+        Remove-Item -LiteralPath $SleepLog -ErrorAction SilentlyContinue
+        $env:VMSKU_TEST_SLEEP_LOG = $SleepLog
+        Mock Start-Sleep -ModuleName Common { Add-Content -LiteralPath $env:VMSKU_TEST_SLEEP_LOG -Value $Seconds }
+    }
+    AfterEach { Remove-Item Env:\VMSKU_TEST_SLEEP_LOG -ErrorAction SilentlyContinue }
+
+    It 'retries a throttled call with a growing pause and returns the answer of the call that succeeds' {
+        $az = New-FlakyAz -FailFirst 2 -ErrorText 'ERROR: (429) Too Many Requests.'
+        $result = Use-FakeAz -Body $az.Body -Action { Invoke-AzJson -Arguments @('vm', 'list-usage') }
+        @($result)[0].n | Should -Be 1
+        Get-FakeAzCalls $az | Should -Be 3
+        $sleeps = @(Get-Sleeps)
+        $sleeps.Count | Should -Be 2
+        # 2^attempt seconds plus up to two seconds of jitter.
+        $sleeps[0] | Should -BeGreaterOrEqual 2
+        $sleeps[0] | Should -BeLessOrEqual 4
+        $sleeps[1] | Should -BeGreaterOrEqual 4
+        $sleeps[1] | Should -BeLessOrEqual 6
+    }
+
+    It 'treats "<Text>" as a temporary failure' -ForEach @(
+        @{ Text = 'ERROR: (TooManyRequests) The request was throttled.' }
+        @{ Text = 'ERROR: The service is temporarily unavailable (503).' }
+        @{ Text = 'ERROR: ServiceUnavailable' }
+        @{ Text = 'ERROR: ConnectionReset by the remote host' }
+        @{ Text = 'ERROR: The operation timed out.' }
+    ) {
+        $az = New-FlakyAz -FailFirst 1 -ErrorText $Text
+        @(Use-FakeAz -Body $az.Body -Action { Invoke-AzJson -Arguments @('vm', 'list-usage') }).Count | Should -Be 1
+        Get-FakeAzCalls $az | Should -Be 2
+        @(Get-Sleeps).Count | Should -Be 1
+    }
+
+    It 'does not retry a failure that is not temporary' {
+        $az = New-FlakyAz -FailFirst 5 -ErrorText 'ERROR: (AuthorizationFailed) The client does not have authorization.'
+        { Use-FakeAz -Body $az.Body -Action { Invoke-AzJson -Arguments @('vm', 'list-usage') } } | Should -Throw '*az vm list-usage failed (exit 1)*AuthorizationFailed*'
+        Get-FakeAzCalls $az | Should -Be 1
+        @(Get-Sleeps).Count | Should -Be 0
+    }
+
+    It 'gives up after the retries and throws the reason with the identity masked' {
+        $az = New-FlakyAz -FailFirst 99 -ErrorText 'ERROR: (429) Too Many Requests for jane.doe@contoso.com.'
+        $message = try { Use-FakeAz -Body $az.Body -Action { Invoke-AzJson -Arguments @('vm', 'list-usage') }; $null } catch { $_.Exception.Message }
+        $message | Should -Match 'az vm list-usage failed \(exit 1\)'
+        $message | Should -Match '429'
+        $message | Should -Match 'j\*\*\*\*@contoso\.com'
+        $message | Should -Not -Match 'jane\.doe'
+        # One call and three retries, with pauses of about 2, 4 and 8 seconds.
+        Get-FakeAzCalls $az | Should -Be 4
+        $sleeps = @(Get-Sleeps)
+        $sleeps.Count | Should -Be 3
+        $sleeps[2] | Should -BeGreaterOrEqual 8
+        $sleeps[2] | Should -BeLessOrEqual 10
+    }
+
+    It 'retries as often as -MaxRetries says' -ForEach @(
+        @{ Retries = 0; Calls = 1 }
+        @{ Retries = 1; Calls = 2 }
+        @{ Retries = 2; Calls = 3 }
+    ) {
+        $az = New-FlakyAz -FailFirst 99 -ErrorText 'ERROR: (429) Too Many Requests.'
+        { Use-FakeAz -Body $az.Body -Action { Invoke-AzJson -Arguments @('vm', 'list-usage') -MaxRetries $Retries } } | Should -Throw
+        Get-FakeAzCalls $az | Should -Be $Calls
+        @(Get-Sleeps).Count | Should -Be $Retries
+    }
+
+    It 'with -AllowFailure returns nothing and the reason once the retries are used up' {
+        $az = New-FlakyAz -FailFirst 99 -ErrorText 'ERROR: (429) Too Many Requests.'
+        $result = Use-FakeAz -Body $az.Body -Action {
+            $failure = $null
+            $answer = Invoke-AzJson -Arguments @('vm', 'list-usage') -AllowFailure -Failure ([ref]$failure)
+            [pscustomobject]@{ Answer = $answer; Failure = $failure }
+        }
+        $result.Answer | Should -BeNullOrEmpty
+        $result.Failure | Should -Match '429'
+        Get-FakeAzCalls $az | Should -Be 4
+    }
+
+    It 'with -AllowFailure still returns the answer when a retry succeeds' {
+        $az = New-FlakyAz -FailFirst 1 -ErrorText 'ERROR: (429) Too Many Requests.'
+        $result = Use-FakeAz -Body $az.Body -Action {
+            $failure = $null
+            $answer = Invoke-AzJson -Arguments @('vm', 'list-usage') -AllowFailure -Failure ([ref]$failure)
+            [pscustomobject]@{ Answer = $answer; Failure = $failure }
+        }
+        @($result.Answer)[0].n | Should -Be 1
+        $result.Failure | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Resource Graph queries through az: pages, chunks and failures' {
+    BeforeAll {
+        # A fake az that answers a query in three pages of two, two and one rows, chained by skip tokens, and writes each call to a
+        # log. $FailAt names the skip token whose page answers with an error.
+        $script:PagingAz = {
+            param([string]$Log, [string]$FailAt = '__none__')
+            @"
+`$log = '$Log'
+Add-Content -LiteralPath `$log -Value (`$args -join ' ')
+`$i = [array]::IndexOf(@(`$args), '--skip-token')
+`$token = if (`$i -ge 0) { @(`$args)[`$i + 1] } else { '' }
+if (`$token -eq '$FailAt') { Write-Error 'ERROR: (Forbidden) access denied' -ErrorAction Continue; exit 1 }
+switch (`$token) {
+    '' { Write-Output '{"data":[{"id":"a"},{"id":"b"}],"skip_token":"t1"}' }
+    't1' { Write-Output '{"data":[{"id":"c"},{"id":"d"}],"skip_token":"t2"}' }
+    't2' { Write-Output '{"data":[{"id":"e"}],"skip_token":null}' }
+}
+exit 0
+"@
+        }
+    }
+
+    It 'follows the skip token through every page and asks for the page size it was given' {
+        $log = Join-Path $TestDrive 'pages.log'
+        $rows = Use-FakeAz -Body (& $PagingAz $log) -Action { Invoke-ArgQuery -Query 'Resources' -PageSize 2 }
+        @($rows | ForEach-Object id) | Should -Be @('a', 'b', 'c', 'd', 'e')
+        $calls = @(Get-Content $log)
+        $calls.Count | Should -Be 3
+        $calls[0] | Should -Match '--first 2'
+        $calls[0] | Should -Not -Match '--skip-token'
+        $calls[1] | Should -Match '--skip-token t1'
+        $calls[2] | Should -Match '--skip-token t2'
+    }
+
+    It 'sends no subscription filter when no subscription is given' {
+        $log = Join-Path $TestDrive 'nofilter.log'
+        [void](Use-FakeAz -Body (& $PagingAz $log) -Action { Invoke-ArgQuery -Query 'Resources' })
+        @(Get-Content $log) | ForEach-Object { $_ | Should -Not -Match '--subscriptions' }
+    }
+
+    It 'splits the subscriptions into chunks and pages each chunk' {
+        $log = Join-Path $TestDrive 'chunks.log'
+        $rows = Use-FakeAz -Body (& $PagingAz $log) -Action { Invoke-ArgQuery -Query 'Resources' -SubscriptionIds @('s1', 's2', 's3', 's4', 's5') -ChunkSize 2 -PageSize 2 }
+        @($rows).Count | Should -Be 15
+        $calls = @(Get-Content $log)
+        $calls.Count | Should -Be 9
+        @($calls | Where-Object { $_ -match '--subscriptions s1 s2( |$)' }).Count | Should -Be 3
+        @($calls | Where-Object { $_ -match '--subscriptions s3 s4( |$)' }).Count | Should -Be 3
+        @($calls | Where-Object { $_ -match '--subscriptions s5( |$)' }).Count | Should -Be 3
+    }
+
+    It 'stops with the failure of a later page instead of returning the rows it has' {
+        $log = Join-Path $TestDrive 'later-page.log'
+        { Use-FakeAz -Body (& $PagingAz $log 't1') -Action { Invoke-ArgQuery -Query 'Resources' -PageSize 2 } } | Should -Throw '*az graph query*failed (exit 1)*Forbidden*'
+        @(Get-Content $log).Count | Should -Be 2
+    }
+
+    It 'returns the rows it has, and says where it stopped, when the failure is tolerated' {
+        $log = Join-Path $TestDrive 'tolerated.log'
+        $result = Use-FakeAz -Body (& $PagingAz $log 't2') -Action {
+            $failure = $null
+            $rows = @(Invoke-ArgQuery -Query 'Resources' -PageSize 2 -AllowFailure -Failure ([ref]$failure))
+            [pscustomobject]@{ Rows = $rows; Failure = $failure }
+        }
+        @($result.Rows | ForEach-Object id) | Should -Be @('a', 'b', 'c', 'd')
+        $result.Failure | Should -Match 'Forbidden'
+        $result.Failure | Should -Match 'stopped after 4 rows'
+    }
+}
+
+Describe 'Resource Graph queries over REST: retries, chunks and failures' {
+    BeforeEach {
+        Mock -ModuleName Inventory Invoke-AzJson { [pscustomobject]@{ accessToken = 'tok' } }
+        Mock -ModuleName Inventory Start-Sleep {}
+        # The answer of the mocked REST call comes from process variables because a mock keeps no state of its own: the first
+        # VMSKU_TEST_FAIL_FIRST calls fail with the HTTP status VMSKU_TEST_STATUS, and a request that continues a query
+        # (it has a $skipToken) fails when VMSKU_TEST_FAIL_PAGE2 is set.
+        $env:VMSKU_TEST_CALLS = '0'; $env:VMSKU_TEST_FAIL_FIRST = '0'; $env:VMSKU_TEST_STATUS = '429'; $env:VMSKU_TEST_FAIL_PAGE2 = ''
+        Mock -ModuleName Inventory Invoke-RestMethod {
+            $env:VMSKU_TEST_CALLS = 1 + [int]$env:VMSKU_TEST_CALLS
+            $options = ($Body | ConvertFrom-Json).options
+            $continues = $options.PSObject.Properties.Name -contains '$skipToken'
+            if ([int]$env:VMSKU_TEST_CALLS -le [int]$env:VMSKU_TEST_FAIL_FIRST -or ($continues -and $env:VMSKU_TEST_FAIL_PAGE2)) {
+                $status = if ($continues -and $env:VMSKU_TEST_FAIL_PAGE2) { [int]$env:VMSKU_TEST_FAIL_PAGE2 } else { [int]$env:VMSKU_TEST_STATUS }
+                $response = [System.Net.Http.HttpResponseMessage]::new([System.Net.HttpStatusCode]$status)
+                throw ([Microsoft.PowerShell.Commands.HttpResponseException]::new("Response status code does not indicate success: $status.", $response))
+            }
+            if (-not $continues -and $env:VMSKU_TEST_FAIL_PAGE2) { [pscustomobject]@{ data = @([pscustomobject]@{ id = 'a' }, [pscustomobject]@{ id = 'b' }); '$skipToken' = 'page2' } }
+            else { [pscustomobject]@{ data = @([pscustomobject]@{ id = 'a' }) } }
+        }
+    }
+    AfterEach { Remove-Item Env:\VMSKU_TEST_CALLS, Env:\VMSKU_TEST_FAIL_FIRST, Env:\VMSKU_TEST_STATUS, Env:\VMSKU_TEST_FAIL_PAGE2 -ErrorAction SilentlyContinue }
+
+    It 'retries HTTP <Status> once and returns the rows of the call that succeeds' -ForEach @(
+        @{ Status = '429' }, @{ Status = '500' }, @{ Status = '502' }, @{ Status = '503' }, @{ Status = '504' }
+    ) {
+        $env:VMSKU_TEST_FAIL_FIRST = '1'; $env:VMSKU_TEST_STATUS = $Status
+        @(Invoke-ArgQuery -Query 'Resources' -SubscriptionIds @('s1') -TenantId 't-other').Count | Should -Be 1
+        Should -Invoke Invoke-RestMethod -ModuleName Inventory -Times 2 -Exactly
+        Should -Invoke Start-Sleep -ModuleName Inventory -Times 1 -Exactly -ParameterFilter { $Seconds -eq 2 }
+    }
+
+    It 'gives up after four attempts, pausing 2, 4 and 8 seconds, and throws the reason' {
+        $env:VMSKU_TEST_FAIL_FIRST = '99'; $env:VMSKU_TEST_STATUS = '503'
+        { Invoke-ArgQuery -Query 'Resources' -SubscriptionIds @('s1') -TenantId 't-other' } | Should -Throw 'Resource Graph query failed for tenant t-other: Response status code does not indicate success: 503.'
+        Should -Invoke Invoke-RestMethod -ModuleName Inventory -Times 4 -Exactly
+        Should -Invoke Start-Sleep -ModuleName Inventory -Times 3 -Exactly
+        foreach ($expected in 2, 4, 8) { Should -Invoke Start-Sleep -ModuleName Inventory -Times 1 -Exactly -ParameterFilter { $Seconds -eq $expected } }
+    }
+
+    It 'does not retry HTTP <Status>' -ForEach @(
+        @{ Status = '400' }, @{ Status = '401' }, @{ Status = '403' }, @{ Status = '404' }
+    ) {
+        $env:VMSKU_TEST_FAIL_FIRST = '99'; $env:VMSKU_TEST_STATUS = $Status
+        { Invoke-ArgQuery -Query 'Resources' -SubscriptionIds @('s1') -TenantId 't-other' } | Should -Throw "Resource Graph query failed for tenant t-other: Response status code does not indicate success: $Status."
+        Should -Invoke Invoke-RestMethod -ModuleName Inventory -Times 1 -Exactly
+        Should -Invoke Start-Sleep -ModuleName Inventory -Times 0 -Exactly
+    }
+
+    It 'returns the rows it has and says where it stopped when a later page fails and the failure is tolerated' {
+        $env:VMSKU_TEST_FAIL_PAGE2 = '403'
+        $failure = $null
+        $rows = @(Invoke-ArgQuery -Query 'Resources' -SubscriptionIds @('s1') -TenantId 't-other' -AllowFailure -Failure ([ref]$failure))
+        @($rows | ForEach-Object id) | Should -Be @('a', 'b')
+        $failure | Should -Be 'Response status code does not indicate success: 403. (the query stopped after 2 rows)'
+    }
+
+    It 'stops with the failure of a later page when it is not tolerated' {
+        $env:VMSKU_TEST_FAIL_PAGE2 = '403'
+        { Invoke-ArgQuery -Query 'Resources' -SubscriptionIds @('s1') -TenantId 't-other' } | Should -Throw '*Response status code does not indicate success: 403.*'
+    }
+
+    It 'sends one request per chunk of subscriptions, each asking for the page size it was given' {
+        [void](Invoke-ArgQuery -Query 'Resources' -SubscriptionIds @('s1', 's2', 's3', 's4', 's5') -TenantId 't-other' -ChunkSize 2 -PageSize 500)
+        Should -Invoke Invoke-RestMethod -ModuleName Inventory -Times 3 -Exactly
+        Should -Invoke Invoke-RestMethod -ModuleName Inventory -Times 2 -Exactly -ParameterFilter { @(($Body | ConvertFrom-Json).subscriptions).Count -eq 2 }
+        Should -Invoke Invoke-RestMethod -ModuleName Inventory -Times 1 -Exactly -ParameterFilter { @(($Body | ConvertFrom-Json).subscriptions).Count -eq 1 }
+        Should -Invoke Invoke-RestMethod -ModuleName Inventory -Times 3 -Exactly -ParameterFilter { (($Body | ConvertFrom-Json).options.'$top') -eq 500 }
     }
 }
 

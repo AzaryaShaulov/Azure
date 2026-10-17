@@ -40,9 +40,10 @@ You should receive an acknowledgement within 5 business days. Coordinated disclo
 - **Personal data minimization.** Inventory queries never read admin usernames, computer names, IP addresses or tags.
   The operator's account is masked in the console, `run.log` and `assessment.json` unless `-IncludeOperatorAccount` is
   passed; the transcript uses a minimal header (no local user, machine or command line); displayed paths show the home
-  directory as `~`; Azure CLI error text is sanitized (emails masked, home path hidden, length capped); and raw
-  inventory dumps are written only with `-KeepRawData`. `-SaveSnapshot` stores raw Azure read responses (never access
-  tokens; the signed-in account is masked) so a run can be replayed offline with `-FromSnapshot`; treat the snapshot as
-  confidential inventory data.
+  directory as `~`; Azure CLI error text is sanitized (emails and the identity's object id masked, home path hidden, length
+  capped); `run.log` is checked again after the run, because PowerShell writes a caught REST error to the transcript before
+  the report can sanitize it; and raw inventory dumps are written only with `-KeepRawData`. `-SaveSnapshot` stores raw Azure
+  read responses (never access tokens; the signed-in account is masked) so a run can be replayed offline with
+  `-FromSnapshot`; treat the snapshot as confidential inventory data.
 - **HTML safety.** All values written to HTML reports are HTML-encoded. Reports contain no scripts and load no remote
   assets.

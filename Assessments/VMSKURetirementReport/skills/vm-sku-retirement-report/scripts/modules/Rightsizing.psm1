@@ -15,13 +15,17 @@ function Get-VmUtilization {
     <#
     .SYNOPSIS
         Pulls hourly 'Percentage CPU' and 'Available Memory Bytes' for VMs via the Azure Monitor metrics batch API.
+    .PARAMETER IssueSink
+        Where to record a metrics call that still failed after its retries (once per subscription and region, with the number of
+        VMs that get no data). Without a sink the problem is written as a warning.
     .OUTPUTS
         Hashtable vmId(lower) -> { CpuP95, CpuMax, MemAvailP05Bytes, Samples }.
     #>
     param(
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Vms,
         [int]$LookbackDays = 30,
-        [string]$TenantId
+        [string]$TenantId,
+        $IssueSink
     )
     $tokArgs = @('account', 'get-access-token', '--resource', 'https://metrics.monitor.azure.com')
     if ($TenantId) { $tokArgs += @('--tenant', $TenantId) }
@@ -29,6 +33,7 @@ function Get-VmUtilization {
     $end = (Get-Date).ToUniversalTime()
     $start = $end.AddDays(-$LookbackDays)
     $out = @{}
+    $failedScopes = @{}
     foreach ($grp in ($Vms | Group-Object { "$($_.SubscriptionId)|$($_.Region)" })) {
         $sub, $region = $grp.Name -split '\|'
         $ids = @($grp.Group | ForEach-Object Id)
@@ -37,11 +42,23 @@ function Get-VmUtilization {
             $uri = "https://$region.metrics.monitor.azure.com/subscriptions/$sub/metrics:getBatch?starttime=$($start.ToString('s'))Z&endtime=$($end.ToString('s'))Z&interval=PT1H&metricnamespace=Microsoft.Compute/virtualMachines&metricnames=Percentage%20CPU,Available%20Memory%20Bytes&aggregation=average,maximum&api-version=2023-10-01"
             $body = @{ resourceids = @($batch) } | ConvertTo-Json -Depth 3
             $resp = $null
+            $failure = $null
             for ($a = 1; $a -le 3 -and -not $resp; $a++) {
                 try { $resp = Invoke-SnapshotRest -Request "POST metrics $sub $region lookback=$LookbackDays $($batch -join ',')" -Live { Invoke-RestMethod -Method Post -Uri $uri -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body -TimeoutSec 120 } }
-                catch { Write-Verbose "Metrics batch failed ($a): $($_.Exception.Message)"; if ((Get-SnapshotMode) -eq 'Replay') { break }; Start-Sleep -Seconds (3 * $a) }
+                catch {
+                    # The body of the error answer says why (for example a missing Monitoring Reader role); the exception text alone only has the status.
+                    $failure = ConvertTo-SafeCliMessage "$($_.Exception.Message)$(if ($_.ErrorDetails -and $_.ErrorDetails.Message) { " $($_.ErrorDetails.Message)" })"
+                    Write-Verbose "Metrics batch failed ($a): $failure"
+                    if ((Get-SnapshotMode) -eq 'Replay') { break }
+                    Start-Sleep -Seconds (3 * $a)
+                }
             }
-            if (-not $resp) { continue }
+            if (-not $resp) {
+                $scope = "$sub|$region"
+                if (-not $failedScopes.ContainsKey($scope)) { $failedScopes[$scope] = [pscustomobject]@{ Subscription = $sub; Region = $region; Message = $(if ($failure) { $failure } else { 'The call returned no data.' }); Vms = 0 } }
+                $failedScopes[$scope].Vms += $batch.Count
+                continue
+            }
             foreach ($v in @($resp.values)) {
                 $cpuAvg = @(); $cpuMax = @(); $memAvail = @()
                 foreach ($m in @($v.value)) {
@@ -62,6 +79,10 @@ function Get-VmUtilization {
                 }
             }
         }
+    }
+    foreach ($scope in @($failedScopes.Values | Sort-Object Subscription, Region)) {
+        Add-CollectionIssue -Sink $IssueSink -Api 'Azure Monitor metrics (rightsizing)' -SubscriptionId $scope.Subscription -Region $scope.Region -Message $scope.Message `
+            -Effect "Rightsizing shows Insufficient Data for $($scope.Vms) VM(s) in this scope."
     }
     return $out
 }

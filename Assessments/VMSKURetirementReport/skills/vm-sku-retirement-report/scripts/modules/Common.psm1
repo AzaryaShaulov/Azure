@@ -323,6 +323,28 @@ function ConvertTo-DisplayPath {
     return $Path
 }
 
+function Hide-Identity {
+    <#
+    .SYNOPSIS
+        Masks the email addresses and the object id of the signed-in identity in any text and keeps the rest as it is.
+    .DESCRIPTION
+        Azure error text names the caller ("The client 'jane.doe@contoso.com' with object id '<guid>' does not have authorization
+        ..."). The id follows the words "object id", with or without quotes. PowerShell writes the quote of a re-serialized JSON
+        error body as \u0027, so that form is covered too. Other GUIDs, such as a subscription id, are kept.
+    .PARAMETER Keep
+        Accounts that are shown as they are (the operator's own, when -IncludeOperatorAccount asked for it).
+    #>
+    param([AllowNull()][string]$Text, [string[]]$Keep = @())
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+    $kept = @($Keep)
+    $masked = [regex]::Replace($Text, '(?<escape>(?:\\u00(?:27|22))?)(?<account>[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})', {
+            param($m)
+            $account = $m.Groups['account'].Value
+            $m.Groups['escape'].Value + $(if ($kept -contains $account) { $account } else { Get-MaskedAccount $account })
+        })
+    [regex]::Replace($masked, '(?i)(object id(?:\s|[''"\\]|u00(?:27|22))*)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '$1****')
+}
+
 function ConvertTo-SafeCliMessage {
     <#
     .SYNOPSIS
@@ -332,10 +354,32 @@ function ConvertTo-SafeCliMessage {
     param([AllowNull()][string]$Text, [int]$MaxLength = 400)
     if ([string]::IsNullOrWhiteSpace($Text)) { return '' }
     $t = ConvertTo-DisplayPath (($Text -replace '\s+', ' ').Trim())
-    $t = $t -replace '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', { Get-MaskedAccount $_.Value }
-    $t = $t -replace '(?i)(object id\s*[''"]?)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '$1****'
+    # An error body that PowerShell re-serialized as JSON writes each ' as \u0027; show it as the quote it is.
+    $t = Hide-Identity $t.Replace('\u0027', "'")
     if ($t.Length -gt $MaxLength) { $t = $t.Substring(0, $MaxLength) + '...' }
     return $t
+}
+
+function Protect-RunLog {
+    <#
+    .SYNOPSIS
+        Masks email addresses and object ids in the transcript (run.log) once it is closed.
+    .DESCRIPTION
+        PowerShell writes a terminating error to the transcript as it is raised, even when the script catches it, and an Azure
+        REST error body names the signed-in account and its object id. The report sanitizes that text before it uses it, but
+        the transcript has the original. A transcript that cannot be read or rewritten is reported as a warning; it never
+        fails the run.
+    .PARAMETER Keep
+        Accounts that stay as they are (see Hide-Identity).
+    #>
+    param([Parameter(Mandatory)][string]$Path, [string[]]$Keep = @())
+    try {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return }
+        $text = [System.IO.File]::ReadAllText($Path)
+        $safe = Hide-Identity $text -Keep $Keep
+        if ($safe -cne $text) { [System.IO.File]::WriteAllText($Path, $safe, [System.Text.UTF8Encoding]::new($false)) }
+    }
+    catch { Write-Warning "run.log could not be checked for account names and object ids: $(ConvertTo-SafeCliMessage $_.Exception.Message)" }
 }
 
 function New-CollectionIssueSink {
@@ -375,4 +419,4 @@ function Get-CollectionIssue {
 }
 
 Export-ModuleMember -Function Get-ToolVersion, Write-Phase, Write-PhaseDone, Invoke-AzJson, Test-AzAuthentication, Get-SkuNameInfo, ConvertTo-InvariantDate, Get-MonthsBetween, Get-SafeFileName, Get-DefaultAssessmentOutputPath, ConvertTo-HtmlEncoded, `
-    Get-MaskedAccount, ConvertTo-DisplayPath, ConvertTo-SafeCliMessage, Get-SnapshotMode, Invoke-SnapshotRest, New-CollectionIssueSink, Format-CollectionIssue, Add-CollectionIssue, Get-CollectionIssue
+    Get-MaskedAccount, ConvertTo-DisplayPath, Hide-Identity, ConvertTo-SafeCliMessage, Protect-RunLog, Get-SnapshotMode, Invoke-SnapshotRest, New-CollectionIssueSink, Format-CollectionIssue, Add-CollectionIssue, Get-CollectionIssue

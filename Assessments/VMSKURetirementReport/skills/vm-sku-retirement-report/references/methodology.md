@@ -129,13 +129,17 @@ subscription and region, the sanitized reason and what it means for the results,
 | Resource SKUs (per subscription and region) | The REST call and the `az vm list-skus` fallback both fail, return nothing or return an answer that is not valid JSON, or the REST list is cut off after 50 pages | No replacement size can be recommended for VMs in that scope (`Manual Review Required`, `LOW`); a cut-off list can miss sizes |
 | Compute usage (quota) | `az vm list-usage` fails, returns nothing, or returns an answer that is not valid JSON or cannot be read | Quota is not confirmed (`Quota Information Unavailable` or `Manual Validation Required`) |
 | Resource Graph: disk-encryption extensions, Advisor, Service Health (optional) | The query fails or stops part-way (the message says after how many rows) | The ADE note or the corroboration can be incomplete; the Microsoft Learn lifecycle evidence is not affected |
-| Azure Monitor metrics (rightsizing), Azure Retail Prices | The call fails | No rightsizing suggestion, or pricing is unavailable or partial (see `pricingStatus`) |
+| Azure Monitor metrics (rightsizing) | A batch of up to 50 VMs still fails after three attempts, or comes back empty. One problem is recorded for each subscription and region, with the reason from the body of the answer (for example a missing Monitoring Reader role) and the number of VMs | Those VMs show `Insufficient Data`; the retirement recommendation does not change |
+| Azure Retail Prices | The call fails | Pricing is unavailable or partial (see `pricingStatus`) |
 
 For a VM in an affected scope the cause is added to its low-confidence reasons ("Data not collected (Resource SKUs): ..."),
 its recommendation reason says that data could not be collected, and a listed VM without a recommendation still gets a
 detail panel that explains why. A successful fallback (REST failed, `az vm list-skus` worked) is not a problem: it is only
 noted in `run.log`. Error text is sanitized before it is shown: email addresses and the signed-in identity's object id are
-masked, home paths are hidden and long messages are truncated.
+masked (also when PowerShell has re-serialized a JSON error body and written its quotes as `\u0027`), home paths are hidden
+and long messages are truncated. PowerShell writes a caught error to the transcript as it is raised, before the report can
+sanitize it, so `run.log` is checked once more after it is closed: email addresses and object ids in it are masked, and with
+`-IncludeOperatorAccount` the operator's own account stays.
 
 ## 3. Hardware characteristics
 
