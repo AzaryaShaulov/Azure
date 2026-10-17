@@ -2,10 +2,13 @@ name: VMSKURetirementReport Release
 
 # The tool is supported on Windows only (Azure CLI and local PowerShell, as a GitHub Copilot skill or a standalone script),
 # so the release is built and published from a Windows runner.
+#
+# The tag carries the project name, so a tag for another component of this repository never starts this workflow:
+#   git tag vm-sku-retirement-report-v1.2.0 && git push origin vm-sku-retirement-report-v1.2.0
 
 on:
   push:
-    tags: ['v*.*.*']
+    tags: ['vm-sku-retirement-report-v*.*.*']
 
 permissions:
   contents: read
@@ -26,7 +29,7 @@ jobs:
         run: |
           Import-Module ./skills/vm-sku-retirement-report/scripts/modules/Common.psm1 -Force -DisableNameChecking
           $v = Get-ToolVersion
-          if ("v$v" -ne $env:TAG) { throw "Tag $env:TAG does not match tool version v$v" }
+          if ("vm-sku-retirement-report-v$v" -ne $env:TAG) { throw "Tag $env:TAG does not match tool version v$v (expected vm-sku-retirement-report-v$v)" }
 
       - name: Lint, test, package
         shell: pwsh
@@ -64,9 +67,9 @@ jobs:
         shell: pwsh
         working-directory: Assessments/VMSKURetirementReport
         run: |
-          $ver = $env:TAG.TrimStart('v')
+          $ver = $env:TAG -replace '^vm-sku-retirement-report-v', ''
           $section = [regex]::Match((Get-Content CHANGELOG.md -Raw), "(?ms)^## \[$([regex]::Escape($ver))\].*?(?=^## \[|\z)").Value
           if (-not $section) { $section = 'See CHANGELOG.md' }
           Set-Content -Path release-notes.md -Value $section
-          $zip = "dist/VMSKURetirementReport-$($env:TAG).zip"
-          gh release create $env:TAG $zip "$zip.sha256" --title $env:TAG --notes-file release-notes.md --verify-tag
+          $zip = "dist/VMSKURetirementReport-v$ver.zip"
+          gh release create $env:TAG $zip "$zip.sha256" --title "VMSKURetirementReport v$ver" --notes-file release-notes.md --verify-tag

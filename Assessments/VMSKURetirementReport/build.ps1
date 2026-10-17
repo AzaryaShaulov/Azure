@@ -8,18 +8,24 @@
       Version    Check the version is identical in Common.psm1, SKILL.md metadata and CHANGELOG.md.
       Test       Pester unit + end-to-end tests (mock Azure CLI, no Azure access). -CI writes JUnit XML.
       Sample     Regenerate examples/sample-report offline with --check-modernization (mock Azure CLI, cached catalog, fixed date, price snapshot).
-      Package    Zip the skill into dist/VMSKURetirementReport-v<version>.zip (+ .sha256).
+      SampleDiff Build the same sample in a scratch folder and fail when it differs from the committed examples/sample-report
+                 (generation timestamps and line endings are ignored). Does not change the repository.
+      Package    Zip the skill (without its tests, plus README, CHANGELOG, LICENSE and third-party notices) into
+                 dist/VMSKURetirementReport-v<version>.zip (+ .sha256), then check the ZIP's contents. -DistPath changes the folder.
       Clean      Remove test results.
 .EXAMPLE
     ./build.ps1                          # Bootstrap, Lint, Version, Test
 .EXAMPLE
     ./build.ps1 -Task Sample, Package
+.EXAMPLE
+    ./build.ps1 -Task Package -DistPath $env:TEMP\vmsku-package     # try the package without touching dist/
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Bootstrap', 'Lint', 'Version', 'Test', 'Sample', 'Package', 'Clean')]
+    [ValidateSet('Bootstrap', 'Lint', 'Version', 'Test', 'Sample', 'SampleDiff', 'Package', 'Clean')]
     [string[]]$Task = @('Bootstrap', 'Lint', 'Version', 'Test'),
-    [switch]$CI
+    [switch]$CI,
+    [string]$DistPath
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -135,8 +141,8 @@ function Invoke-Test {
     Write-Host "Test: $($r.PassedCount) passed."
 }
 
-function Invoke-Sample {
-    $dest = Join-Path $repo 'examples/sample-report'
+function New-SampleReport {
+    <# Generates the sample report offline into a new scratch folder and returns the folder (run.log and data/ removed). #>
     $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("vmskuretirementreport-sample-" + [guid]::NewGuid().ToString('N'))
     $mock = Join-Path $skill 'tests/mock'
     $script = Join-Path $skill 'scripts/Invoke-VMSKURetirementReport.ps1'
@@ -152,10 +158,20 @@ function global:Invoke-RestMethod {
 }
 "@
     $cmd = "$offlineRest`n`$env:PATH = '$mock$sep' + `$env:PATH; & '$script' --check-modernization -OutputPath '$tmp' -OfflineCatalog -AsOfDate '$($script:SampleAsOfDate)' -ThrottleLimit 2"
-    & pwsh -NoProfile -Command $cmd
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $tmp 'index.html'))) { throw 'Sample: generation failed.' }
+    # Sent to the console: the function's output is the folder it returns.
+    & pwsh -NoProfile -Command $cmd | Out-Host
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $tmp 'index.html'))) {
+        Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        throw 'Sample: generation failed.'
+    }
     # Keep only portable report artifacts; run.log and data/ contain machine / user specific details.
     Remove-Item (Join-Path $tmp 'run.log'), (Join-Path $tmp 'data') -Recurse -Force -ErrorAction SilentlyContinue
+    return $tmp
+}
+
+function Invoke-Sample {
+    $dest = Join-Path $repo 'examples/sample-report'
+    $tmp = New-SampleReport
     if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
     New-Item -ItemType Directory (Split-Path $dest) -Force | Out-Null
     Move-Item $tmp $dest
@@ -167,20 +183,99 @@ function global:Invoke-RestMethod {
     Write-Host "Sample: written to $dest"
 }
 
+# The generation time is the only content that differs between two builds of the sample.
+$script:SampleVolatileLine = '^\s*"generatedUtc":|^\| Generated \(UTC\) \|'
+
+function Get-SampleLine {
+    <# The lines of a sample file as they are compared: line endings normalised (git checks the files out as LF or CRLF) and the generation time replaced by a constant, so line numbers stay those of the file. #>
+    param([Parameter(Mandatory)][string]$Path)
+    $text = [System.IO.File]::ReadAllText($Path) -replace "`r`n", "`n"
+    @($text -split "`n" | ForEach-Object { if ($_ -match $script:SampleVolatileLine) { '<generation time>' } else { $_ } })
+}
+
+function Compare-SampleReport {
+    <# Compares a freshly built sample with the committed one; returns one message per difference (none when they match). #>
+    param([Parameter(Mandatory)][string]$ExpectedPath, [Parameter(Mandatory)][string]$ActualPath)
+    $files = { param($root) @(Get-ChildItem -LiteralPath $root -File -Recurse -Force | ForEach-Object { $_.FullName.Substring((Resolve-Path -LiteralPath $root).Path.Length).TrimStart('\', '/').Replace('\', '/') } | Sort-Object) }
+    $expectedFiles = & $files $ExpectedPath
+    $actualFiles = & $files $ActualPath
+    foreach ($name in $expectedFiles | Where-Object { $_ -notin $actualFiles }) { "$name is in the committed sample but a fresh build does not write it" }
+    foreach ($name in $actualFiles | Where-Object { $_ -notin $expectedFiles }) { "$name is written by a fresh build but is not in the committed sample" }
+    foreach ($name in $expectedFiles | Where-Object { $_ -in $actualFiles }) {
+        $expected = @(Get-SampleLine -Path (Join-Path $ExpectedPath $name))
+        $actual = @(Get-SampleLine -Path (Join-Path $ActualPath $name))
+        $length = [math]::Max($expected.Count, $actual.Count)
+        $differing = @(for ($i = 0; $i -lt $length; $i++) { if ($i -ge $expected.Count -or $i -ge $actual.Count -or $expected[$i] -cne $actual[$i]) { $i } })
+        if ($differing.Count -eq 0) { continue }
+        $first = $differing[0]
+        $show = { param($lines, $i) if ($i -lt $lines.Count) { $t = $lines[$i].Trim(); if ($t.Length -gt 140) { $t.Substring(0, 140) + '...' } else { $t } } else { '(no such line)' } }
+        "$name differs in $($differing.Count) line(s); the first is line $($first + 1): committed `"$(& $show $expected $first)`" but a fresh build gives `"$(& $show $actual $first)`""
+    }
+}
+
+function Invoke-SampleDiff {
+    $expected = Join-Path $repo 'examples/sample-report'
+    if (-not (Test-Path -LiteralPath $expected)) { throw "SampleDiff: there is no committed sample at $expected. Run ./build.ps1 -Task Sample." }
+    $actual = New-SampleReport
+    try {
+        $problems = @(Compare-SampleReport -ExpectedPath $expected -ActualPath $actual)
+        if ($problems.Count) {
+            $problems | ForEach-Object { Write-Host "  $_" }
+            throw "SampleDiff: the committed sample differs from a fresh build ($($problems.Count) file(s)). If the change is intended, run ./build.ps1 -Task Sample, review the diff and commit it."
+        }
+        Write-Host 'SampleDiff: the committed sample matches a fresh build (generation time and line endings ignored).'
+    }
+    finally { Remove-Item $actual -Recurse -Force -ErrorAction SilentlyContinue }
+}
+
+# Files copied from the project root into the package (the README is part of the skill folder).
+$script:PackageRootFiles = @('LICENSE', 'THIRD-PARTY-NOTICES.md', 'CHANGELOG.md')
+
+function Get-PackageFilePath {
+    <# The files a release ZIP must contain, as paths below its top-level skill folder: the skill folder without its tests, and the root files. #>
+    param([Parameter(Mandatory)][string]$SkillPath)
+    $base = (Resolve-Path -LiteralPath $SkillPath).Path
+    foreach ($file in Get-ChildItem -LiteralPath $base -File -Recurse -Force) {
+        $relative = $file.FullName.Substring($base.Length).TrimStart('\', '/').Replace('\', '/')
+        # The tests, their fixtures and the mock Azure CLI are for contributors, not for a customer.
+        if ($relative -notmatch '^tests/') { $relative }
+    }
+    $script:PackageRootFiles
+}
+
+function Test-PackageContent {
+    <# Compares the entries of a release ZIP with what it must contain; returns one message per problem (none when it is correct). #>
+    param([Parameter(Mandatory)][string]$ZipPath, [Parameter(Mandatory)][string]$SkillPath)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $ZipPath).Path)
+    try { $entries = @($archive.Entries | Where-Object { $_.Name } | ForEach-Object { $_.FullName.Replace('\', '/') }) }
+    finally { $archive.Dispose() }
+    $expected = @(Get-PackageFilePath -SkillPath $SkillPath | ForEach-Object { "vm-sku-retirement-report/$_" })
+    foreach ($name in @($expected | Where-Object { $_ -notin $entries } | Sort-Object)) { "missing from the ZIP: $name" }
+    foreach ($name in @($entries | Where-Object { $_ -notin $expected } | Sort-Object)) { "not expected in the ZIP: $name" }
+}
+
 function Invoke-Package {
+    param([string]$DistPath)
     $v = Get-RepoVersion
-    $dist = Join-Path $repo 'dist'
+    $dist = if ($DistPath) { $DistPath } else { Join-Path $repo 'dist' }
     New-Item -ItemType Directory $dist -Force | Out-Null
     $zip = Join-Path $dist "VMSKURetirementReport-v$v.zip"
     if (Test-Path $zip) { Remove-Item $zip -Force }
     $stage = Join-Path ([System.IO.Path]::GetTempPath()) ("vmskuretirementreport-pkg-" + [guid]::NewGuid().ToString('N'))
     $target = Join-Path $stage 'vm-sku-retirement-report'
-    New-Item -ItemType Directory $stage -Force | Out-Null
-    Copy-Item $skill $target -Recurse
-    Copy-Item (Join-Path $repo 'LICENSE') $target
-    Copy-Item (Join-Path $repo 'THIRD-PARTY-NOTICES.md') $target
-    Compress-Archive -Path $target -DestinationPath $zip
-    Remove-Item $stage -Recurse -Force
+    New-Item -ItemType Directory $target -Force | Out-Null
+    try {
+        foreach ($item in Get-ChildItem -LiteralPath $skill -Force | Where-Object Name -ne 'tests') { Copy-Item -LiteralPath $item.FullName -Destination $target -Recurse }
+        foreach ($name in $script:PackageRootFiles) { Copy-Item -LiteralPath (Join-Path $repo $name) -Destination $target }
+        Compress-Archive -Path $target -DestinationPath $zip
+    }
+    finally { Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue }
+    $problems = @(Test-PackageContent -ZipPath $zip -SkillPath $skill)
+    if ($problems.Count) {
+        Remove-Item $zip -Force
+        throw "Package: the ZIP does not hold what it should: $($problems -join '; ')"
+    }
     $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
     Set-Content -Path "$zip.sha256" -Value "$hash  $(Split-Path $zip -Leaf)" -NoNewline
     Write-Host "Package: $zip ($hash)"
@@ -191,6 +286,9 @@ function Invoke-Clean {
     Write-Host 'Clean: done.'
 }
 
+# Dot-sourced by the tests: define the functions only.
+if ($MyInvocation.InvocationName -eq '.') { return }
+
 foreach ($t in $Task) {
     Write-Host "==> $t" -ForegroundColor Cyan
     switch ($t) {
@@ -199,7 +297,8 @@ foreach ($t in $Task) {
         'Version' { Invoke-VersionCheck }
         'Test' { Invoke-Test -CiMode:$CI }
         'Sample' { Invoke-Sample }
-        'Package' { Invoke-Package }
+        'SampleDiff' { Invoke-SampleDiff }
+        'Package' { Invoke-Package -DistPath $DistPath }
         'Clean' { Invoke-Clean }
     }
 }

@@ -18,6 +18,7 @@ try { pw = require('playwright-core'); } catch { console.error('playwright-core 
 const dir = path.resolve(process.argv[2] || path.join(__dirname, '..', 'examples', 'sample-report'));
 const wanted = process.argv.slice(3).length ? process.argv.slice(3) : ['msedge'];
 const pageFile = fs.readdirSync(dir).find(f => /^contoso-prod-.*\.html$/.test(f)) || fs.readdirSync(dir).find(f => f.endsWith('.html') && f !== 'index.html');
+if (!pageFile) { console.error(`No subscription report page (*.html other than index.html) found in ${dir}.`); process.exit(2); }
 const url = 'file:///' + path.join(dir, pageFile).replace(/\\/g, '/');
 const launchers = {
   msedge: () => pw.chromium.launch({ channel: 'msedge', headless: true }),

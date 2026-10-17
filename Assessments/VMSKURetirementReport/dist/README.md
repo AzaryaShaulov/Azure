@@ -16,8 +16,11 @@ Packages are generated from the project root with:
 ./build.ps1 -Task Version, Test, Package
 ```
 
-The package contains the complete `vm-sku-retirement-report` skill, including its scripts, modules, templates,
-bundled data, license, and third-party notices.
+The package contains the `vm-sku-retirement-report` skill: its scripts, modules, templates, bundled data and reference
+documentation, a README, the changelog, the license and the third-party notices. It does not contain the tests, their
+fixtures or the mock Azure CLI. `build.ps1 -Task Package` checks the finished ZIP against the skill folder before it
+writes the checksum. Use `-DistPath <folder>` to build into another folder (for example to try a package without changing
+this directory).
 
 ### Disclaimer – Independent Assessment Tool
 

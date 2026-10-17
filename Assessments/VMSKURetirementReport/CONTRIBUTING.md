@@ -27,23 +27,28 @@ tool version, change its `Version` in `dependencies.psd1`, run `./build.ps1 -Tas
 prints the manifest and the new hash because the old hash no longer matches), review the release, and commit the new
 `TreeHash`. CI also runs the complete mock assessment under PowerShell 7.2.24 (the supported floor) and 7.4.21, installed
 on a Windows runner from pinned, checksum-verified official archives; to move one of those versions, update the version
-and SHA-256 in the `powershell-compat` job of `.github/workflows/vm-sku-retirement-report-ci.yml`.
+and SHA-256 in the `powershell-compat` job of `.github/workflows/vm-sku-retirement-report-ci.yml`. A second CI job rebuilds
+the sample and fails when it differs from `examples/sample-report` (see **Report changes** below), and an informational job
+runs the browser smoke test below in Edge.
 
 ```powershell
 git clone https://github.com/AzaryaShaulov/Azure.git
 cd Azure/Assessments/VMSKURetirementReport
 ./build.ps1                    # Bootstrap, Lint, Version, Test
 ./build.ps1 -Task Sample       # regenerate examples/sample-report (with --check-modernization)
+./build.ps1 -Task SampleDiff   # check that the committed sample is what a fresh build writes; changes nothing
 ./build.ps1 -Task Package      # build dist/VMSKURetirementReport-v<version>.zip
+./build.ps1 -Task Package -DistPath $env:TEMP\vmsku-package   # try a package without touching dist/
 ```
 
 The HTML report has no scripts, so the collapsible VM details are plain CSS (a hidden checkbox and `:has()`), and the
 Pester tests can only check the markup. After changing `templates/report.css` or the table/detail markup, run the
-optional browser smoke test, which opens the sample in real engines (it needs Node.js and is not part of `build.ps1`):
+optional browser smoke test, which opens the sample in real engines (it needs Node.js and is not part of `build.ps1`; the
+CI job installs the same library, `playwright-core@1.64.0`, and uses the Edge that is on the runner):
 
 ```powershell
 cd tools
-npm i --no-save playwright-core
+npm i --no-save --ignore-scripts playwright-core@1.64.0
 npx playwright-core install firefox webkit   # msedge/chrome use the installed browser
 node browser-smoke.js ../examples/sample-report msedge firefox webkit
 ```
@@ -53,10 +58,11 @@ node browser-smoke.js ../examples/sample-report msedge firefox webkit
 | Path | Purpose |
 |---|---|
 | `skills/vm-sku-retirement-report/SKILL.md` | Agent skill definition (what agents read) |
+| `skills/vm-sku-retirement-report/README.md` | Short README that ships in the folder and in the release ZIP (requirements, how to run, what is in the folder) |
 | `skills/vm-sku-retirement-report/scripts/` | Orchestrator, catalog refresh and modules |
 | `skills/vm-sku-retirement-report/data/` | Cached Microsoft evidence, series map, processor catalog, scoring weights |
 | `skills/vm-sku-retirement-report/references/` | Methodology, scoring, output schema and data-source docs |
-| `skills/vm-sku-retirement-report/tests/` | Pester unit + end-to-end tests with a mock Azure CLI |
+| `skills/vm-sku-retirement-report/tests/` | Pester unit + end-to-end tests with a mock Azure CLI (not packaged) |
 | `tools/` | Development-only browser smoke test for the HTML report (not packaged) |
 | `dist/` | Versioned customer ZIP packages and SHA-256 checksums |
 | `examples/sample-report/` | Generated sample report (synthetic data) |
@@ -70,7 +76,12 @@ node browser-smoke.js ../examples/sample-report msedge firefox webkit
 - **Scoring or rule changes.** Update `references/methodology.md` / `references/scoring.md` and add tests.
 - **Report changes.** Keep all HTML values encoded through `ConvertTo-HtmlEncoded` and regenerate the sample. The sample
   build is offline and reproducible: it uses the cached catalog, `$script:SampleAsOfDate` in `build.ps1` and
-  `tests/fixtures/retail-prices-eastus2.json`. After refreshing the catalog, bump the date and rebuild.
+  `tests/fixtures/retail-prices-eastus2.json`. After refreshing the catalog, bump the date and rebuild. Any change to the
+  code, data or templates that alters the sample must be committed together with the regenerated sample: the CI job
+  `sample-diff` (`./build.ps1 -Task SampleDiff`) fails otherwise, and prints the first differing line of each file.
+- **Package changes.** The release ZIP holds the skill folder without `tests/`, plus the root `LICENSE`,
+  `THIRD-PARTY-NOTICES.md` and `CHANGELOG.md`. `./build.ps1 -Task Package` compares the finished ZIP with the skill folder and
+  fails on a missing or unexpected file, so a new file in the skill folder is packaged automatically.
 
 ## Pull requests
 
@@ -82,8 +93,9 @@ node browser-smoke.js ../examples/sample-report msedge firefox webkit
 
 1. Bump `$script:ToolVersion` in `scripts/modules/Common.psm1` and `metadata.version` in `SKILL.md`.
 2. Move the **Unreleased** notes into a new `## [x.y.z] - YYYY-MM-DD` section in `CHANGELOG.md`.
-3. From `Assessments/VMSKURetirementReport`, run `./build.ps1 -Task Version, Test, Package`.
+3. From `Assessments/VMSKURetirementReport`, run `./build.ps1 -Task Version, Test, SampleDiff, Package`.
 4. Verify and commit `dist/VMSKURetirementReport-vX.Y.Z.zip` and its `.zip.sha256` checksum so customers can download
    both files directly from the repository.
-5. Tag `vX.Y.Z` and push the tag. The parent repository's Release workflow also publishes the same files as GitHub
-   release assets.
+5. Tag `vm-sku-retirement-report-vX.Y.Z` and push the tag. The tag carries the project name so that a tag for another
+   component of this repository never starts the release; the parent repository's Release workflow checks that it matches
+   the tool version and also publishes the same files as GitHub release assets.

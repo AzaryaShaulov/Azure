@@ -32,6 +32,23 @@ All notable changes to this project are documented here. The format follows
   later stay supported: a new `powershell-compat` job runs the complete mock assessment under PowerShell 7.2.24 and 7.4.21,
   installed from pinned, checksum-verified official archives, and the main job runs on the runner's own PowerShell. The
   README, `SKILL.md` and `CONTRIBUTING.md` no longer claim Linux or macOS support.
+- **The release ZIP no longer contains the tests, and it has a README.** The package held the whole skill folder, including
+  `tests/` (Pester files, fixtures and a mock `az.ps1`), and no README or changelog. It now holds the skill folder without
+  `tests/` plus a short `README.md` (requirements, how to run, what is in the folder, the disclaimer), `CHANGELOG.md`,
+  `LICENSE` and `THIRD-PARTY-NOTICES.md` (26 files instead of 35). `./build.ps1 -Task Package` compares the finished ZIP with
+  the skill folder and fails on a missing or unexpected file; `-DistPath <folder>` builds somewhere other than `dist/`.
+  The installation through `npx skills add` copies the skill folder from the repository as it is, so it still includes
+  `tests/`. The checksummed ZIP in `dist/` is not rebuilt here; it is rebuilt when the release is made.
+- **CI checks the sample and the HTML, and the release tag names the project.** A new `sample-diff` job runs the new
+  `./build.ps1 -Task SampleDiff`, which rebuilds the sample offline in a scratch folder and fails when it differs from
+  `examples/sample-report` (generation time and line endings are ignored), so a change that alters the sample but was
+  committed without regenerating it is caught. An informational `browser-smoke` job opens the sample in Edge with
+  `tools/browser-smoke.js` (`playwright-core` 1.64.0, install scripts off); it does not fail the workflow. The release workflow
+  starts on tags named `vm-sku-retirement-report-vX.Y.Z` instead of any `vX.Y.Z` tag of the repository, and still checks the
+  tag against the tool version. Release maintainers use the new tag name (see `CONTRIBUTING.md`).
+- `dependencies.psd1` no longer records a `PackageHash` for each locked tool: it was never verified (the build only sees the
+  installed module, which its `TreeHash` covers). `tools/browser-smoke.js` now says so when the report folder has no page
+  to open.
 
 ### Fixed
 

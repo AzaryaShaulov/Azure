@@ -47,6 +47,41 @@ jobs:
           path: Assessments/VMSKURetirementReport/TestResults/pester.xml
           if-no-files-found: ignore
 
+  sample-diff:
+    name: Committed sample is current (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Builds the sample offline (mock Azure CLI, cached evidence, fixed date) in a scratch folder and compares every file with
+      # examples/sample-report; the generation time and line endings are ignored. It fails when a code or data change was
+      # committed without regenerating the sample (./build.ps1 -Task Sample).
+      - name: Rebuild the sample and compare it with the committed one
+        shell: pwsh
+        working-directory: Assessments/VMSKURetirementReport
+        run: ./build.ps1 -Task SampleDiff
+
+  browser-smoke:
+    name: HTML report in Edge (Windows, informational)
+    runs-on: windows-latest
+    # The checks drive a real browser that the runner image updates on its own schedule, so a failure here is shown but does
+    # not fail the workflow. Remove this line to make the job required.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install playwright-core (the library only; Edge is already on the runner)
+        shell: pwsh
+        working-directory: Assessments/VMSKURetirementReport/tools
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund playwright-core@1.64.0
+
+      - name: Open the sample report in Edge and check the collapsible VM details
+        shell: pwsh
+        working-directory: Assessments/VMSKURetirementReport/tools
+        run: node browser-smoke.js ../examples/sample-report msedge
+
   powershell-compat:
     name: PowerShell ${{ matrix.version }} runtime check (Windows)
     runs-on: windows-latest

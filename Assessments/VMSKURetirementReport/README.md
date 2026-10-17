@@ -272,6 +272,7 @@ The PowerShell files now live here:
 | Supporting modules | `C:\Tools\VMSKURetirementReport\vm-sku-retirement-report\scripts\modules\*.psm1` |
 | Report stylesheet | `C:\Tools\VMSKURetirementReport\vm-sku-retirement-report\templates\report.css` |
 | Lifecycle data | `C:\Tools\VMSKURetirementReport\vm-sku-retirement-report\data\*.json` |
+| Documentation | `C:\Tools\VMSKURetirementReport\vm-sku-retirement-report\README.md`, `SKILL.md`, `CHANGELOG.md` and `references\*.md` |
 
 ### Step 4 - Sign in to Azure
 
@@ -512,10 +513,12 @@ From the Azure repository root:
 Set-Location Assessments/VMSKURetirementReport
 ./build.ps1                        # Bootstrap, Lint, Version, Test (no Azure access needed)
 ./build.ps1 -Task Sample           # regenerate all sample reports offline with modernization and default pricing
-./build.ps1 -Task Package          # dist/VMSKURetirementReport-v<version>.zip + SHA-256
+./build.ps1 -Task SampleDiff       # check that the committed sample is what a fresh build writes (changes nothing)
+./build.ps1 -Task Package          # dist/VMSKURetirementReport-v<version>.zip + SHA-256 (add -DistPath <folder> to build elsewhere)
 ```
 
-Published customer packages are retained in [`dist/`](dist/). Commit the versioned ZIP and checksum together.
+Published customer packages are retained in [`dist/`](dist/). Commit the versioned ZIP and checksum together. The package
+holds the skill without its tests, plus a README, the changelog, the license and the third-party notices.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports go through [SECURITY.md](SECURITY.md).
 
