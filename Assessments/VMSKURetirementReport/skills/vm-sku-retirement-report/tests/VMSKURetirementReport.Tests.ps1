@@ -1782,16 +1782,228 @@ Describe 'Confidence, readiness, actions and waves' {
     }
 }
 
-Describe 'Rightsizing stays separate' {
-    It 'flags low utilization without touching the primary recommendation' {
-        $p = [pscustomobject]@{ SkuName = 'Standard_D8s_v5'; vCPUs = 8 }
-        $r = Get-RightsizingOpportunity -Utilization ([pscustomobject]@{ CpuP95 = 7; CpuMax = 30; MemAvailP05Bytes = 28GB; Samples = 720 }) -Primary $p -RegionCatalog $SkuCat -MemoryGB 32
-        $r.Status | Should -Be 'Potential Rightsizing Opportunity'
-        $r.SuggestedSku | Should -Be 'Standard_D4s_v5'
-        $p.SkuName | Should -Be 'Standard_D8s_v5'
+Describe 'Rightsizing' {
+    BeforeAll {
+        $script:LowUse = [pscustomobject]@{ CpuP95 = 7; CpuMax = 85; MemAvailP05Bytes = 28GB; Samples = 720 }
+        $script:RsPrimary = [pscustomobject]@{ SkuName = 'Standard_D8s_v5'; vCPUs = 8 }
+        # D8s_v5 is the recommended size and D4s_v5 its half size (fixture records, copied because tests change them).
+        function script:New-HalfSizeCatalog {
+            @{ 'standard_d8s_v5' = $SkuCat['standard_d8s_v5'].PSObject.Copy(); 'standard_d4s_v5' = $SkuCat['standard_d4s_v5'].PSObject.Copy() }
+        }
+        function script:Add-ConstrainedSize {
+            param([hashtable]$Catalog, [string]$Name, [int]$Vcpu, [int]$Active, [double]$MemoryGB)
+            $size = $SkuCat['standard_d4s_v5'].PSObject.Copy()
+            $size.Name = $Name; $size.vCPUs = $Vcpu; $size.vCPUsAvailable = $Active; $size.MemoryGB = $MemoryGB
+            $Catalog[$Name.ToLowerInvariant()] = $size
+        }
+        function script:Get-RightsizingContext {
+            param([int]$Nics = 1, [string[]]$Zones, [int]$DataDisks = 0)
+            $vmArgs = @{ Name = 'rs'; Sku = 'Standard_D4s_v3'; Nics = $Nics }
+            if ($Zones) { $vmArgs.Zones = $Zones }
+            $vm = New-TestVm @vmArgs
+            $vm.DataDiskCount = $DataDisks
+            $record = $SkuCat['standard_d4s_v3']
+            $processor = Get-ProcessorInfo -SkuName 'Standard_D4s_v3' -ProcessorCatalog $Proc -SkuRecord $record
+            @{ Vm = $vm; Current = (New-CurrentProfile -SkuName 'Standard_D4s_v3' -SkuRecord $record -ProcessorInfo $processor -VmGeneration $vm.HyperVGeneration -VmDiskController $vm.DiskControllerType); ProcessorCatalog = $Proc }
+        }
     }
-    It 'reports insufficient data' {
-        (Get-RightsizingOpportunity -Utilization $null -Primary $null -RegionCatalog @{} -MemoryGB 8).Status | Should -Be 'Insufficient Data'
+
+    Describe 'Percentiles' {
+        It 'returns the nearest-rank percentile of <Values> at <Percentile>' -ForEach @(
+            @{ Values = @(1..100); Percentile = 95; Expected = 95 }
+            @{ Values = @(1..100); Percentile = 5; Expected = 5 }
+            @{ Values = @(100..1); Percentile = 50; Expected = 50 }
+            @{ Values = @(4.2); Percentile = 95; Expected = 4.2 }
+            @{ Values = @(1, 2, 3, 4); Percentile = 95; Expected = 4 }
+            @{ Values = @(1.234, 5.678); Percentile = 5; Expected = 1.23 }
+        ) {
+            Get-Percentile $Values $Percentile | Should -Be $Expected
+        }
+        It 'returns nothing for an empty series' {
+            Get-Percentile @() 95 | Should -BeNullOrEmpty
+        }
+    }
+
+    Describe 'Azure Monitor metrics' {
+        BeforeAll {
+            # 200 hourly points: CPU average 1..200 (maximum average + 10) and available memory 1..200 MB; the resource id comes back upper case.
+            $script:SeriesMock = {
+                $ids = @(($Body | ConvertFrom-Json).resourceids)
+                $cpu = @(1..200 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]$_; maximum = [double]($_ + 10) } })
+                $mem = @(1..200 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]($_ * 1MB) } })
+                [pscustomobject]@{ values = @($ids | ForEach-Object {
+                            [pscustomobject]@{ resourceid = $_.ToUpperInvariant(); value = @(
+                                    [pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = $cpu }) }
+                                    [pscustomobject]@{ name = [pscustomobject]@{ value = 'Available Memory Bytes' }; timeseries = @([pscustomobject]@{ data = $mem }) }) }
+                        }) }
+            }
+            $script:MetricVm = { param($Index, $Region) [pscustomobject]@{ Id = "/subscriptions/s1/resourcegroups/rg/providers/microsoft.compute/virtualmachines/vm$Index"; SubscriptionId = 's1'; Region = $Region } }
+        }
+        BeforeEach {
+            Mock Invoke-AzJson -ModuleName Rightsizing { [pscustomobject]@{ accessToken = 'token' } }
+            Mock Start-Sleep -ModuleName Rightsizing { }
+        }
+
+        It 'reads the CPU and memory percentiles of each VM, keyed by lower-case resource id' {
+            Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith $SeriesMock
+            $vm = & $MetricVm 1 'eastus2'
+            $u = Get-VmUtilization -Vms @($vm) -LookbackDays 30
+            @($u.Keys) | Should -Be @($vm.Id.ToLowerInvariant())
+            $u[$vm.Id].CpuP95 | Should -Be 190
+            $u[$vm.Id].CpuMax | Should -Be 210
+            $u[$vm.Id].MemAvailP05Bytes | Should -Be (10MB)
+            $u[$vm.Id].Samples | Should -Be 200
+        }
+
+        It 'asks for at most 50 VMs per call, separately for each subscription and region' {
+            Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith $SeriesMock
+            $vms = @(1..60 | ForEach-Object { & $MetricVm $_ 'eastus2' }) + @(61..120 | ForEach-Object { & $MetricVm $_ 'westus2' })
+            $u = Get-VmUtilization -Vms $vms -LookbackDays 7
+            @($u.Keys).Count | Should -Be 120
+            Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 4 -Exactly
+            Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 2 -Exactly -ParameterFilter { $Uri -like 'https://eastus2.metrics.monitor.azure.com/subscriptions/s1/metrics:getBatch?*' }
+            Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 2 -Exactly -ParameterFilter { $Uri -like 'https://westus2.metrics.monitor.azure.com/subscriptions/s1/metrics:getBatch?*' }
+            Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 2 -Exactly -ParameterFilter { @(($Body | ConvertFrom-Json).resourceids).Count -eq 50 }
+            Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 0 -Exactly -ParameterFilter { @(($Body | ConvertFrom-Json).resourceids).Count -gt 50 }
+        }
+
+        It 'sends the tenant to the token request when one is given' {
+            Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith $SeriesMock
+            [void](Get-VmUtilization -Vms @(& $MetricVm 1 'eastus2') -TenantId 'tenant-1')
+            Should -Invoke Invoke-AzJson -ModuleName Rightsizing -Times 1 -Exactly -ParameterFilter { $Arguments -contains '--tenant' -and $Arguments -contains 'tenant-1' -and $Arguments -contains 'https://metrics.monitor.azure.com' }
+        }
+
+        It 'retries a call that fails and uses the answer of the later attempt' {
+            # Mock bodies do not keep script-scope state between calls; a process variable counts the attempts.
+            $env:RIGHTSIZING_TEST_ATTEMPTS = '0'
+            try {
+                Mock Invoke-RestMethod -ModuleName Rightsizing -MockWith {
+                    $env:RIGHTSIZING_TEST_ATTEMPTS = 1 + [int]$env:RIGHTSIZING_TEST_ATTEMPTS
+                    if ([int]$env:RIGHTSIZING_TEST_ATTEMPTS -lt 3) { throw 'The request was throttled (429)' }
+                    $ids = @(($Body | ConvertFrom-Json).resourceids)
+                    [pscustomobject]@{ values = @($ids | ForEach-Object { [pscustomobject]@{ resourceid = $_; value = @([pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = @([pscustomobject]@{ average = 3.0; maximum = 9.0 }) }) }) } }) }
+                }
+                $vm = & $MetricVm 1 'eastus2'
+                $u = Get-VmUtilization -Vms @($vm)
+                Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 3 -Exactly
+                $u[$vm.Id].CpuP95 | Should -Be 3
+                $u[$vm.Id].Samples | Should -Be 1
+            }
+            finally { Remove-Item Env:\RIGHTSIZING_TEST_ATTEMPTS -ErrorAction SilentlyContinue }
+        }
+
+        It 'gives up on a call after three attempts and returns no data for its VMs' {
+            Mock Invoke-RestMethod -ModuleName Rightsizing { throw 'The request was throttled (429)' }
+            $u = Get-VmUtilization -Vms @((& $MetricVm 1 'eastus2'))
+            Should -Invoke Invoke-RestMethod -ModuleName Rightsizing -Times 3 -Exactly
+            @($u.Keys).Count | Should -Be 0
+        }
+
+        It 'leaves a metric empty when the answer has no points for it' {
+            Mock Invoke-RestMethod -ModuleName Rightsizing {
+                $ids = @(($Body | ConvertFrom-Json).resourceids)
+                [pscustomobject]@{ values = @($ids | ForEach-Object { [pscustomobject]@{ resourceid = $_; value = @([pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = @([pscustomobject]@{ average = 4.0; maximum = 8.0 }) }) }) } }) }
+            }
+            $vm = & $MetricVm 1 'eastus2'
+            $u = Get-VmUtilization -Vms @($vm)
+            $u[$vm.Id].CpuP95 | Should -Be 4
+            $u[$vm.Id].MemAvailP05Bytes | Should -BeNullOrEmpty
+        }
+    }
+
+    Describe 'Opportunity' {
+        It 'flags low utilization and suggests the half size that passes every check, without touching the primary' {
+            $ctx = Get-RightsizingContext
+            $r = Get-RightsizingOpportunity -Utilization $LowUse -Primary $RsPrimary -RegionCatalog (New-HalfSizeCatalog) -MemoryGB 32 @ctx
+            $r.Status | Should -Be 'Potential Rightsizing Opportunity'
+            $r.SuggestedSku | Should -Be 'Standard_D4s_v5'
+            $r.MemUsedP95Pct | Should -Be 12.5
+            $r.Note | Should -Match '^P95 of hourly average CPU 7%, highest hourly maximum 85% / memory used 12\.5%\. Evaluate after migration; not applied to the retirement recommendation\.$'
+            $RsPrimary.SkuName | Should -Be 'Standard_D8s_v5'
+        }
+
+        It 'does not suggest a half size that fails a check for the VM: <Case>' -ForEach @(
+            @{ Case = 'the NIC limit'; Nics = 3; Disks = 0; Zones = $null; Restrict = $false; Reason = 'Standard_D4s_v5: NIC Count: VM has 3 NICs; target max 2' }
+            @{ Case = 'the data disk limit'; Nics = 1; Disks = 12; Zones = $null; Restrict = $false; Reason = 'Standard_D4s_v5: Data Disk Count: VM has 12 data disks; target max 8' }
+            @{ Case = 'a subscription restriction'; Nics = 1; Disks = 0; Zones = $null; Restrict = $true; Reason = 'Standard_D4s_v5: availability: Restricted' }
+            @{ Case = 'zone availability'; Nics = 1; Disks = 0; Zones = @('1'); Restrict = $false; Reason = 'Standard_D4s_v5: Region / Zone: Not Available in zone 1' }
+        ) {
+            $catalog = New-HalfSizeCatalog
+            if ($Restrict) { $catalog['standard_d4s_v5'].LocationRestricted = $true }
+            if ($Zones) { $catalog['standard_d4s_v5'].Zones = @('2', '3') }
+            $ctx = Get-RightsizingContext -Nics $Nics -Zones $Zones -DataDisks $Disks
+            $r = Get-RightsizingOpportunity -Utilization $LowUse -Primary $RsPrimary -RegionCatalog $catalog -MemoryGB 32 @ctx
+            $r.Status | Should -Be 'Potential Rightsizing Opportunity'
+            $r.SuggestedSku | Should -BeNullOrEmpty
+            $r.Note | Should -Match ([regex]::Escape("No smaller size is suggested: no 4-vCPU size passes the mandatory checks for this VM ($Reason)."))
+        }
+
+        It 'never suggests a constrained-vCPU size, however the catalog is built' {
+            foreach ($order in 1..6) {
+                $catalog = New-HalfSizeCatalog
+                Add-ConstrainedSize $catalog 'Standard_D8-4s_v5' 8 4 32
+                Add-ConstrainedSize $catalog 'Standard_D16-4s_v5' 16 4 64
+                Add-ConstrainedSize $catalog 'Standard_D32-4s_v5' 32 4 128
+                $shuffled = @{}
+                foreach ($key in ($catalog.Keys | Sort-Object { Get-Random })) { $shuffled[$key] = $catalog[$key] }
+                $ctx = Get-RightsizingContext
+                (Get-RightsizingOpportunity -Utilization $LowUse -Primary $RsPrimary -RegionCatalog $shuffled -MemoryGB 32 @ctx).SuggestedSku | Should -Be 'Standard_D4s_v5'
+            }
+        }
+
+        It 'suggests nothing when only constrained-vCPU sizes have the half vCPU count' {
+            $catalog = @{ 'standard_d8s_v5' = $SkuCat['standard_d8s_v5'] }
+            Add-ConstrainedSize $catalog 'Standard_D8-4s_v5' 8 4 32
+            $ctx = Get-RightsizingContext
+            $r = Get-RightsizingOpportunity -Utilization $LowUse -Primary $RsPrimary -RegionCatalog $catalog -MemoryGB 32 @ctx
+            $r.SuggestedSku | Should -BeNullOrEmpty
+            $r.Note | Should -Match "No smaller size is suggested: the dsv5 series has no unconstrained 4-vCPU size for this VM's region and subscription\."
+        }
+
+        It 'suggests nothing for <Case>' -ForEach @(
+            @{ Case = 'a constrained-vCPU recommended size'; Sku = 'Standard_D16-8s_v5'; Vcpu = 8; Reason = 'the recommended size is a constrained-vCPU size' }
+            @{ Case = 'a recommended size with 2 vCPUs'; Sku = 'Standard_D2s_v5'; Vcpu = 2; Reason = 'the recommended size has 2 vCPUs or fewer' }
+        ) {
+            $ctx = Get-RightsizingContext
+            $r = Get-RightsizingOpportunity -Utilization $LowUse -Primary ([pscustomobject]@{ SkuName = $Sku; vCPUs = $Vcpu }) -RegionCatalog (New-HalfSizeCatalog) -MemoryGB 32 @ctx
+            $r.Status | Should -Be 'Potential Rightsizing Opportunity'
+            $r.SuggestedSku | Should -BeNullOrEmpty
+            $r.Note | Should -Match ([regex]::Escape("No smaller size is suggested: $Reason."))
+        }
+
+        It 'still flags the signal but suggests no size when the VM details are not given' {
+            $r = Get-RightsizingOpportunity -Utilization $LowUse -Primary $RsPrimary -RegionCatalog (New-HalfSizeCatalog) -MemoryGB 32
+            $r.Status | Should -Be 'Potential Rightsizing Opportunity'
+            $r.SuggestedSku | Should -BeNullOrEmpty
+            $r.Note | Should -Match 'the VM details needed to check a smaller size were not provided'
+        }
+
+        It 'reports no opportunity when <Case>' -ForEach @(
+            @{ Case = 'CPU is busy'; Use = [pscustomobject]@{ CpuP95 = 60; CpuMax = 95; MemAvailP05Bytes = 28GB; Samples = 720 }; MemUsed = 12.5 }
+            @{ Case = 'memory is in use'; Use = [pscustomobject]@{ CpuP95 = 7; CpuMax = 30; MemAvailP05Bytes = 17GB; Samples = 720 }; MemUsed = 46.9 }
+            @{ Case = 'no memory is left at the 5th percentile'; Use = [pscustomobject]@{ CpuP95 = 7; CpuMax = 30; MemAvailP05Bytes = 0; Samples = 720 }; MemUsed = 100 }
+        ) {
+            $ctx = Get-RightsizingContext
+            $r = Get-RightsizingOpportunity -Utilization $Use -Primary $RsPrimary -RegionCatalog (New-HalfSizeCatalog) -MemoryGB 32 @ctx
+            $r.Status | Should -Be 'No Opportunity'
+            $r.SuggestedSku | Should -BeNullOrEmpty
+            $r.MemUsedP95Pct | Should -Be $MemUsed
+        }
+
+        It 'judges on CPU alone, and says so, when the guest reports no memory metric' {
+            $use = [pscustomobject]@{ CpuP95 = 7; CpuMax = 30; MemAvailP05Bytes = $null; Samples = 720 }
+            $ctx = Get-RightsizingContext
+            $r = Get-RightsizingOpportunity -Utilization $use -Primary $RsPrimary -RegionCatalog (New-HalfSizeCatalog) -MemoryGB 32 @ctx
+            $r.Status | Should -Be 'Potential Rightsizing Opportunity'
+            $r.MemUsedP95Pct | Should -BeNullOrEmpty
+            $r.Note | Should -Match 'memory used n/a \(guest metric unavailable\)'
+        }
+
+        It 'reports insufficient data without metrics or with less than seven days of them' {
+            (Get-RightsizingOpportunity -Utilization $null -Primary $null -RegionCatalog @{} -MemoryGB 8).Status | Should -Be 'Insufficient Data'
+            $short = [pscustomobject]@{ CpuP95 = 7; CpuMax = 30; MemAvailP05Bytes = 28GB; Samples = 167 }
+            (Get-RightsizingOpportunity -Utilization $short -Primary $RsPrimary -RegionCatalog (New-HalfSizeCatalog) -MemoryGB 32).Status | Should -Be 'Insufficient Data'
+        }
     }
 }
 

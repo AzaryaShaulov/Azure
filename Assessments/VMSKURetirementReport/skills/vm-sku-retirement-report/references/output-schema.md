@@ -98,6 +98,20 @@ check did not run) and says what each grouping counts in its heading. The HTML *
 column of the Subscriptions table and each subscription page count the VMs in `Wave 4 - Modernization`: an older generation
 without a retirement announcement, with the action `Modernization Optional` or `Plan Migration`.
 
+### Rightsizing
+
+`vms[].rightsizing` (and `RightsizingStatus` / `RightsizingSuggestedSku` in `vm-assessment.csv`) is `null` or empty for a VM
+that was not assessed (not running, no action, no recommendation, or the telemetry could not be read) and has these fields
+otherwise. It is informational and never changes the recommendation (see methodology section 10).
+
+| Field | Meaning |
+|---|---|
+| `Status` | `Potential Rightsizing Opportunity`, `No Opportunity` or `Insufficient Data` (fewer than 7 days of hourly data, or none) |
+| `CpuP95` | 95th percentile of the **hourly average** CPU, in percent; short bursts are averaged away, so `Note` adds the highest hourly maximum |
+| `MemUsedP95Pct` | Memory used at the 95th percentile, in percent; `null` when the guest reports no available memory |
+| `SuggestedSku` | The same-series size with half the vCPUs of `RecommendedSku`, only when it passes the same mandatory checks as a migration target for this VM; `null` when none does |
+| `Note` | The figures in words and, when no size is suggested, the reason |
+
 ### Collection issues
 
 `collectionIssues[]` lists every problem that left part of the data missing; it is `[]` when everything was read. Each entry

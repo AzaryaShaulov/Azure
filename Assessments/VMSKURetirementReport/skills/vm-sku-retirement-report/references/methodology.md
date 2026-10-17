@@ -606,16 +606,35 @@ JSON strategy `Complexity` property are retained for compatibility with automati
 ## 10. Rightsizing (optional)
 
 With `-IncludeRightsizing`, hourly `Percentage CPU` and `Available Memory Bytes` metrics are read over the lookback
-window through the Azure Monitor batch API (50 VMs per call). This applies only to running VMs that have an action.
+window through the Azure Monitor batch API (50 VMs per call, each call tried up to three times). This applies only to
+running VMs that have a recommendation and an action.
 
 A VM is flagged *Potential Rightsizing Opportunity* when:
 
 - CPU P95 < 20%, and
-- memory used (from the P05 of available memory) < 40%, and
-- at least 7 days of data exist.
+- memory used (from the P05 of available memory) < 40%, or the guest reports no available memory (then only CPU is
+  judged and the note says so), and
+- at least 7 days of data exist (otherwise *Insufficient Data*, which also covers a VM that has no metrics).
 
-A half-size in the primary series is suggested. The result is reported in separate columns and **never** changes the
-primary recommendation.
+**What the numbers mean.** CPU P95 is the 95th percentile (nearest rank) of the **hourly averages**, so a burst inside an
+hour is averaged away: a VM that peaks at 90% for ten minutes every hour can still show a low P95. The note therefore
+prints the highest hourly maximum next to the P95; read it before acting. Memory used is
+`1 - P05 of available memory / the VM's memory`, so it is the P95 of the used memory.
+
+**The suggested size** is the size of the same series with half the vCPUs of the recommended size. It is suggested only
+when it passes the same mandatory checks as a migration target for this VM (section 5: NIC and data disk limits,
+storage, networking, ephemeral OS disk, security type, zone and region availability, and so on); a size that is
+restricted or not offered in the VM's zone is never suggested. Constrained-vCPU sizes (billed for the full core count)
+and isolated sizes of a non-isolated VM are never suggested, and no size is suggested when the recommended size has 2 vCPUs
+or fewer or is itself a constrained-vCPU size. When no size is suggested, the note says why. The choice does not depend
+on the order of the catalog. The suggested size is smaller than the recommended one and in the same quota family, so it
+needs no quota beyond the recommendation. The recommended size has at least the current memory, so on the suggested size
+(about half of it) the memory used stays below about 80%.
+
+**Failed reads.** Failing to get the Azure Monitor token is listed under the data-collection issues and the VMs get no
+rightsizing result. A metrics call that still fails after three attempts is not listed: its VMs show *Insufficient Data*.
+
+The result is reported in separate columns and **never** changes the primary recommendation.
 
 ## 11. Pricing (on by default)
 

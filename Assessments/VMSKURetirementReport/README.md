@@ -393,7 +393,7 @@ double-dash form accepted is `--check-modernization`.
 | `-HorizonMonths` | `36` | Planning horizon (12-120). Dated retirements this many months away or more go to *Beyond Horizon*; Wave 1 is never deferred |
 | `-QuotaSafetyPct` | `20` | Extra headroom on recommended quota requests (% of demand) |
 | `-MaxCandidates` | `3` | Recommendations per VM: `1` primary only, `2` + alternative, `3` + third |
-| `-IncludeRightsizing` | off | Azure Monitor CPU/memory signal (separate column, never changes the recommendation) |
+| `-IncludeRightsizing` | off | Azure Monitor CPU/memory signal (separate column, never changes the recommendation); a suggested smaller size must pass the same checks as a migration target |
 | `-RightsizingLookbackDays` | `30` | Telemetry window (7-93) |
 | `-IncludePricing` | on | Retail PAYGO monthly price comparison (informational). Pricing is on by default; the switch is kept for existing scripts |
 | `-SkipPricing` | off | Turn off retail pricing (for example when `prices.azure.com` is blocked, or for a fully offline `-FromSnapshot` replay) |

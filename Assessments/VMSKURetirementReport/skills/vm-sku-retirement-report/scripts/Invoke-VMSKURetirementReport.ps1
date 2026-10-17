@@ -372,7 +372,7 @@ try {
             $util = Get-VmUtilization -Vms @($targets | ForEach-Object Vm) -LookbackDays $RightsizingLookbackDays -TenantId $argTenant
             foreach ($a in $targets) {
                 $key = "$($a.Vm.SubscriptionId)|$($a.Vm.Region)".ToLowerInvariant()
-                $a.Rightsizing = Get-RightsizingOpportunity -Utilization $util[$a.Vm.Id] -Primary $a.Candidates.Primary -RegionCatalog $skuCatalogs[$key] -MemoryGB $a.Current.MemoryGB
+                $a.Rightsizing = Get-RightsizingOpportunity -Utilization $util[$a.Vm.Id] -Primary $a.Candidates.Primary -RegionCatalog $skuCatalogs[$key] -MemoryGB $a.Current.MemoryGB -Vm $a.Vm -Current $a.Current -ProcessorCatalog $procCatalog
             }
             Write-PhaseDone "$(@($targets | Where-Object { $_.Rightsizing -and $_.Rightsizing.Status -eq 'Potential Rightsizing Opportunity' }).Count) potential opportunities"
         }

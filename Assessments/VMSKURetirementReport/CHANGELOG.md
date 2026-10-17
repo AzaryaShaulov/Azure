@@ -103,6 +103,16 @@ All notable changes to this project are documented here. The format follows
   modernization reason. When nothing qualifies, `NoCandidateReason` lists the larger sizes that were tried and says that
   sizes beyond the bound were not evaluated. Nothing changes for a VM whose closest size qualifies. The new `Variant` value
   appears in `candidates.csv` and `recommendation.*.variant`.
+- **The rightsizing suggestion ignored the checks that govern a migration target, and was not repeatable.** With
+  `-IncludeRightsizing`, the suggested half size was any size of the series with half the vCPUs that was not restricted: a
+  VM with three NICs was pointed at a size that allows two, a zonal VM at a size that is not offered in its zone, and
+  constrained-vCPU sizes (billed for the full core count) competed with the real half size, so the answer changed from
+  run to run (four different answers in eight runs of the same input). The suggestion must now pass the same mandatory
+  checks as a migration target, is never a constrained-vCPU size, is chosen in a fixed order, and the note says why when
+  no size qualifies. A VM with no memory left at the 5th percentile was read as having low memory use and flagged; it is
+  now `No Opportunity`. The note shows the highest hourly maximum next to the P95 of the hourly averages, because
+  averaging hides short bursts. The percentile helper, the metrics reader (batching, retry, give-up), the suggestion and a
+  run with VMs are now tested; the mock `az` accepts `MOCK_AZ_SKUS_FILE` to serve a test's own Resource SKU list.
 
 ## [1.2.0] - 2026-10-12
 

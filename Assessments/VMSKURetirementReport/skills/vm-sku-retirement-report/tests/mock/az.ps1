@@ -33,7 +33,7 @@ if ($joined -match '^account get-access-token') {
 }
 if ($joined -match '^extension show') { Out-Json ([pscustomobject]@{ name = 'resource-graph'; version = '2.1.1' }) }
 if ($joined -match '^account list') { Out-Json @([pscustomobject]@{ id = $sub; name = 'contoso-prod'; tenantDisplayName = 'Contoso (Sample)'; user = 'admin@contoso.example' }) }
-if ($joined -match '^vm list-skus') { Get-Content (Join-Path $fx 'skus-eastus2.json') -Raw; exit 0 }
+if ($joined -match '^vm list-skus') { Get-Content $(if ($env:MOCK_AZ_SKUS_FILE) { $env:MOCK_AZ_SKUS_FILE } else { Join-Path $fx 'skus-eastus2.json' }) -Raw; exit 0 }
 if ($joined -match '^vm list-usage') {
     Out-Json @(
         [pscustomobject]@{ name = @{ value = 'cores'; localizedValue = 'Total Regional vCPUs' }; localName = 'Total Regional vCPUs'; currentValue = 40; limit = 350 }

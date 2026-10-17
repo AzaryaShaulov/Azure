@@ -268,6 +268,85 @@ function global:Start-Sleep { param([int]`$Seconds) }
     }
 }
 
+Describe 'End-to-end rightsizing (mock Azure)' {
+    BeforeAll {
+        $mockDir = Join-Path $PSScriptRoot 'mock'
+        $script:RsOut = Join-Path $TestDrive 'rightsizing'
+        # The fixture sizes plus a 2-vCPU Ddsv5 size that is not offered in zone 3: the VM without a zone can be suggested it,
+        # the zonal VM cannot.
+        $skus = @(Get-Content (Join-Path $PSScriptRoot 'fixtures/skus-eastus2.json') -Raw | ConvertFrom-Json)
+        $half = (@($skus | Where-Object name -eq 'Standard_D4ds_v5')[0] | ConvertTo-Json -Depth 20) | ConvertFrom-Json
+        $half.name = 'Standard_D2ds_v5'
+        foreach ($capability in $half.capabilities) {
+            switch ($capability.name) { 'vCPUs' { $capability.value = '2' } 'vCPUsAvailable' { $capability.value = '2' } 'MemoryGB' { $capability.value = '8' } 'MaxNetworkInterfaces' { $capability.value = '2' } 'MaxDataDiskCount' { $capability.value = '4' } }
+        }
+        $half.locationInfo[0].zones = @('1', '2')
+        $skuFile = Join-Path $TestDrive 'skus-with-half-size.json'
+        ConvertTo-Json -InputObject @($skus + $half) -Depth 20 | Set-Content -LiteralPath $skuFile
+        # Offline REST: fixture prices, and Azure Monitor metrics chosen by VM (nothing is returned for vm-b2ms).
+        $shimFile = Join-Path $TestDrive 'metrics-shim.ps1'
+        Set-Content -LiteralPath $shimFile -Value @'
+function global:Invoke-RestMethod {
+    param([string]$Uri, [string]$Method, $Headers, [string]$ContentType, $Body, [int]$TimeoutSec)
+    if ($Uri -like 'https://prices.azure.com/*') { return (Get-Content -LiteralPath $env:SHIM_PRICES -Raw | ConvertFrom-Json) }
+    if ($Uri -notlike 'https://*.metrics.monitor.azure.com/*') { throw "Test is offline; blocked request to $Uri" }
+    $series = {
+        param($Average, $Maximum, $Points, $AvailableGB)
+        $cpu = @(1..$Points | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]$Average; maximum = [double]$Maximum } })
+        $mem = @(1..$Points | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]($AvailableGB * 1GB) } })
+        @([pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = $cpu }) },
+            [pscustomobject]@{ name = [pscustomobject]@{ value = 'Available Memory Bytes' }; timeseries = @([pscustomobject]@{ data = $mem }) })
+    }
+    $values = foreach ($id in @(($Body | ConvertFrom-Json).resourceids)) {
+        $metrics = switch -Wildcard ($id) {
+            '*vm-ds3v2' { & $series 5 20 200 12 }
+            '*vm-zonal' { & $series 5 20 200 14 }
+            '*vm-d4sv3' { & $series 60 95 200 12 }
+        }
+        if ($metrics) { [pscustomobject]@{ resourceid = $id; value = $metrics } }
+    }
+    [pscustomobject]@{ values = @($values) }
+}
+'@
+        $script:RsLog = & pwsh -NoProfile -Command "`$env:MOCK_AZ_SKUS_FILE='$skuFile'; `$env:SHIM_PRICES='$(Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json')'; . '$shimFile'; `$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$RsOut' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2 -IncludeRightsizing" 2>&1 | Out-String
+        $script:RsRows = @{}
+        if (Test-Path (Join-Path $RsOut 'vm-assessment.csv')) { foreach ($row in Import-Csv (Join-Path $RsOut 'vm-assessment.csv')) { $RsRows[$row.VM] = $row } }
+    }
+
+    It 'completes and reads the metrics without a warning' {
+        $RsLog | Should -Match 'Outputs:'
+        $RsLog | Should -Not -Match 'Rightsizing telemetry unavailable'
+        $RsRows.Count | Should -Be 7
+    }
+
+    It 'reports the signal for each running VM that has a recommendation' {
+        $RsRows['vm-ds3v2'].RightsizingStatus | Should -Be 'Potential Rightsizing Opportunity'
+        $RsRows['vm-zonal'].RightsizingStatus | Should -Be 'Potential Rightsizing Opportunity'
+        $RsRows['vm-d4sv3'].RightsizingStatus | Should -Be 'No Opportunity'
+        $RsRows['vm-b2ms'].RightsizingStatus | Should -Be 'Insufficient Data'
+    }
+
+    It 'leaves the VMs that are not rightsizing targets without a signal' {
+        foreach ($name in 'vm-dealloc', 'vm-d4sv5', 'vm-nc6') { $RsRows[$name].RightsizingStatus | Should -BeNullOrEmpty -Because "$name is deallocated, needs no action or has no recommendation" }
+    }
+
+    It 'suggests the half size only where it passes the checks for the VM' {
+        $RsRows['vm-ds3v2'].RightsizingSuggestedSku | Should -Be 'Standard_D2ds_v5'
+        $RsRows['vm-zonal'].RightsizingSuggestedSku | Should -BeNullOrEmpty
+        $RsRows['vm-d4sv3'].RightsizingSuggestedSku | Should -BeNullOrEmpty
+    }
+
+    It 'explains why no size is suggested, shows the peak and leaves the recommendation alone' {
+        $j = Get-Content (Join-Path $RsOut 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        $zonal = @($j.vms | Where-Object { $_.row.VM -eq 'vm-zonal' })[0]
+        $zonal.rightsizing.Status | Should -Be 'Potential Rightsizing Opportunity'
+        $zonal.rightsizing.Note | Should -Match 'highest hourly maximum 20%'
+        $zonal.rightsizing.Note | Should -Match ([regex]::Escape('No smaller size is suggested: no 2-vCPU size passes the mandatory checks for this VM (Standard_D2ds_v5: Region / Zone: Not Available in zone 3).'))
+        $zonal.row.RecommendedSku | Should -Be 'Standard_D4ds_v5'
+        $RsRows['vm-ds3v2'].RecommendedSku | Should -Be 'Standard_D4ds_v5'
+    }
+}
+
 Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
     BeforeAll {
         $mockDir = Join-Path $PSScriptRoot 'mock'
