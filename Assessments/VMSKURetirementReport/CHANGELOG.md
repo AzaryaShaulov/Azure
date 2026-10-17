@@ -82,6 +82,13 @@ All notable changes to this project are documented here. The format follows
   it are masked; with `-IncludeOperatorAccount` the operator's own account stays. The error text that the report shows had
   a second gap: PowerShell re-serializes a JSON error body and writes each quote as `\u0027`, and the object id after such
   a quote was not masked. Both are fixed. The rightsizing warning in the console is sanitized like the recorded message.
+- **The output schema document was out of step with the output.** `references/output-schema.md` left `LifecycleStage` out of
+  the `lifecycle` object of `assessment.json`, and said that the `vm-assessment.csv` columns "are written in the order
+  listed" although the table groups them by topic (39 columns are at a different position, for example `CurrentVcpu` and
+  `LifecycleStage`). The document now lists the 88 columns in the order of the file, says the table is grouped by topic, and
+  lists `LifecycleStage`. New tests compare the document with a real run: the keys of the `lifecycle`, `current`,
+  `recommendation`, `modernization`, `confidence`, `dataQuality`, `rightsizing` and `pricing` objects, the column order, and
+  the set of grouped columns. The output itself is unchanged.
 - **Stale or incomplete retirement evidence did not stand out.** The cached catalog had no maximum age, and a live parse that
   silently lost series or list rows (for example after a Learn page format change) was used without a word, which would turn
   retiring sizes into "No Retirement Announced". The report now warns when the cache is more than 90 days older than the

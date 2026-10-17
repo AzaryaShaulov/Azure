@@ -754,6 +754,37 @@ Describe 'End-to-end I/O boundaries and options (mock Azure)' {
             $exitCode = $LASTEXITCODE
             [pscustomobject]@{ Dir = $dir; Log = $log; Flat = ($log -replace '\s+', ' '); ExitCode = $exitCode }
         }
+        # Offline REST for a run: fixture prices and an Azure Monitor that either answers or refuses with HTTP 403
+        # (SHIM_METRICS_MODE). Every metrics request is written to SHIM_METRICS_LOG.
+        $script:MetricsShim = Join-Path $TestDrive 'metrics-boundary-shim.ps1'
+        Set-Content -LiteralPath $MetricsShim -Value @'
+function global:Invoke-RestMethod {
+    param([string]$Uri, [string]$Method, $Headers, [string]$ContentType, $Body, [int]$TimeoutSec)
+    if ($Uri -like 'https://prices.azure.com/*') { return (Get-Content -LiteralPath $env:SHIM_PRICES -Raw | ConvertFrom-Json) }
+    if ($Uri -notlike 'https://*.metrics.monitor.azure.com/*') { throw "Test is offline; blocked request to $Uri" }
+    Add-Content -LiteralPath $env:SHIM_METRICS_LOG -Value $Uri
+    if ($env:SHIM_METRICS_MODE -eq 'forbidden') {
+        $record = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('Response status code does not indicate success: 403 (Forbidden).'), 'WebCmdletWebResponseException', [System.Management.Automation.ErrorCategory]::InvalidOperation, $Uri)
+        $record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('{"error":{"code":"AuthorizationFailed","message":"The client ''admin@contoso.example'' with object id ''99999999-9999-9999-9999-999999999999'' does not have authorization to perform action ''microsoft.insights/metrics/read'' over scope ''/subscriptions/11111111-1111-1111-1111-111111111111''."}}')
+        throw $record
+    }
+    $values = foreach ($id in @(($Body | ConvertFrom-Json).resourceids)) {
+        $cpu = @(1..50 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]5; maximum = [double]20 } })
+        $mem = @(1..50 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double](12 * 1GB) } })
+        [pscustomobject]@{ resourceid = $id; value = @(
+                [pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = $cpu }) },
+                [pscustomobject]@{ name = [pscustomobject]@{ value = 'Available Memory Bytes' }; timeseries = @([pscustomobject]@{ data = $mem }) }) }
+    }
+    [pscustomobject]@{ values = @($values) }
+}
+'@
+        $script:RunWithMetrics = {
+            param([string]$Name, [string]$Mode, [string]$Arguments)
+            $uris = Join-Path $TestDrive "$Name-metrics-requests.log"
+            $prices = Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json'
+            $run = & $RunReport $Name ". '$MetricsShim'; $NoSleep; `$env:SHIM_PRICES='$prices'; `$env:SHIM_METRICS_LOG='$uris'; `$env:SHIM_METRICS_MODE='$Mode';" $Arguments
+            $run | Add-Member -NotePropertyName Requests -NotePropertyValue @(if (Test-Path -LiteralPath $uris) { Get-Content -LiteralPath $uris }) -PassThru
+        }
     }
 
     Context 'Resource Graph pages, throttling and denial' {
@@ -816,37 +847,6 @@ Describe 'End-to-end I/O boundaries and options (mock Azure)' {
 
     Context 'options and Azure Monitor' {
         BeforeAll {
-            # Offline REST for the run: fixture prices, no pauses, and an Azure Monitor that either answers or refuses with HTTP 403
-            # (SHIM_METRICS_MODE). Every metrics request is written to SHIM_METRICS_LOG.
-            $script:MetricsShim = Join-Path $TestDrive 'metrics-boundary-shim.ps1'
-            Set-Content -LiteralPath $MetricsShim -Value @'
-function global:Invoke-RestMethod {
-    param([string]$Uri, [string]$Method, $Headers, [string]$ContentType, $Body, [int]$TimeoutSec)
-    if ($Uri -like 'https://prices.azure.com/*') { return (Get-Content -LiteralPath $env:SHIM_PRICES -Raw | ConvertFrom-Json) }
-    if ($Uri -notlike 'https://*.metrics.monitor.azure.com/*') { throw "Test is offline; blocked request to $Uri" }
-    Add-Content -LiteralPath $env:SHIM_METRICS_LOG -Value $Uri
-    if ($env:SHIM_METRICS_MODE -eq 'forbidden') {
-        $record = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('Response status code does not indicate success: 403 (Forbidden).'), 'WebCmdletWebResponseException', [System.Management.Automation.ErrorCategory]::InvalidOperation, $Uri)
-        $record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('{"error":{"code":"AuthorizationFailed","message":"The client ''admin@contoso.example'' with object id ''99999999-9999-9999-9999-999999999999'' does not have authorization to perform action ''microsoft.insights/metrics/read'' over scope ''/subscriptions/11111111-1111-1111-1111-111111111111''."}}')
-        throw $record
-    }
-    $values = foreach ($id in @(($Body | ConvertFrom-Json).resourceids)) {
-        $cpu = @(1..50 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]5; maximum = [double]20 } })
-        $mem = @(1..50 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double](12 * 1GB) } })
-        [pscustomobject]@{ resourceid = $id; value = @(
-                [pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = $cpu }) },
-                [pscustomobject]@{ name = [pscustomobject]@{ value = 'Available Memory Bytes' }; timeseries = @([pscustomobject]@{ data = $mem }) }) }
-    }
-    [pscustomobject]@{ values = @($values) }
-}
-'@
-            $script:RunWithMetrics = {
-                param([string]$Name, [string]$Mode, [string]$Arguments)
-                $uris = Join-Path $TestDrive "$Name-metrics-requests.log"
-                $prices = Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json'
-                $run = & $RunReport $Name ". '$MetricsShim'; $NoSleep; `$env:SHIM_PRICES='$prices'; `$env:SHIM_METRICS_LOG='$uris'; `$env:SHIM_METRICS_MODE='$Mode';" $Arguments
-                $run | Add-Member -NotePropertyName Requests -NotePropertyValue @(if (Test-Path -LiteralPath $uris) { Get-Content -LiteralPath $uris }) -PassThru
-            }
             $script:Options = & $RunWithMetrics 'options' 'ok' '-QuotaSafetyPct 60 -RightsizingLookbackDays 7 -IncludeRightsizing -SkipHtml'
             $script:Forbidden = & $RunWithMetrics 'metrics-forbidden' 'forbidden' '-IncludeRightsizing'
             $script:Operator = & $RunWithMetrics 'metrics-forbidden-operator' 'forbidden' '-IncludeRightsizing -IncludeOperatorAccount'
@@ -957,6 +957,60 @@ function global:Invoke-RestMethod {
             (Get-Content (Get-ChildItem $OptionalOn.Dir -Filter 'contoso-prod-*.html').FullName -Raw) | Should -Match 'vm-optional'
             (Get-Content (Join-Path $OptionalOff.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).parameters.HtmlIncludeOptionalModernization | Should -BeFalse
             (Get-Content (Join-Path $OptionalOn.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).parameters.HtmlIncludeOptionalModernization | Should -BeTrue
+        }
+    }
+
+    Context 'the output schema document' {
+        BeforeAll {
+            $script:SchemaDoc = Get-Content -LiteralPath (Join-Path $Root 'references/output-schema.md') -Raw
+            # Modernization, rightsizing and pricing are all on, so every object the document describes is in the output.
+            $script:Documented = & $RunWithMetrics 'documented' 'ok' '-CheckModernization -IncludeRightsizing'
+            $documentedFile = Join-Path $Documented.Dir 'assessment.json'
+            $script:DocumentedJson = if (Test-Path -LiteralPath $documentedFile) { Get-Content $documentedFile -Raw | ConvertFrom-Json -Depth 50 }
+            $script:DocumentedHeader = @(if (Test-Path -LiteralPath (Join-Path $Documented.Dir 'vm-assessment.csv')) { (Get-Content (Join-Path $Documented.Dir 'vm-assessment.csv') -TotalCount 1) -replace '"', '' -split ',' })
+            # The keys that the sketch of assessment.json lists for an object (for example lifecycle: { SkuName, SeriesKey, ... }).
+            $script:DocumentedKeys = {
+                param([string]$Name)
+                $sketch = [regex]::Match($SchemaDoc, '(?s)## assessment\.json\s+```text\r?\n(.*?)\r?\n```').Groups[1].Value
+                $body = [regex]::Match($sketch, "(?s)\b$Name\s*:\s*\{(.*?)\}").Groups[1].Value
+                @($body -split ',' | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } | Where-Object { $_ } | ForEach-Object { ($_ -split ':')[0].Trim() -replace '\[\]$', '' } | Where-Object { $_ -and $_ -ne '...' })
+            }
+        }
+
+        It 'completes with every optional part switched on' {
+            $Documented.ExitCode | Should -Be 0 -Because $Documented.Log
+            $Documented.Log | Should -Match 'Outputs:'
+        }
+
+        It 'describes the <Object> object with the keys the output has, and no others' -ForEach @(
+            @{ Object = 'lifecycle' }, @{ Object = 'current' }, @{ Object = 'recommendation' }, @{ Object = 'modernization' }
+            @{ Object = 'confidence' }, @{ Object = 'dataQuality' }, @{ Object = 'rightsizing' }, @{ Object = 'pricing' }
+        ) {
+            $documented = @(& $DocumentedKeys $Object)
+            $documented.Count | Should -BeGreaterThan 0 -Because "the sketch lists the keys of $Object"
+            $real = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($vm in $DocumentedJson.vms) {
+                $item = $vm.$Object
+                if ($item) { foreach ($name in $item.PSObject.Properties.Name) { [void]$real.Add($name) } }
+            }
+            $real.Count | Should -BeGreaterThan 0 -Because "at least one VM has $Object data in this run"
+            @($documented | Where-Object { -not $real.Contains($_) }) | Should -BeNullOrEmpty -Because 'every documented key is in the output'
+            @($real | Where-Object { $_ -notin $documented }) | Should -BeNullOrEmpty -Because 'every key of the output is documented'
+        }
+
+        It 'lists the vm-assessment.csv columns in the order the file has them' {
+            $listed = [regex]::Match($SchemaDoc, '(?s)\*\*Column order\.\*\*[^`]*```text\r?\n(.*?)\r?\n```').Groups[1].Value
+            $columns = @($listed -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $columns.Count | Should -Be 88
+            $columns | Should -Be $DocumentedHeader
+        }
+
+        It 'groups the same vm-assessment.csv columns by topic' {
+            $section = ($SchemaDoc -split '(?m)^## vm-assessment\.csv.*$')[1]
+            $table = ($section -split '\*\*Column order\.\*\*')[0]
+            $grouped = @([regex]::Matches($table, '`([A-Za-z_][A-Za-z0-9_]*)`') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+            @($grouped | Where-Object { $_ -notin $DocumentedHeader }) | Should -BeNullOrEmpty -Because 'every grouped column is in the file'
+            @($DocumentedHeader | Where-Object { $_ -notin $grouped }) | Should -BeNullOrEmpty -Because 'every column of the file is grouped'
         }
     }
 }

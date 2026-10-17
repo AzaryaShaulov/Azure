@@ -26,8 +26,8 @@ complete, machine-readable result for Azure Workbooks, Power BI, Excel, Logic Ap
     vm: <inventory record: ids, zone, availability set, PPG, host, VMSS, power state, OS, Hyper-V generation, disk controller,
          NIC / disk counts, disk SKUs, Premium / Ultra, accelerated networking, ephemeral OS, security, encryption, Spot, image ...>,
     lifecycle: { SkuName, SeriesKey, LearnSeriesName, EvidenceClass, RetirementStatus, AnnouncementDate, RetirementDate, MonthsRemaining,
-                 Urgency, SourceUrl, AnnouncementUrl, MigrationGuideUrl, PreviousGenStatus, RecommendedTargets[], GuideDifferences[],
-                 SizeTargets[], Notes[], CatalogSource, DataQuality },
+                 Urgency, SourceUrl, AnnouncementUrl, MigrationGuideUrl, PreviousGenStatus, LifecycleStage, RecommendedTargets[],
+                 GuideDifferences[], SizeTargets[], Notes[], CatalogSource, DataQuality },
     current: { sku, quotaFamily, seriesKey, generation, cpuVendor, cpuArchitecture, processors[], vCpu, memoryGB, memoryPerVcpu, tempDiskGB,
                premiumIO, acceleratedNetworking, maxNics, maxDataDisks, uncachedDiskIops, uncachedDiskMBps, hyperVGenerations[],
                diskControllerTypes[], zones[], capabilitiesSource },
@@ -186,6 +186,10 @@ compared instead. These values also appear in `materialDifferences`, `MaterialDi
 
 ## vm-assessment.csv (one row per VM)
 
+The table groups the columns by topic. The order in the file is the one under **Column order** below, and it is not the
+order of this table (for example `CurrentVcpu` and `CurrentMemoryGB` follow `RegionAvailable`, and `LifecycleStage` comes
+after the retirement-vs-modernization group).
+
 | Column group | Columns |
 |---|---|
 | Identity | `Subscription`, `SubscriptionId`, `ResourceGroup`, `VM`, `VmResourceId`, `Region`, `Zone`, `PowerState`, `OsType`, `HyperVGeneration` |
@@ -198,13 +202,33 @@ compared instead. These values also appear in `materialDifferences`, `MaterialDi
 | Optional | `RightsizingStatus`, `RightsizingSuggestedSku`, `CurrentMonthlyUSD`, `TargetMonthlyUSD` (pricing is on by default; empty with `-SkipPricing`, when the Retail Prices API is unreachable or when no list price exists) |
 | Evidence | `MicrosoftSource`, `AnnouncementUrl`, `MigrationGuideUrl` |
 | Data quality | `DQ_RetirementDate`, `DQ_CpuVendor`, `DQ_RegionalAvailability`, `DQ_Quota`, `DQ_PhysicalCapacity`, `LifecycleNotes` |
-| Microsoft lifecycle stage (appended) | `LifecycleStage` |
 | Retirement vs modernization (appended) | `RetirementTargetSku`, `RetirementTargetGeneration`, `RetirementQuotaStatus`, `ModernizationTargetSku`, `ModernizationTargetGeneration`, `ModernizationTargetSource`, `ModernizationPath`, `ModernizationComplexity`, `ModernizationReadiness`, `ModernizationQuotaStatus`, `ModernizationPeakQuotaStatus`, `MigrationQuotaModel`, `RecommendedMigrationPath`, `ModernizationValidationItems` |
+| Microsoft lifecycle stage (appended) | `LifecycleStage` |
 | Modernization differences (appended last) | `ModernizationMaterialDifferences` - changed, reduced or improved attributes of the modernization target against the current size (`Attribute: current -> target; ...`); empty without `--check-modernization`, without a target or when already v6/v7 |
 
-Columns are written in the order listed; the retirement-vs-modernization group is appended after `LifecycleNotes` and
-`ModernizationMaterialDifferences` is the last column, so existing column positions are unchanged. Columns are never
-renamed or removed within 1.x.
+**Column order.** The 88 columns, left to right:
+
+```text
+Subscription, SubscriptionId, ResourceGroup, VM, VmResourceId, Region, Zone, PowerState, OsType, HyperVGeneration,
+CurrentSku, CurrentSkuGeneration, VmFamily, CpuVendor, CpuArchitecture, vCPU, MemoryGB, AffectedByRetirement,
+EvidenceClass, RetirementStatus, RetirementDate, TimeRemaining, Urgency, RecommendedSku, RecommendedSkuGeneration,
+TargetCpuVendor, TargetCpuArchitecture, TargetvCPU, TargetMemoryGB, CompatibilityScore, ScoreBand, CpuVendorPreserved,
+CpuVendorChangeRequired, RegionAvailable, CurrentVcpu, CurrentMemoryGB, RecommendedVcpu, RecommendedMemoryGB,
+SkuRegionalAvailability, QuotaStatus, ModernizationStatus, RecommendationReason, QuotaFamily, QuotaMinIncreaseFamily,
+QuotaMinIncreaseRegional, DeploymentReadiness, Confidence, Action, NextStep, Wave, AlternativeSku, AlternativeScore,
+AlternativeReason, ThirdCandidateSku, NewerGenerationIfConverted, NoCandidateReason, VendorChangeReason,
+MaterialDifferences, ValidationItems, RightsizingStatus, RightsizingSuggestedSku, CurrentMonthlyUSD, TargetMonthlyUSD,
+MicrosoftSource, AnnouncementUrl, MigrationGuideUrl, DQ_RetirementDate, DQ_CpuVendor, DQ_RegionalAvailability, DQ_Quota,
+DQ_PhysicalCapacity, LifecycleNotes, RetirementTargetSku, RetirementTargetGeneration, RetirementQuotaStatus,
+ModernizationTargetSku, ModernizationTargetGeneration, ModernizationTargetSource, ModernizationPath,
+ModernizationComplexity, ModernizationReadiness, ModernizationQuotaStatus, ModernizationPeakQuotaStatus,
+MigrationQuotaModel, RecommendedMigrationPath, ModernizationValidationItems, LifecycleStage,
+ModernizationMaterialDifferences
+```
+
+New columns are only ever appended: the retirement-vs-modernization group follows `LifecycleNotes`, `LifecycleStage` follows
+that group and `ModernizationMaterialDifferences` is the last column, so existing column positions are unchanged. Columns are
+never renamed or removed within 1.x. A test compares this list with the header of a real run.
 
 **Overlapping columns.** Some columns carry the same value for most VMs (the CSV keeps both for compatibility):
 
