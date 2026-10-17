@@ -276,12 +276,19 @@ function Export-ExecutiveSummaryMarkdown {
 
     [void]$sb.AppendLine('## Estate summary')
     [void]$sb.AppendLine()
+    # The v6/v7 counters exist only when the modernization check ran; without it a 0 would read as "nothing to modernize".
+    $modernizationRan = [bool](Get-RunParameter -Run $Run -Name 'CheckModernization' -Default $false)
+    $ifChecked = { param($Value) if ($modernizationRan) { $Value } else { 'not evaluated' } }
     $kv = [ordered]@{
         'Total Subscriptions Scanned' = $s.TotalSubscriptionsScanned; 'Total VMs Scanned' = $s.TotalVmsScanned; 'Affected VMs (confirmed/announced retirement)' = $s.AffectedVms
+        'VMs With an Action' = $s.ActionableVms
         'Already Retired' = $s.AlreadyRetired; 'Retirement Within 12 Months' = $s.RetirementWithin12Months; 'Retirement Within 12-24 Months' = $s.RetirementWithin24Months
         'Retirement Within 24-36 Months' = $s.RetirementWithin36Months; 'Retirement Beyond 36 Months' = $s.RetirementBeyond36Months
-        'Modernization Recommended (Microsoft previous-gen)' = $s.ModernizationRecommended; 'Modernization Optional' = $s.ModernizationOptional
-        'Modernize to v7' = $s.ModernizeToV7; 'Modernize to v6' = $s.ModernizeToV6; 'Already on v6/v7' = $s.AlreadyOnModernGeneration
+        'Modernization Recommended (Microsoft previous-gen)' = $s.ModernizationRecommended; 'Modernization Optional (action)' = $s.ModernizationOptional
+        'v7 modernization target, any path' = (& $ifChecked $s.ModernizationTargetV7); 'v6 modernization target, any path' = (& $ifChecked $s.ModernizationTargetV6)
+        'of which need Gen1 / NVMe conversion first: v7' = (& $ifChecked $s.ConvertibleToV7); 'of which need Gen1 / NVMe conversion first: v6' = (& $ifChecked $s.ConvertibleToV6)
+        'Direct resize to v7 (every check passes)' = (& $ifChecked $s.ModernizeToV7); 'Direct resize to v6 (every check passes)' = (& $ifChecked $s.ModernizeToV6)
+        'Already on v6/v7' = (& $ifChecked $s.AlreadyOnModernGeneration)
         'No Retirement Announced' = $s.NoRetirementAnnounced; 'Unable to Determine' = $s.UnableToDetermine
         'VMs Requiring Quota Increase' = $s.VmsRequiringQuotaIncrease; 'VMs With Regional Restrictions' = $s.VmsWithRegionalRestrictions
         'VMs Requiring CPU Vendor Change' = $s.VmsRequiringCpuVendorChange; 'VMs Requiring Manual Review' = $s.VmsRequiringManualReview
@@ -314,10 +321,14 @@ function Export-ExecutiveSummaryMarkdown {
         'By recommended SKU' = $s.ByRecommendedSku; 'By recommended SKU family' = $s.ByRecommendedSkuFamily; 'By CPU vendor' = $s.ByCpuVendor
         'By retirement date' = $s.ByRetirementDate; 'By migration priority (action)' = $s.ByMigrationPriority; 'By deployment readiness' = $s.ByDeploymentReadiness
     }
-    [void]$sb.AppendLine('## Groupings (VMs with an action)')
+    [void]$sb.AppendLine('## Groupings')
     [void]$sb.AppendLine()
+    [void]$sb.AppendLine("Unless a heading says otherwise, each table counts only the VMs that have an action ($($s.ActionableVms) of $($s.TotalVmsScanned) VMs); VMs with no action required are not in it.")
+    [void]$sb.AppendLine()
+    $groupScope = @{ 'By retirement date' = "the $($s.AffectedVms) VMs on retiring sizes"; 'By migration priority (action)' = "all $($s.TotalVmsScanned) VMs" }
     foreach ($g in $groups.Keys) {
-        [void]$sb.AppendLine("### $g")
+        $scopeNote = if ($groupScope.ContainsKey($g)) { " - $($groupScope[$g])" } else { '' }
+        [void]$sb.AppendLine("### $g$scopeNote")
         [void]$sb.AppendLine()
         [void]$sb.AppendLine((Format-MdTable -Rows @($groups[$g] | Select-Object -First 25) -Columns 'Key', 'Count'))
     }
@@ -1212,7 +1223,7 @@ function Get-BottomLine {
         $out.Add("<strong>$($retiring.Count) of $($Assessments.Count) VMs</strong> run on VM sizes that Microsoft has retired or scheduled for retirement.$first")
         if ($retired.Count) { $out.Add("<strong>$($retired.Count) VM(s)</strong> are on sizes that are already retired and need immediate attention.") }
     }
-    if ($modern.Count) { $out.Add("$($modern.Count) VM(s) run on an older generation that is <em>not</em> retiring; upgrading is optional (Wave 4).") }
+    if ($modern.Count) { $out.Add("$($modern.Count) VM(s) run on an older generation that is <em>not</em> retiring (Wave 4 modernization); no retirement deadline applies.") }
     if ($unknown.Count) { $out.Add("$($unknown.Count) VM(s) could not be matched to Microsoft lifecycle data and need manual confirmation.") }
     $quota = @($Assessments | Where-Object QuotaStatus -eq 'Quota Increase Required')
     if ($quota.Count) { $out.Add("$($quota.Count) recommended move(s) need a vCPU quota increase first ($(if ($TenantView) { 'see Quota Actions in the subscription reports' } else { 'see Quota Actions' })).") }
@@ -1367,13 +1378,15 @@ function Export-HtmlReports {
 
     # -- Tenant index --
     $gen1Vms = Get-Gen1VmCount -Assessments $Assessments
+    # The same set as the Wave 4 rows of the executive summary, the Subscriptions table and each subscription page.
+    $wave4Vms = @($Assessments | Where-Object { $_.Wave -eq 'Wave 4 - Modernization' }).Count
     $kpis = @(
         (New-Kpi $s.TotalVmsScanned 'VMs assessed' 'neutral' "$($s.TotalSubscriptionsScanned) subscription(s)")
         (New-Kpi $s.AffectedVms 'On retiring sizes' $(if ($s.AffectedVms) { 'orange' } else { 'green' }) 'Microsoft-confirmed')
         (New-Kpi $s.AlreadyRetired 'Already retired' $(if ($s.AlreadyRetired) { 'red' } else { 'green' }))
         (New-Kpi $s.RetirementWithin12Months 'Retire < 12 months' $(if ($s.RetirementWithin12Months) { 'red' } else { 'neutral' }))
         (New-Kpi ($s.RetirementWithin24Months + $s.RetirementWithin36Months) 'Retire in 1-3 years' $(if ($s.RetirementWithin24Months + $s.RetirementWithin36Months) { 'orange' } else { 'neutral' }))
-        (New-Kpi $s.ModernizationRecommended 'Optional modernization' 'purple' 'Older, not retiring')
+        (New-Kpi $wave4Vms 'Modernization (Wave 4)' 'purple' 'Older, not retiring')
         (New-Kpi $gen1Vms 'Gen1 VMs' $(if ($gen1Vms) { 'yellow' } else { 'green' }) "of $($s.TotalVmsScanned) VM$(if ($s.TotalVmsScanned -ne 1) { 's' })")
         (New-Kpi $s.VmsRequiringQuotaIncrease 'Need quota increase' $(if ($s.VmsRequiringQuotaIncrease) { 'orange' } else { 'neutral' }))
         (New-Kpi $s.HighConfidence 'High-confidence moves' 'green')
@@ -1409,7 +1422,7 @@ function Export-HtmlReports {
         $q = @($g.Group | Where-Object QuotaStatus -eq 'Quota Increase Required').Count
         "<tr><td><a class='strong' href='$(& $subFile $g.Name $name)'>$(& $e $name)</a><div class='sub'>$(& $e $g.Name)</div></td><td class='num'>$($g.Count)</td><td class='num'>$(if ($aff) { New-Badge 'Confirmed Retirement' "$aff" } else { '0' })</td><td class='num'>$(if ($w1) { New-Badge 'Wave 1' "$w1" } else { '0' })</td><td class='num'>$(if ($mod) { New-Badge 'Modernization' "$mod" } else { '0' })</td><td class='num'>$(if ($q) { New-Badge 'Quota Increase' "$q" } else { '0' })</td></tr>"
     }
-    $subHtml = if (@($subRows).Count) { "<div class='table-wrap'><table><thead><tr><th>Subscription</th><th class='num'>VMs</th><th class='num'>On retiring sizes</th><th class='num'>Wave 1</th><th class='num'>Modernization</th><th class='num'>Quota increase</th></tr></thead><tbody>$($subRows -join "`n")</tbody></table></div><p class='note'>Only subscriptions that contain VMs are listed. Select a subscription for per-VM details.</p>" } else { "<p class='note'>No subscriptions with VMs.</p>" }
+    $subHtml = if (@($subRows).Count) { "<div class='table-wrap'><table><thead><tr><th>Subscription</th><th class='num'>VMs</th><th class='num'>On retiring sizes</th><th class='num'>Wave 1</th><th class='num'>Wave 4</th><th class='num'>Quota increase</th></tr></thead><tbody>$($subRows -join "`n")</tbody></table></div><p class='note'>Only subscriptions that contain VMs are listed. Select a subscription for per-VM details.</p>" } else { "<p class='note'>No subscriptions with VMs.</p>" }
 
     $quotaRows = @(if ($QuotaImpact) { @($QuotaImpact.FamilyRows) + @($QuotaImpact.RegionalRows) | Where-Object { $_ } })
     $quotaIntro = 'Demand is added up for all VMs moving into the same subscription, region and VM family. Minimum increase = current usage + needed &minus; limit; the recommended request adds a safety margin.'
@@ -1437,7 +1450,7 @@ function Export-HtmlReports {
         $kp = @(
             (New-Kpi $set.Count 'VMs' 'neutral' "$(@($set | Where-Object { $_.Vm.PowerState -eq 'Running' }).Count) running")
             (New-Kpi $aff 'On retiring sizes' $(if ($aff) { 'orange' } else { 'green' }))
-            (New-Kpi $mod 'Optional modernization' 'purple')
+            (New-Kpi $mod 'Modernization (Wave 4)' 'purple' 'Older, not retiring')
             (New-Kpi $gen1 'Gen1 VMs' $(if ($gen1) { 'yellow' } else { 'green' }) "of $($set.Count) VM$(if ($set.Count -ne 1) { 's' })")
             (New-Kpi $none 'No action needed' 'green')
             (New-Kpi @($set | Where-Object QuotaStatus -eq 'Quota Increase Required').Count 'Need quota increase' 'neutral')

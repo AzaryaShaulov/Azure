@@ -714,6 +714,12 @@ function ConvertTo-AssessmentRow {
 }
 
 function New-AssessmentSummary {
+    <#
+    .SYNOPSIS
+        Estate counters and groupings. The set of VMs each counter and grouping covers is documented in output-schema.md
+        (Summary counters): the By* groupings other than ByEvidenceClass, ByWave and ByMigrationPriority cover only the
+        VMs that have an action (ActionableVms), and ByRetirementDate only the VMs on retiring sizes (AffectedVms).
+    #>
     param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments, [int]$SubscriptionsScanned)
     $rows = @($Assessments)
     $cnt = { param($pred) @($rows | Where-Object $pred).Count }
@@ -725,10 +731,13 @@ function New-AssessmentSummary {
         , @($set | Group-Object $sel | Sort-Object Count -Descending | ForEach-Object { [pscustomobject]@{ Key = if ($_.Name) { $_.Name } else { '(none)' }; Count = $_.Count } })
     }
     $withRec = @($rows | Where-Object { $_.Action -ne 'No Action Required' })
+    # VMs with a strategic v6/v7 target, whatever the path (direct resize, conversion first, or held back by quota).
+    $withTarget = @($rows | ForEach-Object { if ($_.Strategy) { $_.Strategy } else { Get-TargetStrategy -Assessment $_ } } | Where-Object { $_.ModernizationTargetSku -and -not $_.AlreadyModern })
     [pscustomobject][ordered]@{
         TotalSubscriptionsScanned   = $SubscriptionsScanned
         TotalVmsScanned             = $rows.Count
         AffectedVms                 = $affected.Count
+        ActionableVms               = $withRec.Count
         AlreadyRetired              = & $cnt { $_.Lifecycle.EvidenceClass -eq 'Already Retired' }
         RetirementWithin12Months    = & $cnt { $_.Lifecycle.Urgency -eq 'Less than 12 Months' }
         RetirementWithin24Months    = & $cnt { $_.Lifecycle.Urgency -eq '12-24 Months' }
@@ -736,6 +745,10 @@ function New-AssessmentSummary {
         RetirementBeyond36Months    = & $cnt { $_.Lifecycle.Urgency -eq 'More than 36 Months' }
         ModernizationRecommended    = & $cnt { $_.Lifecycle.EvidenceClass -eq 'Modernization Recommended' }
         ModernizationOptional       = & $cnt { $_.Action -eq 'Modernization Optional' }
+        ModernizationTargetV7       = @($withTarget | Where-Object { $_.ModernizationTargetGeneration -eq 7 }).Count
+        ModernizationTargetV6       = @($withTarget | Where-Object { $_.ModernizationTargetGeneration -eq 6 }).Count
+        ConvertibleToV7             = @($withTarget | Where-Object { $_.ModernizationTargetGeneration -eq 7 -and ($_.RequiresGenerationChange -or $_.RequiresNvmeConversion) }).Count
+        ConvertibleToV6             = @($withTarget | Where-Object { $_.ModernizationTargetGeneration -eq 6 -and ($_.RequiresGenerationChange -or $_.RequiresNvmeConversion) }).Count
         ModernizeToV7               = & $cnt { $_.Modernization -and $_.Modernization.Status -eq 'Modernize to v7' }
         ModernizeToV6               = & $cnt { $_.Modernization -and $_.Modernization.Status -eq 'Modernize to v6' }
         AlreadyOnModernGeneration   = & $cnt { $_.Modernization -and $_.Modernization.Status -eq 'Already on modern generation' }

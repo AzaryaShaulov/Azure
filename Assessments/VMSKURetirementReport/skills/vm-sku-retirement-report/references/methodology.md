@@ -310,6 +310,13 @@ original recommendation even when quota resolution promotes a v6/v7 size into `C
 Conversion flags (`RequiresGenerationChange`, `RequiresNvmeConversion`) come from the **selected target's** failed gates,
 so a VM with a directly deployable v6 is never labelled as needing NVMe conversion because a blocked v7 exists.
 
+**Estate counters.** The summary counts these targets separately from the direct resizes: `ModernizationTargetV7` and
+`ModernizationTargetV6` count the VMs that have a modernization target from any of the four sources above,
+`ConvertibleToV7` and `ConvertibleToV6` the part whose conversion flags are set, and `ModernizeToV7` and `ModernizeToV6`
+only the `Selected` targets that are direct resizes. A report that shows five v6 paths therefore no longer shows zero
+v6 modernization. The counters and the set of VMs each grouping covers are listed in
+[output-schema.md](output-schema.md#summary-counters).
+
 **Migration path text:**
 
 - not affected and already v6/v7: `No retirement move required; already on modern generation`;

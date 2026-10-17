@@ -12,6 +12,20 @@ All notable changes to this project are documented here. The format follows
   member, removed temp disk, reduced disk throughput, an older-generation target, partially verified lifecycle evidence);
   `Proceed with Resize (change window)` is kept for `Ready` VMs with `HIGH` confidence. `NextStep` in the CSV, JSON, HTML and
   Markdown can therefore contain the new value; the other values are unchanged.
+- **The estate summary no longer reads "no v6 modernization" next to v6 paths.** `ModernizeToV7` / `ModernizeToV6` count
+  only the VMs that can move by a direct resize, so a VM whose v6 target needs a Gen1 to Gen2 change or a SCSI to NVMe
+  conversion first was in neither; the sample showed 0 next to five v6 paths. `assessment.json` `summary` gains
+  `ModernizationTargetV7` / `ModernizationTargetV6` (a v7 / v6 target on any path), `ConvertibleToV7` / `ConvertibleToV6`
+  (the part that needs a conversion first) and `ActionableVms` (VMs with an action); no existing field changed. In
+  `executive-summary.md` the old rows are renamed "Direct resize to v7/v6 (every check passes)", the new ones are added, and
+  all v6/v7 rows read `not evaluated` when the modernization check did not run instead of a misleading 0. The groupings
+  cover different sets of VMs (all VMs, only VMs with an action, or only VMs on retiring sizes); each heading in the
+  executive summary now says which, and `references/output-schema.md` documents every counter and grouping.
+- **One "modernization" count in the HTML.** The index tile "Optional modernization" printed the number of VMs on Microsoft's
+  previous-generation list, while the Subscriptions table, each subscription page and the bottom line counted Wave 4 VMs, so
+  the numbers could differ and capacity-limited sizes (action `Plan Migration`) were called optional. All of them now count
+  the Wave 4 VMs, the tile is labelled "Modernization (Wave 4)", the table column "Wave 4", and the bottom line no longer
+  says the upgrade is optional.
 - **CI and the release workflow run on Windows only.** The tool runs through Azure CLI and local PowerShell, as a GitHub
   Copilot skill or as a standalone script; Linux, macOS and containers are not supported. The Linux and macOS test legs
   and the Linux container job were removed, and the Package and release jobs moved to a Windows runner. PowerShell 7.2 and

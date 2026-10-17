@@ -6,7 +6,7 @@
 |---|---|
 | Tenant | Contoso (Sample) (`22222222-2222-2222-2222-222222222222`) |
 | Assessment date (as of) | 2026-10-05 |
-| Generated (UTC) | 2026-10-16T21:04:30.0929727Z |
+| Generated (UTC) | 2026-10-17T00:10:08.3727887Z |
 | Retirement evidence | Cached (2026-10-06 00:44 UTC) - Microsoft Learn |
 | Source: RetiredList | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) (updated 09/27/2026 11:03:00, retrieved 10/06/2026 00:44:07) |
 | Source: PreviousGen | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list) (updated 09/26/2026 06:04:00, retrieved 10/06/2026 00:44:07) |
@@ -24,15 +24,20 @@
 | Total Subscriptions Scanned | 1 |
 | Total VMs Scanned | 7 |
 | Affected VMs (confirmed/announced retirement) | 6 |
+| VMs With an Action | 6 |
 | Already Retired | 1 |
 | Retirement Within 12 Months | 0 |
 | Retirement Within 12-24 Months | 2 |
 | Retirement Within 24-36 Months | 1 |
 | Retirement Beyond 36 Months | 2 |
 | Modernization Recommended (Microsoft previous-gen) | 0 |
-| Modernization Optional | 0 |
-| Modernize to v7 | 0 |
-| Modernize to v6 | 0 |
+| Modernization Optional (action) | 0 |
+| v7 modernization target, any path | 0 |
+| v6 modernization target, any path | 5 |
+| of which need Gen1 / NVMe conversion first: v7 | 0 |
+| of which need Gen1 / NVMe conversion first: v6 | 5 |
+| Direct resize to v7 (every check passes) | 0 |
+| Direct resize to v6 (every check passes) | 0 |
 | Already on v6/v7 | 0 |
 | No Retirement Announced | 1 |
 | Unable to Determine | 0 |
@@ -72,7 +77,9 @@ Waves 1-3 contain only VMs with Microsoft-confirmed or announced retirement date
 |---|---|---|---|---|---|---|---|---|
 | Standard\_D4s\_v3 | End of Life | Confirmed Retirement | 2029-11-15 | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
 
-## Groupings (VMs with an action)
+## Groupings
+
+Unless a heading says otherwise, each table counts only the VMs that have an action (6 of 7 VMs); VMs with no action required are not in it.
 
 ### By subscription
 
@@ -126,7 +133,7 @@ Waves 1-3 contain only VMs with Microsoft-confirmed or announced retirement date
 |---|---|
 | Intel | 6 |
 
-### By retirement date
+### By retirement date - the 6 VMs on retiring sizes
 
 | Key | Count |
 |---|---|
@@ -135,7 +142,7 @@ Waves 1-3 contain only VMs with Microsoft-confirmed or announced retirement date
 | 2025-09-30 | 1 |
 | 2028-11-15 | 1 |
 
-### By migration priority (action)
+### By migration priority (action) - all 7 VMs
 
 | Key | Count |
 |---|---|

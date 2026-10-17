@@ -50,10 +50,12 @@ BeforeAll {
         Complete-VmAssessment -Assessment $a -QuotaResult $q -Usage @{}
     }
     function script:Export-TestOutput {
-        param([object[]]$Assessments, $QuotaImpact = $null, [object[]]$CollectionIssues = @(), [switch]$Html)
+        param([object[]]$Assessments, $QuotaImpact = $null, [object[]]$CollectionIssues = @(), [switch]$Html, [hashtable]$ExtraParameters = @{})
         $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory $dir | Out-Null
-        $run = [pscustomobject]@{ GeneratedUtc = '2026-09-24T00:00:00Z'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'n' }; Account = 'a'; Parameters = [ordered]@{ IncludePricing = $false; HorizonMonths = 36 }
+        $parameters = [ordered]@{ IncludePricing = $false; HorizonMonths = 36 }
+        foreach ($key in $ExtraParameters.Keys) { $parameters[$key] = $ExtraParameters[$key] }
+        $run = [pscustomobject]@{ GeneratedUtc = '2026-09-24T00:00:00Z'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'n' }; Account = 'a'; Parameters = $parameters
             Counts = [pscustomobject]@{ Vms = @($Assessments).Count; Nics = 0; Disks = 0; AdeExtensions = 0; AdvisorRetirement = 0; ServiceHealthRetirement = 0 } }
         $summary = New-AssessmentSummary -Assessments $Assessments -SubscriptionsScanned 1
         $catalogResult = [pscustomobject]@{ Source = 'Fixture'; Warning = $null; Catalog = $Catalog }
@@ -635,6 +637,105 @@ Describe 'JSON and CSV output shapes' {
             @(Get-Content (Join-Path $populated "$name.csv"))[0] | Should -Be ('"' + ($expected[$name] -join '","') + '"')
             @(Import-Csv (Join-Path $populated "$name.csv")).Count | Should -BeGreaterThan 0
         }
+    }
+}
+
+Describe 'Estate summary counters' {
+    BeforeAll {
+        # One VM per modernization path (direct v7 resize, Gen1 conversion to v6, already modern) and one assessed without the check.
+        function script:New-ModernizationMix {
+            $v7 = $SkuCat['standard_d4s_v6'].PSObject.Copy()
+            $v7.Name = 'Standard_D4s_v7'; $v7.Family = 'standardDSv7Family'
+            $direct = @{ 'standard_d4s_v3' = $SkuCat['standard_d4s_v3']; 'standard_d4s_v6' = $SkuCat['standard_d4s_v6']; 'standard_d4s_v7' = $v7 }
+            @(
+                (Invoke-TestAssessment (New-TestVm -Name 'direct' -Sku 'Standard_D4s_v3' -Controller 'NVMe') -Catalog $direct -CheckModernization)
+                (Invoke-TestAssessment (New-TestVm -Name 'gen1' -Sku 'Standard_D4s_v3' -Gen 'V1') -CheckModernization)
+                (Invoke-TestAssessment (New-TestVm -Name 'modern' -Sku 'Standard_D4s_v6' -Controller 'NVMe') -Catalog $direct -CheckModernization)
+                (Invoke-TestAssessment (New-TestVm -Name 'unchecked' -Sku 'Standard_D4s_v3' -Gen 'V1'))
+            )
+        }
+    }
+
+    It 'counts every v6/v7 modernization target, not only the direct resizes' {
+        $mix = New-ModernizationMix
+        $mix[0].Modernization.Status | Should -Be 'Modernize to v7'
+        $mix[1].Strategy.ModernizationTargetSource | Should -Be 'Convertible'
+        $s = New-AssessmentSummary -Assessments $mix -SubscriptionsScanned 1
+        $s.ModernizeToV7 | Should -Be 1
+        $s.ModernizeToV6 | Should -Be 0
+        $s.ModernizationTargetV7 | Should -Be 1
+        $s.ModernizationTargetV6 | Should -Be 1
+        $s.ConvertibleToV7 | Should -Be 0
+        $s.ConvertibleToV6 | Should -Be 1
+        $s.AlreadyOnModernGeneration | Should -Be 1
+    }
+
+    It 'counts nothing as a modernization target when the check did not run or the VM is already modern' {
+        $mix = New-ModernizationMix
+        $s = New-AssessmentSummary -Assessments @($mix[2], $mix[3]) -SubscriptionsScanned 1
+        $s.ModernizationTargetV7 | Should -Be 0
+        $s.ModernizationTargetV6 | Should -Be 0
+        $s.ConvertibleToV7 | Should -Be 0
+        $s.ConvertibleToV6 | Should -Be 0
+    }
+
+    It 'reconciles every grouping with the VM counts it is documented to cover' {
+        $set = @(
+            (Invoke-TestAssessment (New-TestVm -Name 'a' -Sku 'Standard_DS3_v2' -Gen 'V1'))
+            (Invoke-TestAssessment (New-TestVm -Name 'b' -Sku 'Standard_DS3_v2' -Gen 'V1'))
+            (Invoke-TestAssessment (New-TestVm -Name 'c' -Sku 'Standard_D4s_v5'))
+        )
+        $s = New-AssessmentSummary -Assessments $set -SubscriptionsScanned 1
+        $s.TotalVmsScanned | Should -Be 3
+        $s.ActionableVms | Should -Be 2
+        $s.AffectedVms | Should -Be 2
+        $total = { param($Group) (@($s.$Group) | Measure-Object -Property Count -Sum).Sum }
+        foreach ($group in 'ByEvidenceClass', 'ByWave', 'ByMigrationPriority') { & $total $group | Should -Be 3 -Because "$group covers every VM" }
+        foreach ($group in 'BySubscription', 'ByRegion', 'ByCurrentSku', 'ByCurrentSkuFamily', 'ByRecommendedSku', 'ByRecommendedSkuFamily', 'ByCpuVendor', 'ByDeploymentReadiness') {
+            & $total $group | Should -Be 2 -Because "$group covers only the VMs with an action"
+        }
+        & $total 'ByRetirementDate' | Should -Be 2 -Because 'ByRetirementDate covers only the VMs on retiring sizes'
+    }
+
+    It 'prints the counters and says what each grouping counts in the executive summary' {
+        $dir = Export-TestOutput -Assessments (New-ModernizationMix) -Html -ExtraParameters @{ CheckModernization = $true }
+        $md = Get-Content (Join-Path $dir 'executive-summary.md') -Raw
+        $md | Should -Match '\| v7 modernization target, any path \| 1 \|'
+        $md | Should -Match '\| v6 modernization target, any path \| 1 \|'
+        $md | Should -Match '\| of which need Gen1 / NVMe conversion first: v7 \| 0 \|'
+        $md | Should -Match '\| of which need Gen1 / NVMe conversion first: v6 \| 1 \|'
+        $md | Should -Match '\| Direct resize to v7 \(every check passes\) \| 1 \|'
+        $md | Should -Match '\| Direct resize to v6 \(every check passes\) \| 0 \|'
+        $md | Should -Match '\| VMs With an Action \| \d+ \|'
+        $md | Should -Match '(?m)^## Groupings\r?$'
+        $md | Should -Match 'each table counts only the VMs that have an action \(\d+ of 4 VMs\)'
+        $md | Should -Match '(?m)^### By subscription\r?$'
+        $md | Should -Match '(?m)^### By retirement date - the \d+ VMs on retiring sizes\r?$'
+        $md | Should -Match '(?m)^### By migration priority \(action\) - all 4 VMs\r?$'
+    }
+
+    It 'does not print v6/v7 counts as zero when the modernization check did not run' {
+        $dir = Export-TestOutput -Assessments @((New-ModernizationMix)[3]) -Html
+        $md = Get-Content (Join-Path $dir 'executive-summary.md') -Raw
+        foreach ($label in 'v7 modernization target, any path', 'v6 modernization target, any path', 'of which need Gen1 / NVMe conversion first: v6', 'Direct resize to v6 \(every check passes\)', 'Already on v6/v7') {
+            $md | Should -Match "\| $label \| not evaluated \|"
+        }
+    }
+
+    It 'uses one Wave 4 count for the modernization tile, the subscriptions table, the subscription page and the bottom line' {
+        $optional = Invoke-TestAssessment (New-TestVm -Name 'optional' -Sku 'Standard_D4ds_v4')
+        $retiring = Invoke-TestAssessment (New-TestVm -Name 'retiring' -Sku 'Standard_DS3_v2' -Gen 'V1')
+        $optional.Wave | Should -Be 'Wave 4 - Modernization'
+        $retiring.Wave | Should -Not -Be 'Wave 4 - Modernization'
+        $dir = Export-TestOutput -Assessments @($optional, $retiring) -Html
+        $tile = "<div class='kpi kpi-purple'><div class='kpi-label'>Modernization \(Wave 4\)</div><div class='kpi-value'>1</div><div class='kpi-hint'>Older, not retiring</div></div>"
+        $index = Get-Content (Join-Path $dir 'index.html') -Raw
+        $index | Should -Match $tile
+        $index | Should -Match "<th class='num'>Wave 1</th><th class='num'>Wave 4</th>"
+        $index | Should -Not -Match 'Optional modernization</div>'
+        $index | Should -Match '1 VM\(s\) run on an older generation that is <em>not</em> retiring \(Wave 4 modernization\); no retirement deadline applies\.'
+        $subscriptionPage = Get-ChildItem $dir -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1
+        (Get-Content $subscriptionPage.FullName -Raw) | Should -Match $tile
     }
 }
 

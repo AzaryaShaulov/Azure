@@ -17,7 +17,7 @@ complete, machine-readable result for Azure Workbooks, Power BI, Excel, Logic Ap
   catalog: { source: "Live" | "Cached (<utc>)", warning, sources: [ { Name, Url, Title, UpdatedAt, GitCommitId, RetrievedUtc } ], unmappedSeries: [...],
              nonVmSizeEntries: [ { Category, Name, Status, PlannedRetirementDate, GuideUrl, SourceUrl } ] },
   counts: { Vms, Nics, Disks, AdeExtensions, AdvisorRetirement, ServiceHealthRetirement },
-  summary: { <estate counts>, ByEvidenceClass[], ByWave[], BySubscription[], ByRegion[], ByCurrentSku[], ByCurrentSkuFamily[],
+  summary: { <estate counts: see Summary counters>, ByEvidenceClass[], ByWave[], BySubscription[], ByRegion[], ByCurrentSku[], ByCurrentSkuFamily[],
              ByRecommendedSku[], ByRecommendedSkuFamily[], ByCpuVendor[], ByRetirementDate[], ByMigrationPriority[], ByDeploymentReadiness[] },
   quota: { family: [QuotaRow], regional: [QuotaRow] },
   collectionIssues: [ { subscriptionId, region, api, message, effect } ],   # data that could not be collected; [] when everything was read
@@ -60,6 +60,43 @@ mis-read a single-subscription or single-region estate.
 `materialDifferences[].Current` / `.Target` and `TargetComparison[].Current` / `.RetirementTarget` / `.ModernizationTarget` are
 display values whose JSON type follows the `Attribute` (string, number, boolean or `null`); read them together with
 `Attribute`, or as text. The CSV and the reports render them as text.
+
+### Summary counters
+
+`summary` holds estate counters and groupings. Each counts a defined set of VMs, so the numbers reconcile with the VM rows
+(`vm-assessment.csv`, `vms[].row`):
+
+| Counter | VMs it counts |
+|---|---|
+| `TotalSubscriptionsScanned`, `TotalVmsScanned` | Subscriptions with VMs in scope; every VM assessed |
+| `AffectedVms` | VMs on a size with a confirmed or announced Microsoft retirement (`AffectedByRetirement` = `Yes`) |
+| `ActionableVms` | VMs whose `Action` is not `No Action Required`; the set the groupings below cover |
+| `AlreadyRetired`, `RetirementWithin12Months`, `RetirementWithin24Months`, `RetirementWithin36Months`, `RetirementBeyond36Months` | VMs by retirement urgency (`EvidenceClass` = `Already Retired`, or `Urgency`: under 12 months, 12-24, 24-36, over 36) |
+| `ModernizationRecommended` | VMs on Microsoft's previous-generation list (`EvidenceClass` = `Modernization Recommended`): an older generation without an announced retirement |
+| `ModernizationOptional` | VMs whose `Action` is `Modernization Optional`. The capacity-limited previous-generation sizes have the action `Plan Migration` and are not counted; these are the VMs that `-HtmlIncludeOptionalModernization` lists |
+| `ModernizationTargetV7`, `ModernizationTargetV6` | VMs whose strategic modernization target (`strategy.ModernizationTargetSku`) is a v7 / v6 size, **whatever the path**: a direct resize, a conversion first, or a size held back by quota. VMs already on v6/v7 are not counted. `0` unless `--check-modernization` was used |
+| `ConvertibleToV7`, `ConvertibleToV6` | The part of the two counters above that needs a Gen1 to Gen2 change and/or a SCSI to NVMe conversion first (`strategy.RequiresGenerationChange` or `RequiresNvmeConversion`) |
+| `ModernizeToV7`, `ModernizeToV6` | VMs whose `modernization.status` is `Modernize to v7` / `Modernize to v6`: a deployable v7 / v6 size that passes every check and quota, so a **direct resize**. Never more than `ModernizationTargetV7` / `ModernizationTargetV6` |
+| `AlreadyOnModernGeneration` | VMs whose `modernization.status` is `Already on modern generation` (a v6/v7 size). `0` unless `--check-modernization` was used |
+| `NoRetirementAnnounced`, `UnableToDetermine` | VMs by evidence class (`No Retirement Announced`; `Unable to Confirm` or urgency `Unable to Determine`) |
+| `VmsRequiringQuotaIncrease`, `VmsWithRegionalRestrictions`, `VmsRequiringCpuVendorChange`, `VmsRequiringManualReview` | VMs by `QuotaStatus` = `Quota Increase Required`; `Readiness` = `SKU Restricted` or `Regional Limitation`; `recommendation.vendorChangeRequired`; `Readiness` = `Manual Review Required` |
+| `HighConfidence`, `MediumConfidence`, `LowConfidence` | VMs by `confidence.Level`; a VM that needs no action and had no replacement search has level `N/A` and is in none of the three |
+
+A VM can have a modernization target and still need no action (a current v5 VM with a v6 target after an NVMe conversion), so
+`ModernizationTargetV6` can exceed the VMs that have an action.
+
+Each grouping lists `Key` and `Count`, largest first, and covers one set of VMs:
+
+| Grouping | VMs it covers |
+|---|---|
+| `ByEvidenceClass`, `ByWave`, `ByMigrationPriority` (the action) | All VMs (`TotalVmsScanned`) |
+| `BySubscription`, `ByRegion`, `ByCurrentSku`, `ByCurrentSkuFamily`, `ByRecommendedSku`, `ByRecommendedSkuFamily`, `ByCpuVendor`, `ByDeploymentReadiness` | Only the VMs with an action (`ActionableVms`); a VM with `No Action Required` is not in them, so their counts add up to `ActionableVms`, not to `TotalVmsScanned` |
+| `ByRetirementDate` | Only the VMs on retiring sizes (`AffectedVms`) |
+
+`executive-summary.md` shows the same counters in its estate table (the v6/v7 rows read `not evaluated` when the modernization
+check did not run) and says what each grouping counts in its heading. The HTML *Modernization (Wave 4)* tile, the *Wave 4*
+column of the Subscriptions table and each subscription page count the VMs in `Wave 4 - Modernization`: an older generation
+without a retirement announcement, with the action `Modernization Optional` or `Plan Migration`.
 
 ### Collection issues
 
