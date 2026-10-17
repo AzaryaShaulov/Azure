@@ -528,14 +528,31 @@ $script:ReadinessMeaning = [ordered]@{
     'Regional Limitation'          = @{ Short = 'Size not offered in the region or zone.'; Long = 'The target size is not available in the region or in the VM''s zone.' }
 }
 
+function Get-ConfidenceAssumption {
+    <# What the assessment took for granted without lowering the confidence. Azure reports a VM's disk controller only for some VMs and the
+       assessment then assumes SCSI (the Azure default); that is listed only where it matters, when a SCSI to NVMe conversion is part of the
+       reported path. #>
+    param([Parameter(Mandatory)]$Assessment, $Strategy)
+    $a = $Assessment
+    if ($a.Vm.DiskControllerReported) { return @() }
+    $futureNeedsNvme = [bool]($a.Candidates -and $a.Candidates.FutureGeneration -and @($a.Candidates.FutureGeneration.FailedGates) -contains 'Disk Controller')
+    if (($Strategy -and $Strategy.RequiresNvmeConversion) -or $futureNeedsNvme) {
+        return @('The VM''s disk controller is not reported by Azure, so SCSI (the Azure default) was assumed and the SCSI to NVMe conversion is reported on that basis.')
+    }
+    @()
+}
+
 function Get-ConfidenceTooltip {
-    <# Hover text for the confidence badge, rendered from the assessment's own confidence reasons and validation items. #>
-    param($Confidence)
+    <# Hover text for the confidence badge, rendered from the assessment's own confidence reasons and validation items. -Assumptions are
+       things the assessment took for granted that do not change the level; they are listed after the items. #>
+    param($Confidence, [string[]]$Assumptions = @())
     if (-not $Confidence) { return $null }
     $lines = @(@($Confidence.LowReasons | Where-Object { $_ } | ForEach-Object { "- Blocker: $_" }) + @($Confidence.ValidationItems | Where-Object { $_ } | ForEach-Object { "- $_" }))
     $head = "Confidence in the recommended size: $($Confidence.Level)."
-    if ($lines.Count -eq 0) { return "$head No outstanding items in the assessed evidence. Guest/workload compatibility and physical capacity still require validation." }
-    return "$head Validate first:`n$($lines -join "`n")"
+    $assumed = @($Assumptions | Where-Object { $_ })
+    $tail = if ($assumed.Count -gt 0) { "`nAssumed, without changing the level:`n$((@($assumed | ForEach-Object { "- $_" })) -join "`n")" } else { '' }
+    if ($lines.Count -eq 0) { return "$head No outstanding items in the assessed evidence. Guest/workload compatibility and physical capacity still require validation.$tail" }
+    return "$head Validate first:`n$($lines -join "`n")$tail"
 }
 
 function Get-VmAnchorId {
@@ -549,12 +566,14 @@ function Get-VmAnchorId {
 }
 
 function New-HtmlPage {
-    param([string]$Title, [string]$Eyebrow, [string]$Heading, [string]$Subtitle, [string[]]$Meta, [string]$Body, [string]$Css, [string]$BackLink, [object[]]$Nav)
+    <# -Warnings is the number of warnings the page shows at its top; the footer states it instead of claiming success. #>
+    param([string]$Title, [string]$Eyebrow, [string]$Heading, [string]$Subtitle, [string[]]$Meta, [string]$Body, [string]$Css, [string]$BackLink, [object[]]$Nav, [int]$Warnings = 0)
     $e = { param($x) ConvertTo-HtmlEncoded $x }
     $back = if ($BackLink) { "<a href='$BackLink' class='back'>&larr; Tenant summary</a>" } else { '' }
     $metaHtml = (@($Meta) | Where-Object { $_ } | ForEach-Object { "<span class='chip'>$_</span>" }) -join ''
     $navHtml = New-NavHtml -Nav $Nav
     $version = Get-ToolVersion
+    $statusHtml = if ($Warnings -gt 0) { "<span class=""footer-status warn""><span aria-hidden=""true""></span>Report generated with $Warnings warning$(if ($Warnings -ne 1) { 's' })</span>" } else { '<span class="footer-status"><span aria-hidden="true"></span>Report generated</span>' }
     # Allow long VM size names to wrap only after the 'Standard_' prefix, never mid-name.
     $Body = $Body -replace '<code>Standard_', '<code>Standard_<wbr>'
     @"
@@ -579,7 +598,7 @@ $(if ($navHtml) { "<nav class='toc'><div class='wrap'>$navHtml</div></nav>" })
 $Body
 <section class="callout disclaimer" aria-label="Disclaimer"><h2>Disclaimer</h2><p><strong>$(& $e $script:DisclaimerWarranty)</strong> $(& $e $script:DisclaimerIndependence)</p><p>$(& $e $script:DisclaimerValidation)</p></section>
 </main>
-<footer><div class="wrap"><span class="footer-status"><span aria-hidden="true"></span>Report generated successfully</span><span>VMSKURetirementReport v$version &middot; read-only assessment &middot; $(& $e $Title) &middot; <a href="$script:RepositoryUrl" target="_blank" rel="noopener noreferrer">Source repository</a></span></div></footer>
+<footer><div class="wrap">$statusHtml<span>VMSKURetirementReport v$version &middot; read-only assessment &middot; $(& $e $Title) &middot; <a href="$script:RepositoryUrl" target="_blank" rel="noopener noreferrer">Source repository</a></span></div></footer>
 </body></html>
 "@
 }
@@ -1043,8 +1062,9 @@ function New-VmDetailHtml {
     $rt = $s.RetirementTarget
     $mt = if ($CheckModernization -and -not $s.AlreadyModern) { $s.ModernizationTarget } else { $null }
     $parts = if ($CheckModernization) { Get-ModernizationDetailParts -Assessment $a } else { $null }
-    $confidenceExplanation = Get-ConfidenceTooltip $a.Confidence
-    $confidenceBody = if (@($a.Confidence.LowReasons).Count -or @($a.Confidence.ValidationItems).Count) { "Confidence in the recommended size: $($a.Confidence.Level). The items to validate first are listed under Validate before resizing." } else { $confidenceExplanation }
+    $assumptions = @(Get-ConfidenceAssumption -Assessment $a -Strategy $s)
+    $confidenceExplanation = Get-ConfidenceTooltip $a.Confidence -Assumptions $assumptions
+    $confidenceBody = if (@($a.Confidence.LowReasons).Count -or @($a.Confidence.ValidationItems).Count) { "Confidence in the recommended size: $($a.Confidence.Level). The items to validate first are listed under Validate before resizing.$(if ($assumptions.Count) { " Assumed, without changing the level: $($assumptions -join ' ')" })" } else { $confidenceExplanation }
     $readinessExplanation = "Readiness of the recommended size: $($a.Readiness)."
     if ($script:ReadinessMeaning.Contains([string]$a.Readiness)) { $readinessExplanation += " $($script:ReadinessMeaning[[string]$a.Readiness].Long)" }
     $stage = Get-LifecycleStage -Lifecycle $a.Lifecycle
@@ -1128,11 +1148,18 @@ $extended
 "@
 }
 
+function Get-PageCollectionIssue {
+    <# The data-collection problems a page shows: all of them on the tenant page; on a subscription page (-SubscriptionId) that
+       subscription's plus the tenant-wide ones. #>
+    param([AllowEmptyCollection()][object[]]$Issues = @(), [string]$SubscriptionId)
+    @($Issues | Where-Object { $_ -and (-not $SubscriptionId -or -not $_.SubscriptionId -or $_.SubscriptionId -eq $SubscriptionId) })
+}
+
 function New-CollectionIssuesHtml {
     <# A warning callout for data that could not be collected. -SubscriptionId limits it to one subscription plus the tenant-wide items. #>
     param([AllowEmptyCollection()][object[]]$Issues = @(), [string]$SubscriptionId, [hashtable]$SubscriptionNames = @{})
     $e = { param($x) ConvertTo-HtmlEncoded $x }
-    $set = @($Issues | Where-Object { $_ -and (-not $SubscriptionId -or -not $_.SubscriptionId -or $_.SubscriptionId -eq $SubscriptionId) })
+    $set = @(Get-PageCollectionIssue -Issues $Issues -SubscriptionId $SubscriptionId)
     if ($set.Count -eq 0) { return '' }
     $items = ($set | ForEach-Object {
             $subscription = if ($_.SubscriptionId -and -not $SubscriptionId) { if ($SubscriptionNames.ContainsKey([string]$_.SubscriptionId)) { $SubscriptionNames[[string]$_.SubscriptionId] } else { $_.SubscriptionId } }
@@ -1402,6 +1429,8 @@ function Export-HtmlReports {
     if ($unm.Count -gt 0) { $warn += "<div class='callout warn'><strong>Microsoft series without a size mapping (not classified):</strong> $(& $e ($unm -join ', '))</div>" }
     $nonVm = @(Get-NonVmSizeEntries -Catalog $CatalogResult.Catalog)
     if ($nonVm.Count -gt 0) { $warn += "<div class='callout info'><strong>Microsoft lifecycle entries that are not VM sizes:</strong> $(& $e ((@($nonVm) | ForEach-Object { "$($_.Name) ($($_.Category), $($_.Status) $($_.PlannedRetirementDate))" }) -join '; ')). They are not matched to VMs; validate them separately (for example, Dedicated Host SKUs).</div>" }
+    # What the page warns about, for the footer: each collection problem, plus the stale snapshot, the evidence warning and unmapped series.
+    $indexWarnings = @(Get-PageCollectionIssue -Issues $CollectionIssues).Count + $(if ($staleHtml) { 1 } else { 0 }) + $(if ($CatalogResult.Warning) { 1 } else { 0 }) + $(if ($unm.Count -gt 0) { 1 } else { 0 })
 
     $waveOrder = 'Wave 1 - Urgent', 'Wave 2 - Near Term', 'Wave 3 - Planned', 'Beyond Horizon', 'Review - Unconfirmed', 'Wave 4 - Modernization'
     $waveRows = foreach ($w in $waveOrder) {
@@ -1436,7 +1465,7 @@ function Export-HtmlReports {
         $reference
     ) -join "`n"
     $nav = @(@{ Id = 'summary'; Label = 'Summary' }, @{ Id = 'waves'; Label = 'Waves' }, @{ Id = 'subscriptions'; Label = 'Subscriptions' }, @{ Id = 'evidence'; Label = 'Evidence' }) + $refNav
-    (New-HtmlPage -Title "VMSKURetirementReport - $($Run.Tenant.Name)" -Eyebrow 'VMSKURetirementReport' -Heading $Run.Tenant.Name -Subtitle "Tenant $($Run.Tenant.Id)" -Meta $meta -Body $body -Css $css -Nav $nav) | Out-File (Join-Path $OutDir $indexName) -Encoding utf8
+    (New-HtmlPage -Title "VMSKURetirementReport - $($Run.Tenant.Name)" -Eyebrow 'VMSKURetirementReport' -Heading $Run.Tenant.Name -Subtitle "Tenant $($Run.Tenant.Id)" -Meta $meta -Body $body -Css $css -Nav $nav -Warnings $indexWarnings) | Out-File (Join-Path $OutDir $indexName) -Encoding utf8
 
     # -- Per-subscription pages --
     $waveRank = { param($w) switch -Regex ($w) { '^Wave 1' { 0 } '^Wave 2' { 1 } '^Wave 3' { 2 } '^Beyond' { 3 } '^Review' { 4 } '^Wave 4' { 5 } default { 9 } } }
@@ -1513,7 +1542,8 @@ function Export-HtmlReports {
         $nav = @(@{ Id = 'overview'; Label = 'Overview' }, @{ Id = 'vms'; Label = 'Retiring VMs'; Group = 'Retirement'; Tone = 'retirement' }, @{ Id = 'quota'; Label = 'Quota' }) + $refNav
         $metaSub = @("Subscription <strong>$(& $e $g.Name)</strong>", "Tenant <strong>$(& $e $Run.Tenant.Name)</strong>", "As of <strong>$asOf</strong>", 'Read-only')
         if ($dataSource) { $metaSub += "Data <strong>$(& $e $dataSource)</strong>" }
-        (New-HtmlPage -Title "VMSKURetirementReport - $name" -Eyebrow 'Subscription assessment' -Heading $name -Meta $metaSub -Body $body -Css $css -BackLink $indexName -Nav $nav) | Out-File (Join-Path $OutDir (& $subFile $g.Name $name)) -Encoding utf8
+        $subWarnings = @(Get-PageCollectionIssue -Issues $CollectionIssues -SubscriptionId $g.Name).Count + $(if ($staleHtml) { 1 } else { 0 })
+        (New-HtmlPage -Title "VMSKURetirementReport - $name" -Eyebrow 'Subscription assessment' -Heading $name -Meta $metaSub -Body $body -Css $css -BackLink $indexName -Nav $nav -Warnings $subWarnings) | Out-File (Join-Path $OutDir (& $subFile $g.Name $name)) -Encoding utf8
     }
 }
 

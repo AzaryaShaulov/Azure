@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "tool": "VMSKURetirementReport",
   "toolVersion": "1.2.0",
-  "generatedUtc": "2026-10-17T00:10:08.3727887Z",
+  "generatedUtc": "2026-10-17T06:50:02.9256914Z",
   "asOfDate": "2026-10-05",
   "dataSource": "Live",
   "pricingStatus": "Done",
@@ -609,7 +609,7 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it. | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for a Trusted launch supported size and OS version. Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft's Trusted launch supported list are excluded, and a Linux VM must come from a supported Azure Marketplace image. Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
         "LifecycleStage": "End of Life",
         "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Memory (GB): 14 -> 16; Temp / Local Disk: 28 GB -> None; Disk Controller: SCSI -> NVMe; Hyper-V Generation: V1 -> V2; Uncached Disk MBps: 192 -> 289; Max Data Disks: 16 -> 12; Max NICs: 4 -> 2"
       },
@@ -2048,8 +2048,8 @@
         "Complexity": "High",
         "ModernizationReadiness": "Convertible",
         "ValidationItems": [
-          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).",
-          "Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback.",
+          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it.",
+          "Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for a Trusted launch supported size and OS version. Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft's Trusted launch supported list are excluded, and a Linux VM must come from a supported Azure Marketplace image. Validate MBR to GPT conversion, boot and rollback.",
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
           "Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
         ],
@@ -2336,7 +2336,7 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it. | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for a Trusted launch supported size and OS version. Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft's Trusted launch supported list are excluded, and a Linux VM must come from a supported Azure Marketplace image. Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
         "LifecycleStage": "End of Life",
         "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Memory (GB): 14 -> 16; Temp / Local Disk: 28 GB -> None; Disk Controller: SCSI -> NVMe; Hyper-V Generation: V1 -> V2; Uncached Disk MBps: 192 -> 289; Max Data Disks: 16 -> 12; Max NICs: 4 -> 2"
       },
@@ -3775,8 +3775,8 @@
         "Complexity": "High",
         "ModernizationReadiness": "Convertible",
         "ValidationItems": [
-          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).",
-          "Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback.",
+          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it.",
+          "Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for a Trusted launch supported size and OS version. Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft's Trusted launch supported list are excluded, and a Linux VM must come from a supported Azure Marketplace image. Validate MBR to GPT conversion, boot and rollback.",
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
           "Temporary disk: Unknown / workload validation required - current size has a 28 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
         ],
@@ -4063,7 +4063,7 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "InPlace",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
         "LifecycleStage": "End of Life",
         "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Temp / Local Disk: 32 GB -> None; Disk Controller: SCSI -> NVMe; Uncached Disk IOPS: 6400 -> 12800; Uncached Disk MBps: 96 -> 289; Max Data Disks: 8 -> 12"
       },
@@ -5279,7 +5279,7 @@
         "Complexity": "High",
         "ModernizationReadiness": "Convertible",
         "ValidationItems": [
-          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).",
+          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it.",
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
           "Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
         ],
@@ -5565,7 +5565,7 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "SideBySide",
         "RecommendedMigrationPath": "Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6 (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it. | Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for a Trusted launch supported size and OS version. Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft's Trusted launch supported list are excluded, and a Linux VM must come from a supported Azure Marketplace image. Validate MBR to GPT conversion, boot and rollback. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness). | Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).",
         "LifecycleStage": "End of Life",
         "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8370C (Ice Lake); Intel Xeon Platinum 8272CL (Cascade Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Temp / Local Disk: 32 GB -> None; Disk Controller: SCSI -> NVMe; Hyper-V Generation: V1 -> V2; Uncached Disk IOPS: 6400 -> 12800; Uncached Disk MBps: 96 -> 289; Max Data Disks: 8 -> 12"
       },
@@ -6781,8 +6781,8 @@
         "Complexity": "High",
         "ModernizationReadiness": "Convertible",
         "ValidationItems": [
-          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).",
-          "Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback.",
+          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it.",
+          "Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for a Trusted launch supported size and OS version. Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft's Trusted launch supported list are excluded, and a Linux VM must come from a supported Azure Marketplace image. Validate MBR to GPT conversion, boot and rollback.",
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
           "Temporary disk: Unknown / workload validation required - current size has a 32 GB temp disk and Standard_D4s_v6 has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts)."
         ],
@@ -7068,7 +7068,7 @@
         "ModernizationPeakQuotaStatus": "Manual Validation Required",
         "MigrationQuotaModel": "InPlace",
         "RecommendedMigrationPath": "Optional modernization to Standard_D4s_v6 (requires SCSI to NVMe conversion)",
-        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
+        "ModernizationValidationItems": "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it. | MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).",
         "LifecycleStage": "Not End of Life",
         "ModernizationMaterialDifferences": "Processor: Intel Xeon Platinum 8473C (Sapphire Rapids); Intel Xeon Platinum 8370C (Ice Lake) -> Intel Xeon Platinum 8573C (Emerald Rapids); Disk Controller: SCSI -> NVMe; Uncached Disk IOPS: 6400 -> 12800; Uncached Disk MBps: 144 -> 289; Max Data Disks: 8 -> 12"
       },
@@ -7486,7 +7486,7 @@
         "Complexity": "Medium",
         "ModernizationReadiness": "Convertible",
         "ValidationItems": [
-          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).",
+          "Guest NVMe readiness: Validation Required - Standard_D4s_v6 supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness). The VM's disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it.",
           "MANA networking: Validation Required - Standard_D4s_v6 uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness)."
         ],
         "RecommendedMigrationPath": "Optional modernization to Standard_D4s_v6 (requires SCSI to NVMe conversion)",

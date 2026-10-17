@@ -150,15 +150,14 @@ function Resolve-ModernizationQuotaChoices {
     <#
     .SYNOPSIS
         Finalizes opt-in modernization choices in v7, v6, existing-recommendation order using aggregate quota.
-    .PARAMETER SafetyPct
-        Accepted for compatibility; the choice depends only on whether the steady-state demand fits the current limit.
+    .DESCRIPTION
+        The choice depends only on whether the steady-state demand fits the current limit. The quota safety percentage
+        (-QuotaSafetyPct) has no part in it: it only enlarges the recommended quota increase that Measure-QuotaImpact reports.
     #>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Usage', Justification = 'Read inside the quota status script block.')]
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'SafetyPct', Justification = 'Kept for backward compatibility of callers.')]
     param(
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments,
-        [Parameter(Mandatory)][hashtable]$Usage,
-        [double]$SafetyPct = 20
+        [Parameter(Mandatory)][hashtable]$Usage
     )
     $active = @($Assessments | Where-Object { $_.Candidates -and $_.Candidates.Primary -and $_.Action -ne 'No Action Required' })
 
@@ -382,6 +381,11 @@ function Complete-VmAssessment {
     return $a
 }
 
+# Guest operating systems that Microsoft excludes from the Gen1 to Trusted launch upgrade by name: Windows Server 2016, Debian and
+# Azure Linux (CBL-Mariner is its former name). Source: "Unsupported Gen1 VM configurations" in
+# https://learn.microsoft.com/azure/virtual-machines/trusted-launch-existing-vm-gen-1 (page updated 2026-09-24, checked 2026-10-17).
+# Microsoft also excludes every OS that is not on its Trusted launch supported list. A name cannot show that, so such a VM is not
+# sent to Redeploy / Rebuild Review; the Gen1 validation item states the rule. Check this list again at each release.
 $script:Gen1UpgradeUnsupportedOs = '(?i)(windows ?server[^0-9]*2016|/2016-|\bdebian\b|cbl-?mariner|azure[ -]?linux)'
 
 function Get-ModernizationTargetInfo {
@@ -497,10 +501,14 @@ function Get-TargetStrategy {
 
     $items = New-Object System.Collections.Generic.List[string]
     if ($t) {
-        if ($info.RequiresNvmeConversion) { $items.Add("Guest NVMe readiness: Validation Required - $($t.SkuName) supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).") }
+        if ($info.RequiresNvmeConversion) {
+            # The controller is only known when Azure reports it; otherwise SCSI (the Azure default) is assumed, and this item rests on that.
+            $controllerNote = if ($a.Vm.DiskControllerReported) { '' } else { ' The VM''s disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it.' }
+            $items.Add("Guest NVMe readiness: Validation Required - $($t.SkuName) supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).$controllerNote")
+        }
         if ($info.RequiresGenerationChange) {
             $osNote = if ($info.GuestOsReported) { '' } else { ' Guest OS not reported by Azure; confirm it.' }
-            $items.Add("Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade (supported OS and size; not Windows Server 2016, Debian or Azure Linux). Validate MBR to GPT conversion, boot and rollback.$osNote")
+            $items.Add("Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for a Trusted launch supported size and OS version. Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft's Trusted launch supported list are excluded, and a Linux VM must come from a supported Azure Marketplace image. Validate MBR to GPT conversion, boot and rollback.$osNote")
         }
         if ($info.RedeployReview) { $items.Add("Redeploy: Validation Required - $($info.RedeployReason).") }
         if ($a.Vm.AcceleratedNetworking -and $t.Generation -ge 6) { $items.Add("MANA networking: Validation Required - $($t.SkuName) uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).") }

@@ -1332,6 +1332,23 @@ Describe 'Data-collection issues: effect on assessments and outputs' {
             $a = New-VmAssessment -Vm $vm -Lifecycle $lc -RegionCatalog $null -ProcessorCatalog $Proc -RetirementCatalog $Catalog -LifecycleCache @{} -CandidateCache @{} -Weights $Weights -AsOf $AsOf -SubscriptionName 'sub1'
             Complete-VmAssessment -Assessment $a -QuotaResult $null -Usage @{} -CollectionIssues $Issues
         }
+        # HTML pages for a catalog that has no unmapped series unless asked (the fixture catalog has some, and the index counts them).
+        function script:Export-FooterPages {
+            param([object[]]$Assessments, [object[]]$Issues = @(), [string]$EvidenceWarning, $SnapshotAgeDays, [string]$UnmappedSeries)
+            $dir = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory $dir | Out-Null
+            $catalog = $Catalog.PSObject.Copy()
+            $catalog | Add-Member -NotePropertyName unmappedSeries -NotePropertyValue @(if ($UnmappedSeries) { [pscustomobject]@{ SeriesName = $UnmappedSeries } }) -Force
+            $run = [pscustomobject]@{ GeneratedUtc = 'now'; AsOf = $AsOf; Tenant = [pscustomobject]@{ Id = 't'; Name = 'tenant' }; Account = 'x'; Parameters = @{}; Counts = @{} }
+            if ($null -ne $SnapshotAgeDays) {
+                $run | Add-Member -NotePropertyName DataSource -NotePropertyValue 'Snapshot captured 2026-09-01 00:00 UTC'
+                $run | Add-Member -NotePropertyName SnapshotAgeDays -NotePropertyValue $SnapshotAgeDays
+            }
+            $summary = New-AssessmentSummary -Assessments $Assessments -SubscriptionsScanned 1
+            $catalogResult = [pscustomobject]@{ Catalog = $catalog; Source = 'Live'; Warning = $(if ($EvidenceWarning) { $EvidenceWarning }) }
+            Export-HtmlReports -OutDir $dir -CssPath (Join-Path $Root 'templates/report.css') -Run $run -Summary $summary -Assessments $Assessments -QuotaImpact $null -CatalogResult $catalogResult -ProcessorCatalog $Proc -CollectionIssues $Issues
+            $dir
+        }
     }
 
     It 'states the cause in the low-confidence reasons and the recommendation reason of a VM without SKU data' {
@@ -1415,6 +1432,39 @@ Describe 'Data-collection issues: effect on assessments and outputs' {
         $a = @((Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')))
         $dir = Export-TestOutput -Assessments $a -Html
         foreach ($page in Get-ChildItem $dir -Filter '*.html') { (Get-Content $page.FullName -Raw) | Should -Not -Match 'Some data could not be collected' }
+    }
+
+    It 'does not call a report successful when it has no warnings' {
+        $dir = Export-FooterPages -Assessments @((Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')))
+        $pages = @(Get-ChildItem $dir -Filter '*.html')
+        $pages.Count | Should -BeGreaterThan 1
+        foreach ($page in $pages) {
+            $html = Get-Content $page.FullName -Raw
+            $html | Should -Match '<span class="footer-status"><span aria-hidden="true"></span>Report generated</span>' -Because $page.Name
+            $html | Should -Not -Match 'successfully|footer-status warn' -Because $page.Name
+        }
+    }
+
+    It 'states in the footer how many warnings the page shows, counting the problems of its own scope' {
+        $other = $SkuIssue.PSObject.Copy(); $other.SubscriptionId = 'other-subscription'; $other.Message = 'unrelated problem elsewhere'
+        $dir = Export-FooterPages -Assessments @((New-AssessmentWithoutSkuData)) -Issues @($SkuIssue, $other)
+        $index = Get-Content (Join-Path $dir 'index.html') -Raw
+        $index | Should -Match '<span class="footer-status warn"><span aria-hidden="true"></span>Report generated with 2 warnings</span>'
+        $sub = Get-Content (Get-ChildItem $dir -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
+        $sub | Should -Match '<span class="footer-status warn"><span aria-hidden="true"></span>Report generated with 1 warning</span>'
+        $sub | Should -Not -Match 'with 1 warnings|successfully'
+    }
+
+    It 'counts a stale snapshot, the evidence warning and unmapped series with the problems, on the pages that show them' {
+        $a = New-AssessmentWithoutSkuData
+        # The index shows the stale snapshot, the problem and the evidence warning; a subscription page shows the first two.
+        $dir = Export-FooterPages -Assessments @($a) -Issues @($SkuIssue) -EvidenceWarning 'The cached evidence is 120 days older than the assessment date.' -SnapshotAgeDays 10
+        (Get-Content (Join-Path $dir 'index.html') -Raw) | Should -Match 'Report generated with 3 warnings</span>'
+        $sub = Get-Content (Get-ChildItem $dir -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
+        $sub | Should -Match 'Report generated with 2 warnings</span>'
+        # A series without a size mapping is one more warning on the index.
+        $withUnmapped = Export-FooterPages -Assessments @($a) -UnmappedSeries 'Zzz-series'
+        (Get-Content (Join-Path $withUnmapped 'index.html') -Raw) | Should -Match 'Report generated with 1 warning</span>'
     }
 }
 
@@ -1543,6 +1593,26 @@ Describe 'Quota math' {
         $q = Get-QuotaIncrease -Limit 100 -Used 50 -Required 16
         $q.MinimumIncrease | Should -Be 0
         $q.Status | Should -Be 'Quota OK'
+    }
+    It 'uses the safety percentage (<Pct>) only to enlarge the recommended increase, never to change the status (used <Used>)' -ForEach @(
+        @{ Used = 80; Pct = 0; Status = 'Quota OK'; Min = 0; Rec = 0 }
+        @{ Used = 80; Pct = 20; Status = 'Quota OK'; Min = 0; Rec = 0 }
+        @{ Used = 80; Pct = 200; Status = 'Quota OK'; Min = 0; Rec = 0 }
+        @{ Used = 81; Pct = 0; Status = 'Quota Increase Required'; Min = 1; Rec = 1 }
+        @{ Used = 81; Pct = 20; Status = 'Quota Increase Required'; Min = 1; Rec = 5 }
+        @{ Used = 81; Pct = 200; Status = 'Quota Increase Required'; Min = 1; Rec = 41 }
+    ) {
+        # 20 vCPUs required against a limit of 100: used 80 fits exactly, used 81 is 1 over.
+        $usage = @{ 's1|eastus2' = @{ 'standarddsv5family' = [pscustomobject]@{ Name = 'standardDSv5Family'; LocalName = 'DSv5'; Used = $Used; Limit = 100 }; 'cores' = [pscustomobject]@{ Name = 'cores'; LocalName = 'Regional'; Used = 10; Limit = 1000 } } }
+        $moves = @([pscustomobject]@{ SubscriptionId = 's1'; Region = 'eastus2'; VmId = 'x'; CurrentFamily = 'standardDSv2Family'; CurrentVcpu = 4; TargetSku = 'Standard_D20s_v5'; TargetFamily = 'standardDSv5Family'; TargetVcpu = 20; IsAllocated = $true })
+        $r = Measure-QuotaImpact -Moves $moves -Usage $usage -SafetyPct $Pct
+        $r.FamilyRows[0].RequiredVcpu | Should -Be 20
+        $r.FamilyRows[0].MinimumIncrease | Should -Be $Min
+        $r.FamilyRows[0].RecommendedIncrease | Should -Be $Rec
+        $r.ByVm['x'].Status | Should -Be $Status
+    }
+    It 'has no safety percentage on the modernization quota choice, which depends only on whether the demand fits' {
+        (Get-Command Resolve-ModernizationQuotaChoices).Parameters.Keys | Should -Not -Contain 'SafetyPct'
     }
     It 'aggregates demand across VMs moving to the same family' {
         $usage = @{ 's1|eastus2' = @{ 'standarddsv5family' = [pscustomobject]@{ Name = 'standardDSv5Family'; LocalName = 'Standard DSv5 Family vCPUs'; Used = 92; Limit = 100 }; 'cores' = [pscustomobject]@{ Name = 'cores'; LocalName = 'Total Regional vCPUs'; Used = 200; Limit = 350 } } }
@@ -1764,6 +1834,68 @@ Describe 'Retirement target vs modernization target' {
         $vm2 = New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'
         $vm2.OsName = 'Ubuntu 22.04'
         (Invoke-TestAssessment -Vm $vm2 -CheckModernization).Strategy.RedeployReview | Should -BeFalse
+    }
+    It 'redeploys a Gen1 VM whose <Where> is "<Value>", an exclusion Microsoft names for the Trusted launch upgrade' -ForEach @(
+        @{ Where = 'OS name'; Property = 'OsName'; Value = 'Windows Server 2016 Datacenter' }
+        @{ Where = 'OS name'; Property = 'OsName'; Value = 'Debian GNU/Linux 12' }
+        @{ Where = 'OS name'; Property = 'OsName'; Value = 'Azure Linux 3.0' }
+        @{ Where = 'OS name'; Property = 'OsName'; Value = 'CBL-Mariner/Linux' }
+        @{ Where = 'image'; Property = 'ImageReference'; Value = 'MicrosoftWindowsServer/WindowsServer/2016-Datacenter' }
+        @{ Where = 'image'; Property = 'ImageReference'; Value = 'debian/debian-11/11-gen2' }
+        @{ Where = 'image'; Property = 'ImageReference'; Value = 'MicrosoftCBLMariner/cbl-mariner/cbl-mariner-2' }
+    ) {
+        $vm = New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $vm.$Property = $Value
+        (Invoke-TestAssessment -Vm $vm -CheckModernization).Strategy.RedeployReview | Should -BeTrue
+    }
+    It 'keeps a Gen1 VM on the upgrade path when its <Where> is "<Value>", which Microsoft lists as supported' -ForEach @(
+        @{ Where = 'OS name'; Property = 'OsName'; Value = 'Windows Server 2019 Datacenter' }
+        @{ Where = 'OS name'; Property = 'OsName'; Value = 'Windows Server 2022 Datacenter' }
+        @{ Where = 'OS name'; Property = 'OsName'; Value = 'Red Hat Enterprise Linux 9.4' }
+        @{ Where = 'image'; Property = 'ImageReference'; Value = 'MicrosoftWindowsServer/WindowsServer/2019-Datacenter' }
+        @{ Where = 'image'; Property = 'ImageReference'; Value = 'Canonical/0001-com-ubuntu-server-jammy/22_04-lts' }
+    ) {
+        $vm = New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $vm.$Property = $Value
+        $s = (Invoke-TestAssessment -Vm $vm -CheckModernization).Strategy
+        $s.RedeployReview | Should -BeFalse
+        $s.RequiresGenerationChange | Should -BeTrue
+    }
+    It 'states the whole rule in the Gen1 validation item: the named exclusions, any OS not on the supported list and Marketplace images' {
+        $vm = New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1'
+        $vm.OsName = 'Oracle Linux 8'
+        $items = ((Invoke-TestAssessment -Vm $vm -CheckModernization).Strategy.ValidationItems -join ' ')
+        $items | Should -Match 'Gen1 to Gen2: Validation Required'
+        $items | Should -Match 'Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft''s Trusted launch supported list are excluded'
+        $items | Should -Match 'Linux VM must come from a supported Azure Marketplace image'
+        $items | Should -Not -Match 'Guest OS not reported' -Because 'the OS name is known'
+    }
+    It 'says in the NVMe readiness item that the controller was assumed when Azure did not report it, and the assumption never lowers the confidence' {
+        $unreported = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1') -CheckModernization
+        $reported = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1' -Controller 'SCSI') -CheckModernization
+        ($unreported.Strategy.ValidationItems -join ' ') | Should -Match "Guest NVMe readiness: Validation Required.*The VM's disk controller is not reported by Azure; SCSI \(the Azure default\) was assumed, so confirm it\."
+        ($reported.Strategy.ValidationItems -join ' ') | Should -Match 'Guest NVMe readiness: Validation Required'
+        ($reported.Strategy.ValidationItems -join ' ') | Should -Not -Match 'disk controller is not reported'
+        $unreported.Confidence.Level | Should -Be $reported.Confidence.Level
+        @($unreported.Confidence.ValidationItems).Count | Should -Be @($reported.Confidence.ValidationItems).Count
+    }
+    It 'lists the disk-controller assumption only where a SCSI to NVMe conversion rests on it' {
+        $unreported = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1') -CheckModernization
+        $reported = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1' -Controller 'SCSI') -CheckModernization
+        $noAction = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_D4s_v5')
+        InModuleScope Output -Parameters @{ U = $unreported; R = $reported; N = $noAction } {
+            @(Get-ConfidenceAssumption -Assessment $U -Strategy $U.Strategy).Count | Should -Be 1
+            (Get-ConfidenceAssumption -Assessment $U -Strategy $U.Strategy) | Should -Match 'SCSI \(the Azure default\) was assumed'
+            @(Get-ConfidenceAssumption -Assessment $R -Strategy $R.Strategy).Count | Should -Be 0
+            @(Get-ConfidenceAssumption -Assessment $N -Strategy $N.Strategy).Count | Should -Be 0
+        }
+    }
+    It 'shows the disk-controller assumption on the confidence badge of the VM that did not report a controller, and only there' {
+        $unreported = Invoke-TestAssessment -Vm (New-TestVm -Name 'unreported' -Sku 'Standard_DS3_v2' -Gen 'V1') -CheckModernization
+        $reported = Invoke-TestAssessment -Vm (New-TestVm -Name 'reported' -Sku 'Standard_DS3_v2' -Gen 'V1' -Controller 'SCSI') -CheckModernization
+        $dir = Export-TestOutput -Assessments @($unreported, $reported) -Html -ExtraParameters @{ CheckModernization = $true }
+        $html = Get-Content (Get-ChildItem $dir -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
+        ([regex]::Matches($html, '(?s)title=''Confidence in the recommended size: [^'']*Assumed, without changing the level:[^'']*SCSI \(the Azure default\) was assumed')).Count | Should -Be 1
     }
     It 'flags unconfirmed retirement in the migration path' {
         $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
@@ -2716,7 +2848,7 @@ Describe 'HTML report safety' {
         $html | Should -Match 'class="brand-mark"'
         $html | Should -Match 'VMSKURetirementReport'
         $html | Should -Match 'class="mode-pill">Read-only</span>'
-        $html | Should -Match 'class="footer-status"'
+        $html | Should -Match 'class="footer-status( warn)?"'
         $html | Should -Match 'thead th \{ background: var\(--accent\); color: #fff;'
         $html | Should -Match 'tbody tr:nth-child\(even\)'
         $html | Should -Match '\.wrap \{ max-width: 1480px;'
@@ -3156,6 +3288,11 @@ Describe 'HTML anchors and encoding' {
             $tip | Should -Match '- Blocker: CPU vendor change required'
             $tip | Should -Match '- Temp Disk: target has no temp disk'
             Get-ConfidenceTooltip ([pscustomobject]@{ Level = 'HIGH'; LowReasons = @(); ValidationItems = @() }) | Should -Match 'No outstanding items in the assessed evidence'
+            $assumed = Get-ConfidenceTooltip ([pscustomobject]@{ Level = 'HIGH'; LowReasons = @(); ValidationItems = @() }) -Assumptions @('The disk controller was assumed to be SCSI.')
+            $assumed | Should -Match '^Confidence in the recommended size: HIGH\. No outstanding items'
+            $assumed | Should -Match "Assumed, without changing the level:`n- The disk controller was assumed to be SCSI\.$"
+            (Get-ConfidenceTooltip ([pscustomobject]@{ Level = 'LOW'; LowReasons = @('x'); ValidationItems = @() }) -Assumptions @('assumed y')) | Should -Match "Validate first:`n- Blocker: x`nAssumed, without changing the level:`n- assumed y$"
+            Get-ConfidenceTooltip ([pscustomobject]@{ Level = 'HIGH'; LowReasons = @(); ValidationItems = @() }) | Should -Not -Match 'Assumed'
             $script:ReadinessMeaning['Ready'].Long | Should -Match 'does not guarantee hardware allocation or a successful resize'
             $script:ReadinessMeaning['Ready'].Long | Should -Match 'Validate guest OS, workload, licensing and capacity'
         }

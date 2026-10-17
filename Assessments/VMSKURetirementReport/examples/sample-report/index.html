@@ -276,7 +276,8 @@ ul.links li { margin: .45rem 0; }
 footer { color: var(--muted); font-size: .82rem; background: #f8f8f8; border-top: 1px solid var(--border); padding: 9px 0; }
 footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
 .footer-status { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); }
-.footer-status > span { width: 8px; height: 8px; border-radius: 50%; background: #107c10; box-shadow: 0 0 0 3px rgba(16, 124, 16, .12); }
+.footer-status > span { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 3px rgba(128, 128, 128, .15); }
+.footer-status.warn > span { background: #e0a100; box-shadow: 0 0 0 3px rgba(224, 161, 0, .2); }
 
 @media (max-width: 760px) {
   .wrap { padding: 0 16px; }
@@ -511,5 +512,5 @@ dl.doc-links { margin: 0; font-size: .85rem; }
 <tr><td><strong>Reserved Instances / Savings Plans</strong></td><td><span class='badge b-yellow'>Not assessed</span></td><td>Requires billing access; check RI exchange options before resizing reserved VMs.</td></tr></tbody></table></div></div></details>
 <section class="callout disclaimer" aria-label="Disclaimer"><h2>Disclaimer</h2><p><strong>This assessment and its recommendations are provided &quot;AS IS,&quot; without warranties or guarantees.</strong> This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.</p><p>Findings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.</p></section>
 </main>
-<footer><div class="wrap"><span class="footer-status"><span aria-hidden="true"></span>Report generated successfully</span><span>VMSKURetirementReport v1.2.0 &middot; read-only assessment &middot; VMSKURetirementReport - Contoso (Sample) &middot; <a href="https://github.com/AzaryaShaulov/Azure" target="_blank" rel="noopener noreferrer">Source repository</a></span></div></footer>
+<footer><div class="wrap"><span class="footer-status warn"><span aria-hidden="true"></span>Report generated with 1 warning</span><span>VMSKURetirementReport v1.2.0 &middot; read-only assessment &middot; VMSKURetirementReport - Contoso (Sample) &middot; <a href="https://github.com/AzaryaShaulov/Azure" target="_blank" rel="noopener noreferrer">Source repository</a></span></div></footer>
 </body></html>

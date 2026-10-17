@@ -49,6 +49,26 @@ All notable changes to this project are documented here. The format follows
 - `dependencies.psd1` no longer records a `PackageHash` for each locked tool: it was never verified (the build only sees the
   installed module, which its `TreeHash` covers). `tools/browser-smoke.js` now says so when the report folder has no page
   to open.
+- **The HTML footer no longer says "Report generated successfully".** It read as a quality statement on every page, whatever
+  the page warned about. It now says "Report generated" with a neutral dot when the page shows no warning, and "Report
+  generated with N warning(s)" with an amber dot when it does. N counts each data-collection problem the page lists plus a
+  stale snapshot, an evidence warning and unmapped Microsoft series on the tenant page; a subscription page counts its own
+  problems and the stale snapshot.
+- **`-QuotaSafetyPct` is described as what it does, and the unused `-SafetyPct` is gone.** The percentage only enlarges the
+  recommended quota increase (ceil of the minimum plus the requirement times the percentage), and only when an increase is
+  needed; it never changes a quota status, so a quota that fits is `Quota OK` however little room is left. The README, the
+  methodology and the script help now say so. `Resolve-ModernizationQuotaChoices` accepted a `-SafetyPct` parameter and
+  ignored it; the parameter and its analyzer suppression are removed. Output is unchanged.
+- **The Gen1 to Trusted launch exclusions were checked against Microsoft Learn, and the validation item states the whole
+  rule.** Windows Server 2016, Debian and Azure Linux (formerly CBL-Mariner) are still the operating systems that Microsoft
+  excludes by name (checked on 2026-10-17); the list is unchanged. Microsoft also excludes any OS that is not on its Trusted
+  launch supported list and requires a Linux VM to come from a supported Azure Marketplace image. A name cannot show that, so
+  such a VM still goes down the Gen1 upgrade path; its validation item now spells the rule out ("Guest OS not reported by
+  Azure; confirm it" is unchanged). Tests pin the named list and the supported examples.
+- **An unreported disk controller is no longer an invisible assumption.** Azure reports a VM's disk controller only for
+  some VMs and the assessment then assumes SCSI, the Azure default. Where a SCSI to NVMe conversion is part of the reported
+  path, the "Guest NVMe readiness" validation item and the hover text of the confidence badge now say that SCSI was assumed.
+  The confidence level does not change.
 
 ### Fixed
 

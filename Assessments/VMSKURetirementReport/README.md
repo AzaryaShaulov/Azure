@@ -392,7 +392,7 @@ double-dash form accepted is `--check-modernization`.
 | `-Region` | all | Limit to specific regions |
 | `-OutputPath` | `reports/<tenant>/<UTC yyyy-MM-dd_HHmmss>-<run-id>-VMSKURetirementReport`, two folders above the skill folder | New, empty output folder |
 | `-HorizonMonths` | `36` | Planning horizon (12-120). Dated retirements this many months away or more go to *Beyond Horizon*; Wave 1 is never deferred |
-| `-QuotaSafetyPct` | `20` | Extra headroom on recommended quota requests (% of demand) |
+| `-QuotaSafetyPct` | `20` | Extra headroom added to the *recommended* quota increase (% of the vCPUs required), and only when an increase is needed. It does not change a quota status: a quota that fits is `Quota OK`, however little room is left |
 | `-MaxCandidates` | `3` | Recommendations per VM: `1` primary only, `2` + alternative, `3` + third |
 | `-IncludeRightsizing` | off | Azure Monitor CPU/memory signal (separate column, never changes the recommendation); a suggested smaller size must pass the same checks as a migration target |
 | `-RightsizingLookbackDays` | `30` | Telemetry window (7-93) |

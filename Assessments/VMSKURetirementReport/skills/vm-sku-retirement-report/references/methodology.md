@@ -344,7 +344,12 @@ v6 modernization. The counters and the set of VMs each grouping covers are liste
 | `Redeploy / Rebuild Review` | Gen1 conversion is required **and** the reported guest OS or image is not supported by the Trusted launch upgrade (Windows Server 2016, Debian, Azure Linux / CBL-Mariner). Deploy a Gen2 VM and migrate the workload. |
 | `No Validated Modern Target` | No v6/v7 size passed the workload gates or is available; see `ModernizationStatus` and the candidate table. |
 
-Redeploy is only recommended on evidence (unsupported guest OS); a missing target is reported as manual review.
+Redeploy is only recommended on evidence (unsupported guest OS); a missing target is reported as manual review. The evidence
+is a guest OS or image name that Microsoft excludes from the Gen1 to Trusted launch upgrade by name (Windows Server 2016,
+Debian, Azure Linux / CBL-Mariner; checked against Microsoft Learn on 2026-10-17). Microsoft also excludes any OS that is not on
+its Trusted launch supported list, and a name cannot show that, so such a VM keeps the `Gen1 Modernization + Resize` path with
+the Gen1 validation item (supported size and OS version, MBR to GPT, boot, rollback; "Guest OS not reported by Azure; confirm
+it" when no guest OS is known).
 
 ### Modernization complexity and readiness
 
@@ -377,9 +382,12 @@ Complexity and readiness are sequencing aids, not guarantees of change-window du
 The assessment is control-plane only. These are reported as **Validation Required** / **Unknown** items, never as ready:
 
 - **Guest NVMe readiness** when the target is NVMe-only: Azure controller support does not prove the guest has NVMe
-  drivers or discovers its disks over NVMe.
-- **Gen1 -> Gen2**: supported OS and size for the Trusted launch upgrade, MBR -> GPT conversion, boot and rollback
-  (also flags when the guest OS is not reported).
+  drivers or discovers its disks over NVMe. Azure reports a VM's disk controller only for some VMs; when it does not, SCSI
+  (the Azure default) is assumed. The item and the confidence badge's hover text then say so, and the assumption does not
+  change the confidence level.
+- **Gen1 -> Gen2**: supported size and OS version for the Trusted launch upgrade (Windows Server 2016, Debian, Azure Linux and
+  any OS that is not on Microsoft's supported list are excluded; a Linux VM must come from a supported Azure Marketplace
+  image), MBR -> GPT conversion, boot and rollback (also flags when the guest OS is not reported).
 - **MANA networking** when the source uses Accelerated Networking and the target is v6/v7: Accelerated Networking on the
   source does not prove guest MANA driver support.
 - **Temporary disk dependency** (`Unknown / workload validation required`) when the current size has a temp disk and
@@ -397,8 +405,10 @@ e.g. `standardDDSv5Family`.
 - **Regional vCPUs:** + (target - current) for allocated VMs, + target for deallocated VMs.
 - **Formulas:**
   - Minimum increase = max(0, usage + required - limit).
-  - Recommended increase = ceil(minimum + required x `QuotaSafetyPct`%).
+  - Recommended increase = ceil(minimum + required x `QuotaSafetyPct`%) when the minimum is above 0, otherwise 0.
   - Worked example: 100 limit, 92 used, 16 required -> +8 minimum, +12 recommended.
+  - `QuotaSafetyPct` (0-200, default 20) only enlarges the recommended increase. It is not a buffer for the status: a request
+    that fits (usage + required <= limit) is `Quota OK` with a recommended increase of 0, even when little room is left.
 - **Scopes:**
   - `Retirement`: retirement-affected and unconfirmed VMs moving to their **retirement target**. Used for
     `RetirementQuotaStatus`.

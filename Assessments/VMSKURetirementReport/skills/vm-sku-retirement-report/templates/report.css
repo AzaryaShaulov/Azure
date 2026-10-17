@@ -275,7 +275,8 @@ ul.links li { margin: .45rem 0; }
 footer { color: var(--muted); font-size: .82rem; background: #f8f8f8; border-top: 1px solid var(--border); padding: 9px 0; }
 footer .wrap { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
 .footer-status { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); }
-.footer-status > span { width: 8px; height: 8px; border-radius: 50%; background: #107c10; box-shadow: 0 0 0 3px rgba(16, 124, 16, .12); }
+.footer-status > span { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 3px rgba(128, 128, 128, .15); }
+.footer-status.warn > span { background: #e0a100; box-shadow: 0 0 0 3px rgba(224, 161, 0, .2); }
 
 @media (max-width: 760px) {
   .wrap { padding: 0 16px; }

@@ -28,7 +28,9 @@
 .PARAMETER OfflineCatalog
     Use the cached Microsoft retirement catalog (data/retirement-catalog.json) instead of fetching Microsoft Learn.
 .PARAMETER QuotaSafetyPct
-    Extra headroom added to the minimum quota increase, as % of the migration requirement (default 20).
+    Extra headroom added to the recommended quota increase, as % of the migration requirement (0-200, default 20). It only
+    enlarges the recommended request, and only when an increase is needed; it does not change a quota status, so a quota
+    that fits is 'Quota OK' however little room is left.
 .PARAMETER MaxCandidates
     Number of ranked recommendations per VM (1-3, default 3).
 .PARAMETER IncludeRightsizing
@@ -315,7 +317,7 @@ try {
     Write-Phase 'Quota impact (aggregated per subscription / region / family)'
     foreach ($a in $assessments) { [void](Update-VmAction -Assessment $a -HorizonMonths $HorizonMonths) }
     if ($CheckModernization) {
-        [void](Resolve-ModernizationQuotaChoices -Assessments $assessments.ToArray() -Usage $usage -SafetyPct $QuotaSafetyPct)
+        [void](Resolve-ModernizationQuotaChoices -Assessments $assessments.ToArray() -Usage $usage)
     }
     $toMoves = { param([object[]]$Set, [scriptblock]$Pick) @($Set | ForEach-Object {
                 $chosen = & $Pick $_
