@@ -2,14 +2,14 @@
 
 > **Status: audit, with remediation applied on the branch.** The audit itself was read-only: no application code, scripts,
 > templates, schemas, dependencies or generated reports were changed to produce it. The remediation is applied step by step
-> on the branch and tracked in [§3.0](#30-remediation-status-r8) and §9 (r9: the CI repair, the Windows-only alignment,
-> Phase 1 and Phase 2 are applied; Phases 3-5 are open). The register below describes the code as audited (baseline `0b4e8a3`),
+> on the branch and tracked in [§3.0](#30-remediation-status-r8) and §9 (r10: the CI repair, the Windows-only alignment and
+> Phases 1-3 are applied; Phases 4-5 are open). The register below describes the code as audited (baseline `0b4e8a3`),
 > not as it is after the fixes.
 >
 > | | |
 > |---|---|
 > | **Audit date** | 2026-10-16 |
-> | **Revision** | r2 — adds AUD-033 and AUD-034 after the GitHub Actions run history was checked (r1 had only read the workflow files) and corrects the CI and build ratings. r3 — runs the fault-injection scenarios: AUD-007 and AUD-013 become Confirmed, AUD-013 is re-rated from Medium to Low, and AUD-007 and AUD-016 gain executed evidence. r4 — corrects the image-tag advice in AUD-034 (the floating `7.2-ubuntu-22.04` tag is a stale 2022 build; `lts-7.2-ubuntu-22.04` is PowerShell 7.2.24). r5 — records the owner decision that no further code is changed for Linux or macOS (failures there are reported only) and notes that the CI repair on the branch is verified on Windows only. r6 — supersedes r5: the owner decided that the tool is not intended to run on Linux, macOS or in containers, so those platforms and the PowerShell 7.2 container job are out of scope, CI becomes Windows-only (workflow change pending), and the open Linux and macOS questions are closed. r7 — the owner decided that PowerShell 7.2 and later (7.4 and later included) stay supported: the container job is replaced by a Windows job that runs the complete mock assessment under PowerShell 7.2.24 and 7.4.21 from pinned, checksum-verified archives, the Windows-only workflow and documentation changes are applied on the branch, and the supported-floor question is closed. r8 — applies step 0.1 and Phase 1 on the branch ([§3.0](#30-remediation-status-r8) lists every addressed finding): AUD-001, 005, 006, 016 and 022 are resolved and AUD-003 is partly resolved (the confidence rule; the processor catalog is still to be extended); Phases 2-5 are open. r9 — applies Phase 2 (evidence and diagnostics): AUD-007, 013, 019, 020 and 021 are resolved and the processor catalog is refreshed (AUD-003 stays partly resolved: the older series cannot be generated); Phases 3-5 are open. |
+> | **Revision** | r2 — adds AUD-033 and AUD-034 after the GitHub Actions run history was checked (r1 had only read the workflow files) and corrects the CI and build ratings. r3 — runs the fault-injection scenarios: AUD-007 and AUD-013 become Confirmed, AUD-013 is re-rated from Medium to Low, and AUD-007 and AUD-016 gain executed evidence. r4 — corrects the image-tag advice in AUD-034 (the floating `7.2-ubuntu-22.04` tag is a stale 2022 build; `lts-7.2-ubuntu-22.04` is PowerShell 7.2.24). r5 — records the owner decision that no further code is changed for Linux or macOS (failures there are reported only) and notes that the CI repair on the branch is verified on Windows only. r6 — supersedes r5: the owner decided that the tool is not intended to run on Linux, macOS or in containers, so those platforms and the PowerShell 7.2 container job are out of scope, CI becomes Windows-only (workflow change pending), and the open Linux and macOS questions are closed. r7 — the owner decided that PowerShell 7.2 and later (7.4 and later included) stay supported: the container job is replaced by a Windows job that runs the complete mock assessment under PowerShell 7.2.24 and 7.4.21 from pinned, checksum-verified archives, the Windows-only workflow and documentation changes are applied on the branch, and the supported-floor question is closed. r8 — applies step 0.1 and Phase 1 on the branch ([§3.0](#30-remediation-status-r8) lists every addressed finding): AUD-001, 005, 006, 016 and 022 are resolved and AUD-003 is partly resolved (the confidence rule; the processor catalog is still to be extended); Phases 2-5 are open. r9 — applies Phase 2 (evidence and diagnostics): AUD-007, 013, 019, 020 and 021 are resolved and the processor catalog is refreshed (AUD-003 stays partly resolved: the older series cannot be generated); Phases 3-5 are open. r10 — applies Phase 3 (selection depth and KPIs): AUD-002, 004, 012, 014 and 015 are resolved; one new finding, AUD-035 (a failed Azure Monitor call is not reported), was found while testing the rightsizing reader, is recorded and is scheduled with step 4.1; Phases 4-5 are open. |
 > | **Repository** | `AzaryaShaulov/Azure` (monorepo, 152 tracked files, no submodules) |
 > | **Baseline** | branch `modernizationv6`, HEAD `0b4e8a3`, plus 23 **staged, uncommitted** changes (the review-fix batch). `git status` was identical before and after the instrumented test run. |
 > | **Primary scope** | `Assessments/VMSKURetirementReport` — tool v1.2.0 (PowerShell 7.2+, read-only Azure VM SKU retirement and modernization assessment) |
@@ -61,7 +61,7 @@
   root `SECURITY.md` is empty, and licensing is per-folder only. The four component folders are outside the agreed
   remediation scope; the root-level items are not.
 
-**34 findings: 0 Critical · 2 High · 12 Medium · 20 Low.** Full register in [section 3](#3-findings-register).
+**35 findings: 0 Critical · 2 High · 12 Medium · 21 Low.** Full register in [section 3](#3-findings-register).
 
 ### Scorecard
 
@@ -78,15 +78,15 @@
 
 ### Top findings (fix first)
 
-*Status in r9: items 1, 2, 4, 7 and 8 are resolved, item 6 is half resolved (AUD-005) and item 5 is partly resolved (the confidence rule and a refreshed catalog); see [§3.0](#30-remediation-status-r8). The wording below is the audit-time finding.*
+*Status in r10: items 1, 2, 3, 4, 6, 7 and 8 are resolved and item 5 is partly resolved (the confidence rule and a refreshed catalog); see [§3.0](#30-remediation-status-r8). The wording below is the audit-time finding.*
 
 1. **AUD-033 (High)** — CI has never passed: the Pester / PSScriptAnalyzer tree-hash lock fails on all three runners and every test job stops in Bootstrap, so no test runs in CI and no release can be built. *Reproduced locally and in 3 inspected CI runs.* **Resolved (r8).**
 2. **AUD-001 (High)** — candidate-cache key omits `DedicatedHostGroupId`; a dedicated-host VM can be reported `Ready`/`HIGH`
    with no Dedicated Host gate, and the result flips with VM enumeration order. *Reproduced.* **Resolved (r8).**
-3. **AUD-002 (Medium)** — only the smallest size per series is gated; larger valid sizes are never tried. *Reproduced.*
+3. **AUD-002 (Medium)** — only the smallest size per series is gated; larger valid sizes are never tried. *Reproduced.* **Resolved (r10).**
 4. **AUD-006 (Medium)** — availability-set and scale-set members still show "Proceed with Resize (change window)". *Reproduced.* **Resolved (r8).**
 5. **AUD-003 (Medium)** — CPU vendor falls back to a naming heuristic that ignores confidence; `Standard_HB60rs` resolves as Intel. *Reproduced.* **Partly resolved (r8):** confidence now reflects it; the catalog still lacks the older series.
-6. **AUD-005 / AUD-004 (Medium)** — single-group `By*` blocks serialize as objects; "Modernize to v6" KPI is 0 while 5 of 7 VMs show a v6 path. *Reproduced.* **AUD-005 resolved (r8); AUD-004 open.**
+6. **AUD-005 / AUD-004 (Medium)** — single-group `By*` blocks serialize as objects; "Modernize to v6" KPI is 0 while 5 of 7 VMs show a v6 path. *Reproduced.* **AUD-005 resolved (r8); AUD-004 resolved (r10).**
 7. **AUD-007 (Medium)** — SKU/quota retrieval failures never reach the report: affected VMs show `Manual Review Required` / `LOW` with no stated cause, and with no SKU data the HTML renders no detail panels. *Reproduced (fault-injection runs).* **Resolved (r9).**
 8. **AUD-034 (Medium)** — the PowerShell 7.2 CI job references a container tag that does not exist (`lts-7.2-ubuntu-22.04` is the one that carries 7.2.24), so the stated minimum version is never verified. Owner decisions (r6, r7): containers are out of scope and PowerShell 7.2 and later stay supported, so the job is replaced by a Windows job that checks PowerShell 7.2.24 and 7.4.21. **Resolved (r8), not yet run in Actions.**
 9. **AUD-009 / AUD-010 / AUD-011 (Medium)** — stale repo links in AVD alert e-mails and the Arc dashboard, wrong dashboard file name, empty root `SECURITY.md`. (AUD-009 and AUD-010 are in folders the owner excluded from remediation; AUD-011 is not.)
@@ -151,7 +151,7 @@ flowchart LR
 
 `Common` is imported by every module. Further imports: `Candidates` → `Retirement`, `SkuCatalog`, `Scoring`;
 `Assessment` → `Retirement`, `SkuCatalog`, `Candidates`, `Scoring`, `Quota`; `Output` → `Retirement`, `Assessment`.
-`Inventory`, `Quota`, `Rightsizing`, `Scoring`, `SkuCatalog` and `Retirement` import only `Common`.
+`Inventory`, `Quota`, `Scoring`, `SkuCatalog` and `Retirement` import only `Common`; since r10 `Rightsizing` also imports `SkuCatalog` and `Candidates` (it runs the same mandatory checks for its suggested size).
 The orchestrator imports all ten modules in one loop (`Invoke-VMSKURetirementReport.ps1:138-140`).
 
 | Module | Responsibility | In-process command coverage | Notes |
@@ -220,7 +220,7 @@ fixtures and wrote nothing to the repository.
 
 Status of the findings addressed on the branch `modernizationv6` (nothing is pushed; CI has not run on these changes).
 Every row was reproduced with the repository modules before the change and checked after it; the new tests fail against the
-previous code and pass now (V-30, V-32). The other findings are unchanged and open, except the five out of scope.
+previous code and pass now (V-30, V-32, V-34). The other findings are unchanged and open, except the five out of scope.
 
 | Finding | Status | Commit | What changed |
 |---|---|---|---|
@@ -237,10 +237,15 @@ previous code and pass now (V-30, V-32). The other findings are unchanged and op
 | AUD-020 | Resolved | `cbe066f` | The 50-page SKU cap is recorded; a REST failure covered by the `az vm list-skus` fallback is noted in `run.log` |
 | AUD-013 | Resolved | `9a21655` | Malformed JSON from an exit-0 `az` call returns nothing with "The answer is not valid JSON: ..." instead of throwing; the quota reader records an answer it cannot read |
 | AUD-021 | Resolved | `d75802d` | A cached catalog more than 90 days older than the assessment date, and a live parse that lost series or list rows compared with the cache, are flagged in the evidence warning; `-UpdateCache` keeps the cache when a parse looks incomplete |
+| AUD-002 | Resolved | `15e378e` | When the smallest size of a series does not qualify for a size-dependent reason (NIC or data disk limit, zone, restriction), up to `primarySelection.maxLargerSizeSteps` (default 2, 0 = off) larger sizes are tried and the first that qualifies is offered as the new `Larger size` variant; the recommendation carries a validation item naming both sizes, and `NoCandidateReason` lists the sizes tried and says that sizes beyond the bound were not evaluated. Series-level failures (generation, controller, security type) never trigger it; nothing changes when the closest size qualifies |
+| AUD-004 | Resolved | `660a9e6` | `summary` gains `ModernizationTargetV7/V6` (a target on any path) and `ConvertibleToV7/V6` (conversion first); the executive summary renames the old rows "Direct resize to v7/v6" and prints `not evaluated` for the v6/v7 rows when the modernization check did not run. The sample now reads 5 v6 targets, 5 needing conversion, 0 direct resizes |
+| AUD-014 | Resolved | `660a9e6` | `ActionableVms` is added, each grouping heading in the executive summary says which VMs it counts, and `output-schema.md` documents every counter and grouping |
+| AUD-015 | Resolved, with a different label | `660a9e6` | The HTML tile, the Subscriptions column, each subscription page and the bottom line all count the Wave 4 VMs and are labelled "Modernization (Wave 4)" / "Wave 4" (the audit proposed "Previous-generation sizes" for the old counter; the Wave 4 count is what the other three places already used, and the evidence-class count stays in the executive summary) |
+| AUD-012 | Resolved | `2b7238e` | The suggested half size must pass the same mandatory checks as a migration target and be available for the VM (zone, restriction); constrained-vCPU sizes are never suggested; the choice is in a fixed order; the note says why when no size qualifies and shows the highest hourly maximum next to the P95 of the hourly averages. Also fixed: 0 bytes of available memory was read as low memory use. The percentile helper, the metrics reader and the suggestion are unit-tested and a run with VMs is tested end to end |
 
-**In-scope findings still open after Phase 2: 17 (0 High, 6 Medium, 11 Low)** — 34 recorded, 5 out of scope by owner decision,
-12 resolved (2 High, 4 Medium, 6 Low, including AUD-033 and AUD-034), AUD-003 still open. The Medium findings left are AUD-002,
-003, 004, 008, 011 and 012.
+**In-scope findings still open after Phase 3: 13 (0 High, 3 Medium, 10 Low)** — 35 recorded (AUD-035 was added in r10), 5 out of
+scope by owner decision, 17 resolved (2 High, 7 Medium, 8 Low, including AUD-033 and AUD-034), AUD-003 still open. The Medium
+findings left are AUD-003, 008 and 011.
 
 ### 3.1 High
 
@@ -290,6 +295,7 @@ previous code and pass now (V-30, V-32). The other findings are unchanged and op
 | AUD-030 | Low | Governance | Licences | repo root, `AVD/LICENSE`, `AzureWorkbooks/LICENSE`, project `LICENSE` | No root licence; `azure-arc` and `AzureDashboards` have none; the root readme defers to the individual projects. | **Executed** (`git ls-files`). | Unclear reuse terms for two folders. | *Folder licences are out of remediation scope (owner decision); a root licence remains an open choice.* Add a root licence or one per folder. | Confirmed |
 | AUD-031 | Low | Hygiene | QA agent definition | `.github/agents/QA-agent.agent.md:3-4` | The front matter still has template placeholders ("Describe what this custom agent does…"). | Code-read. | Poor agent discoverability. | Fill in `description` and `argument-hint`. | Confirmed |
 | AUD-032 | Low | Assumption | Disk-controller default | `MOD/Inventory.psm1:294-296`, `MOD/Candidates.psm1:84-89` | A missing `diskControllerType` is treated as SCSI (the documented platform default) and passes the gate; `DiskControllerReported` never reduces confidence. Every VM in the sample is "not reported". | **Executed** (sample) and code-read. | Low risk; confidence is unchanged when the controller was inferred. | Optional: mention the inference in the confidence tooltip. | Confirmed |
+| AUD-035 | Low | Diagnostics | Rightsizing metrics reader (added in r10) | `MOD/Rightsizing.psm1:40-44` (retry loop), `Invoke-VMSKURetirementReport.ps1:367-382` | A metrics call that fails all three attempts (a missing Monitoring Reader role, HTTP 403, a persistent 429) is only written to the verbose stream and skipped, so `Get-VmUtilization` returns no entry for its VMs and each shows `Insufficient Data` ("Less than 7 days of hourly metrics (or metrics unavailable)"). Only a failure to get the token throws and reaches `collectionIssues`. | **Executed (r10, V-36):** the mock estate with every Azure Monitor call answering 403 — exit 0, the four rightsizing targets show `Insufficient Data`, `collectionIssues` is `[]`, nothing on the console. The unit test "gives up on a call after three attempts and returns no data for its VMs" pins the behaviour. | An operator without the documented Monitoring Reader role cannot tell a permission problem from young VMs. Opt-in feature and the note says "or metrics unavailable", so the harm is limited. | Record each failed call with `Add-CollectionIssue` (subscription, region, sanitized reason, effect "These VMs show Insufficient Data for rightsizing") through an optional sink parameter, as for the other reads; scheduled with step 4.1. | Confirmed |
 
 ---
 
@@ -456,14 +462,14 @@ in the tool. **Assumed** = a tool heuristic or an embedded list.
 
 ## 9. Remediation Plan
 
-> **Applied so far (r9): step 0.1, Phase 1 and Phase 2** — see [§3.0](#30-remediation-status-r8). Phases 3-5 are open. Phases are ordered by risk reduction and dependency. Every code phase ends with the
+> **Applied so far (r10): step 0.1, Phase 1, Phase 2 and Phase 3** — see [§3.0](#30-remediation-status-r8). Phases 4-5 are open. Phases are ordered by risk reduction and dependency. Every code phase ends with the
 > same regression gate; documentation-only phases need only the link check.
 
 **Scope (owner decision, 2026-10-16):** `AVD`, `azure-arc`, `AzureDashboards` and `AzureWorkbooks` are **not** in scope for
 remediation. Their findings (AUD-009, 010, 028, 029 and the folder-level part of AUD-030) stay in the register for the
 record; steps 5.1 and 5.2 are therefore not scheduled.
 
-**Regression gate for every code phase:** `./build.ps1 -Task Lint,Version,Test` stays green (297 tests after Phase 2) and, once step 0.1 is done, the Windows CI job is green; regenerate
+**Regression gate for every code phase:** `./build.ps1 -Task Lint,Version,Test` stays green (351 tests after Phase 3) and, once step 0.1 is done, the Windows CI job is green; regenerate
 the sample (`-Task Sample`) and review the diff — only intended changes; `-Task Package` and verify the checksum; run
 `tools/browser-smoke.js` when HTML or CSS changes; add a CHANGELOG entry and update `output-schema.md` when a contract changes.
 
@@ -481,7 +487,7 @@ the sample (`-Task Sample`) and review the diff — only intended changes; `-Tas
 | **3 — Selection depth and KPIs** | 3.1 | AUD-002 | Bounded size expansion after gating; disclose skipped sizes | 3-NIC and restricted-smallest scenarios | 1.1 |
 | | 3.2 | AUD-004, 014, 015 | Strategic-target and convertible counters; clear tile labels; documented denominators | Integration + sample refresh + HTML check | 1.2 |
 | | 3.3 | AUD-012 | Gated, deterministic rightsizing suggestion | Unit + end-to-end with VMs | 2.1 |
-| **4 — Test and CI hardening** | 4.1 | AUD-008 | Mock modes (paging, 429, denied, malformed, empty); REST/token seam; cover the untested flags | The new modes themselves | 2.1, 2.2 |
+| **4 — Test and CI hardening** | 4.1 | AUD-008, 035 | Mock modes (paging, 429, denied, malformed, empty); REST/token seam; cover the untested flags; record an Azure Monitor call that still fails after its retries (AUD-035) | The new modes themselves | 2.1, 2.2 |
 | | 4.2 | AUD-027 | Sample-diff job (ignore `generatedUtc`); optional browser smoke; scope the release tag filter | CI run | 3.2 |
 | | 4.3 | AUD-025, 026 | Verify or remove `PackageHash`; exclude `tests/` from the ZIP; add the README | Package test listing the ZIP | — |
 | **5 — Documentation and hygiene** | 5.1 | AUD-009, 028, 029 | **Out of scope (owner decision).** Would replace stale URLs and runbook links, remove orphans and add a Markdown link check | — | — |
@@ -515,6 +521,25 @@ the sample (`-Task Sample`) and review the diff — only intended changes; `-Tas
   G, F, L, NC): they are not on Microsoft's current size-series pages. Hand-written overrides were not added because the vendor
   facts would be unsourced; the older series stay flagged "not verified", so AUD-003 stays partly resolved. The cache-age limit
   (90 days) is measured against `-AsOfDate`, not the clock, so the offline sample stays reproducible.
+
+**Deviations from the plan as written (Phase 3, r10).**
+
+- **3.1** — the number of larger sizes tried is a setting, `primarySelection.maxLargerSizeSteps` in `data/scoring-weights.json`
+  (default 2; 0 restores the closest-size-only search), because a larger size can change licensing and cost. A larger size that
+  also fails is not added to `candidates.csv`; it is named in `NoCandidateReason`, which avoids up to two extra rows per failing
+  series. A capability-preserving size that rescues a VM (it already did so by accident when the closest size failed) now carries
+  the same validation item. Size-order ties are broken on the size name.
+- **3.2** — the HTML tile is not renamed "Previous-generation sizes" as the audit suggested. The tile, the Subscriptions column,
+  each subscription page and the bottom line now all count the Wave 4 VMs (the set the other three already used) and no longer
+  call the `Plan Migration` sizes optional. The v6/v7 rows of the executive summary print `not evaluated` when the modernization
+  check did not run (not in the audit). AUD-017 (the `lifecycle` object's `LifecycleStage` and the CSV column-order claim) stays
+  in step 5.4.
+- **3.3** — the thresholds are unchanged: the hourly-average heuristic is documented and the highest hourly maximum is shown next
+  to it instead of changing the decision. No size is suggested for a constrained-vCPU recommended size. A second defect in the
+  same function was fixed (0 bytes of available memory was read as a missing metric). The new tests also cover the percentile
+  helper and the metrics reader, which no test executed before (they pin existing behaviour). AUD-035 was found while writing
+  them and is scheduled with step 4.1 instead of widening this phase. The mock `az` gained `MOCK_AZ_SKUS_FILE` for the
+  end-to-end case.
 
 **Dependency chains:** 0.1 → every later phase (CI becomes the validator) · 1.1 → 3.1 · 1.2 → 3.2 → 4.2 · 2.1 → 2.2 → 4.1 · 2.1 → 3.3 · 1.2 + 3.2 → 5.4.
 
@@ -565,6 +590,9 @@ disclaimers, the reproducible sample, SHA-pinned CI and the locked test tooling.
 | V-31 | Phase 1 on the supported PowerShell versions (r8) | The offline mock assessment and the sample regeneration under PowerShell 7.2.24 and 7.4.21 (SHA-256-verified portable archives), and the three reproduction scripts (cache key, JSON and CSV shapes with zero, one and several VMs, readiness) under 7.2.24, 7.4.21 and 7.6.7 (executed) | Assessment exit 0, 7 VMs, 10 files, no warnings on 7.2.24 and 7.4.21; the sample is equivalent to the committed one except the generated timestamp; the output of each reproduction script is byte-identical on all three versions |
 | V-32 | Phase 2 fixes (r9) | The orchestrator against the repository mock `az` with the new fault modes (`skus-denied`, `usage-denied`, `usage-garbage`), run first against the previous code and then against the changed code; the new unit and integration cases run against the previous code (expected red) and the changed code (expected green); the full gate; a regenerated sample compared with the committed one (executed) | Before: `skus-denied` gave 0 detail rows and toggles, empty `LowReasons`, one generic warning; `usage-denied` gave no warning; `usage-garbage` printed a raw parser error. After: one structured problem per fault with a sanitized cause (the identity and its object id masked; 0 output files contain either), the cause in `LowReasons` and `RecommendationReason`, 6 detail panels on the subscription page (one per listed VM), callouts, console and `run.log` warnings. Red before the change: the 6 integration cases added with the first step (no-problem check, SKU denied, usage denied), the `usage-garbage` case, the old-evidence age case, and 7 of the 9 catalog-currency unit cases. Gate after Phase 2: Lint and Version clean, 297 tests passed (252 unit, 45 integration; counts confirmed by Pester discovery). The committed sample changed only by the empty `collectionIssues`, the L-family reference row (Lasv5/Laosv5, from the refreshed processor catalog) and timestamps. One failing case seen in the full build only was traced to strict mode (the build runs the tests under `Set-StrictMode -Version Latest`; an isolated run without it passed a `$null.Count` assertion vacuously), fixed in the test and the isolated runner |
 | V-33 | Phase 2 on the supported PowerShell versions (r9) | The offline assessment and the sample comparison under PowerShell 7.2.24 and 7.4.21 (SHA-256-verified portable archives), and the three fault scenarios under 7.2.24, 7.4.21 and 7.6.7 (executed) | Assessment exit 0, 7 VMs, 10 files, no warnings on both; the sample is equivalent to the committed one; the output of the three fault scenarios (110 lines each, including the problems recorded from the parallel runspaces and the masked messages) is identical on all three versions |
+| V-34 | Phase 3 fixes (r10) | For each step: the defect reproduced with the repository modules before the change; the new tests run against `git archive` of the previous commit (expected red) and the changed code (expected green); the full gate; the regenerated sample compared with the committed one (executed) | **Larger sizes:** before, a VM with 3 NICs, one with 12 data disks and one whose closest sizes were restricted got no primary or an older generation although `Standard_D8s_v5` qualified; after, it is offered as a `Larger size` with the validation item; 16 of 17 new cases red before (the series-level case guards unchanged behaviour). The one existing scenario that restricted only the 4-vCPU v5 sizes had to restrict `D8s_v5` too, because that size is now tried. **KPIs:** before, the sample read "Modernize to v6 = 0" beside five v6 targets and `BySubscription` summed to 6 of 7; after, v6 target on any path 5, needing a conversion first 5, direct resize 0, and each grouping states its VM set; 6 of 6 new cases red before. **Rightsizing:** before, a VM with 3 NICs was offered a size that allows 2, eight separate processes gave four different suggestions when constrained-vCPU sizes were in the catalog, and 0 bytes of available memory was flagged as low use; after, no suggestion with the reason, the same suggestion in 8 of 8 processes, and `No Opportunity`; 11 of 28 unit cases and 2 of 5 end-to-end cases red before (the others pin existing behaviour that no test covered). Gate after Phase 3: Lint and Version clean, 351 tests passed (301 unit, 50 integration). The committed sample changed only in step 3.2 (counters, labels, headings) |
+| V-35 | Phase 3 on the supported PowerShell versions (r10) | The offline assessment and the sample comparison under PowerShell 7.2.24 and 7.4.21 (SHA-256-verified portable archives); the larger-size reproduction script and the rightsizing lab, including an end-to-end `-IncludeRightsizing` run with a stubbed metrics API, under 7.2.24, 7.4.21 and 7.6.7 (executed) | Assessment exit 0 and no warnings on 7.2.24 and 7.4.21; the regenerated sample is equivalent to the committed one on both (the sample was regenerated and committed in step 3.2); the larger-size script output (33 lines) and the rightsizing lab output are byte-identical on all three versions, and so are the end-to-end rightsizing columns and note. A first sample comparison reported exit 1 because the lab reused the previous run's output folders, which the tool refuses by design (`OutputPath ... already exists and is not empty`); with clean folders it passed |
+| V-36 | A failed Azure Monitor call (r10, AUD-035) | `-IncludeRightsizing` over the mock estate with every Azure Monitor call answering 403 (executed) | Exit 0; the four rightsizing targets show `Insufficient Data` with the note "Less than 7 days of hourly metrics (or metrics unavailable)"; `collectionIssues` is `[]`; nothing on the console |
 
 ### 10.2 Not tested
 
@@ -575,7 +603,8 @@ disclaimers, the reproducible sample, SHA-pinned CI and the locked test tooling.
 | Live Microsoft Learn parsing | An offline catalog was used | Run `Update-Catalogs.ps1` and diff against the cached catalog |
 | Gen1 → Trusted launch OS-support list and v6/v7 platform constraints | Needs current Microsoft documentation | Compare with Learn guidance (AUD-023) |
 | Large estates and throttling | No such data | Synthetic mock with several thousand VMs; measure time and memory |
-| CI runs of the new Windows jobs (tests; PowerShell 7.2.24 and 7.4.21) on the branch, including the Phase 1 changes | The jobs are new and nothing is pushed, so CI has not run them; their scripts were rehearsed locally (V-28, V-29) and Phase 1 was run locally on all three versions (V-31) | A Windows CI run |
+| CI runs of the new Windows jobs (tests; PowerShell 7.2.24 and 7.4.21) on the branch, including the Phase 1-3 changes | The jobs are new and nothing is pushed, so CI has not run them; their scripts were rehearsed locally (V-28, V-29) and Phases 1-3 were run locally on all three versions (V-31, V-33, V-35) | A Windows CI run |
+| Rightsizing against the real Azure Monitor API | Only a stubbed API was used, so the response shape, throttling and the Monitoring Reader requirement are untested; the metrics reader is unit-tested against the documented shape | Reader plus Monitoring Reader on a test subscription with running VMs |
 | HTML in browsers without `:has()` | No such browser available | Manual check; the `@supports` fallback shows every block open |
 
 ---
@@ -625,7 +654,8 @@ exit $LASTEXITCODE
 ## Appendix C — Decisions for the owner
 
 1. **Location of this document.** Published at `Assessments/VMSKURetirementReport/docs/REPOSITORY_AUDIT.md` (the repository root has no `docs/` folder); move it if you want it at the root.
-2. **Which remediation phases to start.** Step 0.1 (repair CI), Phase 1 (core correctness) and Phase 2 (evidence and diagnostics) are applied on the branch (r9). Phases 3-4 and steps 5.3-5.5 are open; 5.1 and 5.2 are out of scope.
+2. **Which remediation phases to start.** Step 0.1 (repair CI), Phase 1 (core correctness), Phase 2 (evidence and diagnostics) and Phase 3 (selection depth and KPIs) are applied on the branch (r10). Phase 4 and steps 5.3-5.5 are open; 5.1 and 5.2 are out of scope.
 3. **Contract policy for AUD-005 — resolved by the release facts.** No tag or GitHub Release exists and `main` still ships v1.0.0, so v1.2.0 is unreleased: the array fix can ship inside 1.2.0 with a "Fixed" note in the CHANGELOG, with no separate patch release.
 4. **Parent-repository scope — resolved.** The owner decided on 2026-10-16 that AVD, azure-arc, AzureDashboards and AzureWorkbooks are not in scope for remediation.
 5. **Supported runtime — resolved.** The owner decided on 2026-10-16 that the tool runs through Azure CLI and local PowerShell, as a GitHub Copilot skill and as a standalone script, and is not intended to run on Linux, macOS or in containers, and that PowerShell 7.2 and later (7.4 and later included) stay supported. The committed CI repair stays (it also fixed the Windows job). Still open: the release method (tag workflow on a Windows runner, or manual from the committed `dist/` ZIP).
+6. **Phase 3 judgement calls to confirm (r10).** (a) A larger size is offered when the closest size of a series does not qualify, up to 2 sizes per series (`primarySelection.maxLargerSizeSteps`); it can raise vCPU licensing and cost, so it always comes with a validation item and confidence below `HIGH` — say if you prefer a bound of 1, or to turn it off (0). (b) The HTML modernization tile, the Subscriptions column and the bottom line count the Wave 4 VMs rather than Microsoft's previous-generation list, and the tile no longer says "optional". (c) AUD-035 (a failed Azure Monitor call is not reported) is scheduled with step 4.1 rather than fixed in Phase 3.
