@@ -28,6 +28,9 @@ coverage.xml
 *.tar
 *.tar.gz
 
+# --- Internal working document, kept locally ---
+docs/REPOSITORY_AUDIT.md
+
 # --- Local tooling ---
 .vscode/*
 !.vscode/extensions.json
