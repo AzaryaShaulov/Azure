@@ -1,0 +1,11 @@
+{
+  "$comment": "Exact values that the repository PII scan (.github/scripts/Test-RepoPii.ps1) must not report. Every entry needs a rule, an exact value (no wildcards) and a reason; an entry can be limited to one file with \"file\".",
+  "entries": [
+    { "rule": "guid", "value": "b24988ac-6180-42a0-ab88-20f7382dd24c", "reason": "Azure built-in role definition id (Contributor); public" },
+    { "rule": "guid", "value": "8e3af657-a8ff-443c-a75c-2fe8c4bcb635", "reason": "Azure built-in role definition id (Owner); public" },
+    { "rule": "guid", "value": "749f88d5-cbae-40b8-bcfc-e573ddc772fa", "reason": "Azure built-in role definition id (Monitoring Contributor); public" },
+    { "rule": "guid", "value": "73c42c96-874c-492b-b04d-ab87d138a893", "reason": "Azure built-in role definition id (Log Analytics Reader); public" },
+    { "rule": "guid", "value": "92aaf0da-9dab-42b6-94a3-d43ce8d16293", "reason": "Azure built-in role definition id (Log Analytics Contributor); public" },
+    { "rule": "guid", "value": "1ed7ab46-1276-4357-896e-746265aa53c8", "reason": "Azure portal dashboard tile parameter 'queryId' in azure-arc/files/AzureArc-EnabledServers.json; not a subscription or tenant", "file": "azure-arc/files/AzureArc-EnabledServers.json" }
+  ]
+}

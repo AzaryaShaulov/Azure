@@ -11,7 +11,12 @@ mappings, rule improvements, report UX and docs.
 3. **Never guess.** If something cannot be verified, label it (`Unable to Verify`, `Unable to Confirm`) rather than
    inferring it.
 4. **No real customer data.** Tests, fixtures, screenshots and issues must use synthetic data such as `Contoso`,
-   `11111111-...` IDs and `*.example` domains.
+   `11111111-...` IDs and `*.example` domains. Never commit a real report folder, `run.log`, or a screenshot that shows real
+   subscription, tenant, resource group or server names. The `Repository PII scan` workflow
+   (`.github/workflows/repo-pii-scan.yml`) checks for secrets, personal e-mail addresses, tenant domains, real-looking GUIDs,
+   local user paths, public IP addresses and report output files, and warns when an image is added. To run it locally, use
+   `pwsh .github/scripts/Test-RepoPii.ps1` from the repository root. A justified exception goes into
+   `.github/pii-allowlist.json` as an exact value with a reason.
 
 ## Development setup
 

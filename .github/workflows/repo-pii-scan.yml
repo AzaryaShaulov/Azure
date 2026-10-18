@@ -1,0 +1,41 @@
+name: Repository PII scan
+
+# Looks for secrets, personal e-mail addresses, tenant domains, real-looking GUIDs,
+# local user paths, public IP addresses and report output files in the tracked files.
+# Exact exceptions live in .github/pii-allowlist.json (value plus reason).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-pii-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Scanner self-test
+        shell: pwsh
+        run: ./.github/scripts/Test-RepoPii.ps1 -SelfTest
+
+      - name: Scan the repository
+        shell: pwsh
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if ($env:BASE_SHA) { ./.github/scripts/Test-RepoPii.ps1 -BaseRef $env:BASE_SHA }
+          else { ./.github/scripts/Test-RepoPii.ps1 }
