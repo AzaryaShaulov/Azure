@@ -45,7 +45,8 @@ auditable wave plan in HTML, Markdown, CSV and JSON.
 
 ### VMs with Retiring SKUs
 
-One row per VM with its Microsoft status, retirement date, required retirement target and next step. The current size
+One row per VM with its Microsoft status (for example *End of Life*, *Retired* or *Confirmed Retirement*; the retirement date
+is in the VM's details and in the CSV and JSON), required retirement target and next step. The current size
 and the retirement target (and, with `--check-modernization`, the modernization target) list the same attributes on
 separate lines (Vendor, vCPU, vRAM, VM Gen and Disk controller) so they can be read side by side; material changes and
 the next step use the same *Label: value* lines. With `--check-modernization`, the optional v6/v7 target and migration
@@ -216,26 +217,26 @@ reports in a specific location.
 
 Download the current customer package and its checksum directly from this repository:
 
-- [Download VMSKURetirementReport v1.2.0 ZIP](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.0.zip)
-- [Download VMSKURetirementReport v1.2.0 SHA-256 checksum](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.0.zip.sha256)
+- [Download VMSKURetirementReport v1.2.3 ZIP](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.3.zip)
+- [Download VMSKURetirementReport v1.2.3 SHA-256 checksum](https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.3.zip.sha256)
 
 With PowerShell:
 
 ```powershell
 Set-Location ~\Downloads
 Invoke-WebRequest `
-  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.0.zip `
-  -OutFile VMSKURetirementReport-v1.2.0.zip
+  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.3.zip `
+  -OutFile VMSKURetirementReport-v1.2.3.zip
 Invoke-WebRequest `
-  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.0.zip.sha256 `
-  -OutFile VMSKURetirementReport-v1.2.0.zip.sha256
+  -Uri https://raw.githubusercontent.com/AzaryaShaulov/Azure/main/Assessments/VMSKURetirementReport/dist/VMSKURetirementReport-v1.2.3.zip.sha256 `
+  -OutFile VMSKURetirementReport-v1.2.3.zip.sha256
 ```
 
 ### Step 2 - Verify the checksum
 
 ```powershell
-$actual = (Get-FileHash .\VMSKURetirementReport-v1.2.0.zip -Algorithm SHA256).Hash.ToLowerInvariant()
-$expected = (Get-Content .\VMSKURetirementReport-v1.2.0.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\VMSKURetirementReport-v1.2.3.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$expected = (Get-Content .\VMSKURetirementReport-v1.2.3.zip.sha256).Split()[0]
 if ($actual -ne $expected) { throw 'Package checksum verification failed.' }
 Write-Host "Verified: SHA-256 checksum matches ($actual)" -ForegroundColor Green
 ```
@@ -250,8 +251,8 @@ default `RemoteSigned` execution policy refuses to load blocked unsigned scripts
 matches, unblock the ZIP **before** extracting it so the extracted files are not marked:
 
 ```powershell
-Unblock-File .\VMSKURetirementReport-v1.2.0.zip
-Expand-Archive .\VMSKURetirementReport-v1.2.0.zip -DestinationPath C:\Tools\VMSKURetirementReport -Force
+Unblock-File .\VMSKURetirementReport-v1.2.3.zip
+Expand-Archive .\VMSKURetirementReport-v1.2.3.zip -DestinationPath C:\Tools\VMSKURetirementReport -Force
 ```
 
 > If you already extracted the ZIP (for example with Windows Explorer **Extract All**, which copies the blocked

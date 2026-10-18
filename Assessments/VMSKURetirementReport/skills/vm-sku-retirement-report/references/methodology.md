@@ -567,15 +567,17 @@ and the colours have dark-mode variants and are kept when printed.
 **One table row and one collapsible detail block per VM.** Retirement and modernization are two targets for the same VM,
 so they are shown together rather than in separate tables:
 
-- The table has one row per VM: VM, current size, Microsoft status with the retirement date, the retirement target
-  (recommended size) with its score and quota status, the material changes against the current size, the next step with
-  readiness and confidence, and the monthly price. The current size, the retirement target and (with
+- The table has one row per VM: VM, current size, Microsoft status (the lifecycle stage and evidence class, for example *End of
+  Life* and *Confirmed Retirement*, without the date), the retirement target (recommended size) with its score, the material
+  changes against the current size, the next step with readiness and confidence, and the monthly price. The retirement date
+  is in the VM's details, the CSV and the JSON. The current size, the retirement target and (with
   `--check-modernization`) the modernization target use the same layout, one attribute per line: *Vendor* (CPU vendor),
   *vCPU*, *vRAM*, *VM Gen* (Gen1 or Gen2; for a target the generations it supports) and *Disk controller* (SCSI or NVMe;
-  for a target the controllers it supports); an attribute that is not reported shows *Unknown*. A target adds *Score* and
-  *Quota* lines (and the modernization target a *Status* line). *Material changes* lists one `Attribute: current -> target`
+  for a target the controllers it supports); an attribute that is not reported shows *Unknown*. A target adds a *Score* line
+  (and the modernization target *Status* and *Quota* lines; the quota status of the retirement target is in the VM's details
+  and in the quota table). *Material changes* lists one `Attribute: current -> target`
   line per difference that needs attention, and *Next step* lists *Readiness* and *Confidence* the same way (the action
-  is already conveyed by the retirement date and the wave, so it is not repeated; a VM that needs no action shows
+  is already conveyed by the Microsoft status and the wave, so it is not repeated; a VM that needs no action shows
   *No action required*).
   Status values are coloured text on the same *Label: value* lines (red, orange, yellow, green or purple, as for badges),
   so the value is always readable without the colour. With `--check-modernization`, two more columns show the v6/v7

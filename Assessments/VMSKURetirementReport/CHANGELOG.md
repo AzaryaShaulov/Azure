@@ -5,8 +5,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-10-17
+
+Version 1.2.3 includes everything below. The versions 1.2.1 and 1.2.2 were never published; 1.2.0 was never released either.
+
 ### Changed
 
+- **The report is called "Azure VM SKU Retirement Report".** The header, page titles, footer and the Markdown report titles
+  used the tool name `VMSKURetirementReport`. The tool, its scripts, the ZIP and `assessment.json` (`tool`) keep that name.
+- **Less repetition in the HTML tables.** The tenant page's *Migration Waves* table no longer has a *Retirement date*
+  column. On a subscription page, the *Microsoft status* column shows the stage and evidence class (for example *End of
+  Life* and *Confirmed Retirement*) but no longer the retirement date and time remaining, and the *Retirement target*
+  column no longer repeats the quota status. The dates are still in each VM's details, the CSV and the JSON, the retirement
+  target's quota status is still in the details and the quota table, and the *Modernization target* column keeps its quota line.
 - **A "Ready" VM no longer says "Proceed with Resize" when something is still open.** The next step is now
   `Validate Before Resize` whenever readiness is `Ready` but confidence is below `HIGH` (availability-set or scale-set
   member, removed temp disk, reduced disk throughput, an older-generation target, partially verified lifecycle evidence);

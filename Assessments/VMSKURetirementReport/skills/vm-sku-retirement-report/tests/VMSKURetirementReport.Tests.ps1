@@ -1581,6 +1581,46 @@ Describe 'Compatibility score' {
     }
 }
 
+Describe 'Report name and table columns' {
+    BeforeAll {
+        $a = Invoke-TestAssessment -Vm (New-TestVm -Sku 'Standard_DS3_v2' -Gen 'V1')
+        $script:ReportDir = Export-TestOutput -Assessments @($a) -Html
+        $script:ReportIndex = Get-Content (Join-Path $ReportDir 'index.html') -Raw
+        $script:ReportSub = Get-Content (Get-ChildItem $ReportDir -Filter '*.html' | Where-Object Name -ne 'index.html' | Select-Object -First 1).FullName -Raw
+    }
+
+    It 'calls the report "Azure VM SKU Retirement Report" in the header, title and footer of every page' {
+        foreach ($html in $ReportIndex, $ReportSub) {
+            $html | Should -Match '<strong>Azure VM SKU Retirement Report</strong><small>Assessment report v\d+\.\d+\.\d+</small>'
+            $html | Should -Match '<title>Azure VM SKU Retirement Report - '
+            $html | Should -Match '<footer>.*Azure VM SKU Retirement Report v\d+\.\d+\.\d+'
+            $html | Should -Not -Match 'VMSKURetirementReport v\d|<strong>VMSKURetirementReport</strong>|<title>VMSKURetirementReport'
+        }
+        $ReportIndex | Should -Match '<span class="report-context">Azure VM SKU Retirement Report</span>'
+    }
+
+    It 'names the report in the Markdown titles and keeps the tool name in assessment.json' {
+        (Get-Content (Join-Path $ReportDir 'executive-summary.md') -Raw) | Should -Match '(?m)^# Azure VM SKU Retirement Report - Executive Summary'
+        (Get-Content (Join-Path $ReportDir 'executive-summary.md') -Raw) | Should -Match '\| Azure VM SKU Retirement Report v\d'
+        (Read-TestJson $ReportDir).tool | Should -Be 'VMSKURetirementReport'
+    }
+
+    It 'has no Retirement date column in the tenant page''s Migration Waves table, and no date in its rows' {
+        $waves = [regex]::Match($ReportIndex, "(?s)<details id='waves'.*?</details>").Value
+        $waves | Should -Match '<th>Microsoft status</th><th class=''num''>VMs</th><th>Recommended size</th>'
+        $waves | Should -Not -Match 'Retirement date|No date|\d{4}-\d{2}-\d{2}'
+        $waves | Should -Match "<span class='badge [^']+'>End of Life</span>"
+    }
+
+    It 'keeps the retirement date in the VM details and the quota status in the details and the quota table' {
+        $row = [regex]::Match($ReportSub, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>").Value
+        $row | Should -Not -Match '2028-05-01'
+        $detail = [regex]::Match($ReportSub, "(?s)<tr class='vm-detail-row'.*?</tr>").Value
+        $detail | Should -Match '2028-05-01'
+        $ReportSub | Should -Match '<h2>Quota Actions</h2>'
+    }
+}
+
 Describe 'Quota math' {
     It 'matches the documented example: limit 100, used 92, need 16 -> +8 minimum' {
         $q = Get-QuotaIncrease -Limit 100 -Used 92 -Required 16 -SafetyPct 20
@@ -2813,7 +2853,10 @@ Describe 'HTML report safety' {
         $cells[3].Value | Should -Match "<code>Standard_(<wbr>)?D4ds_v5</code><div class='spec'>"
         $cells[3].Value | Should -Match (& $specOrder $a.Candidates.Primary.CpuVendor $a.Candidates.Primary.vCPUs $a.Candidates.Primary.MemoryGB $targetGens (@($rec.DiskControllerTypes) -join ', '))
         $cells[3].Value | Should -Match "Score:</span> \d+</div>"
-        $cells[3].Value | Should -Match "Quota:</span> <span class='tone-\w+'>"
+        # The retirement target no longer repeats the quota status (it is in the details and the quota table); the Microsoft status shows no date.
+        $cells[3].Value | Should -Not -Match 'Quota'
+        $cells[2].Value | Should -Match "<span class='badge [^']+'>End of Life</span><div class='sub'>"
+        $cells[2].Value | Should -Not -Match '\d{4}-\d{2}-\d{2}|remaining|&middot;'
         $cells[1].Value + $cells[3].Value | Should -Not -Match "<span class='badge"
         # Material changes: one "Attribute: current -> target" line each, coloured by severity, no pills.
         $arrow = [char]0x2192

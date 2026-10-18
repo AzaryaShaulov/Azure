@@ -4,7 +4,7 @@ name: VMSKURetirementReport Release
 # so the release is built and published from a Windows runner.
 #
 # The tag carries the project name, so a tag for another component of this repository never starts this workflow:
-#   git tag vm-sku-retirement-report-v1.2.0 && git push origin vm-sku-retirement-report-v1.2.0
+#   git tag vm-sku-retirement-report-v1.2.3 && git push origin vm-sku-retirement-report-v1.2.3
 
 on:
   push:

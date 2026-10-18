@@ -432,9 +432,12 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $summaryRows = [regex]::Matches($vmTable, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>")
         $summaryRows.Count | Should -Be 6
         foreach ($row in $summaryRows) { ([regex]::Matches($row.Value, '<td[ >]')).Count | Should -Be 9 }
-        # Both tracks are in the same row: the required retirement date and the optional v6/v7 target and path.
+        # Both tracks are in the same row: the required retirement target with its Microsoft status (no date) and the optional v6/v7 target and path.
         $ds3 = @($summaryRows | Where-Object { $_.Value -match '>vm-ds3v2<' })[0].Value
-        $ds3 | Should -Match '2028-05-01'
+        $ds3 | Should -Not -Match '2028-05-01'
+        $retirementCell = [regex]::Match($ds3, "(?s)<td class='target-cell retirement-target-cell'>.*?</td>").Value
+        $retirementCell | Should -Not -Match 'Quota' -Because 'the retirement target column does not repeat the quota status'
+        $retirementCell | Should -Match 'Standard_(<wbr>)?D4ds_v5'
         $ds3 | Should -Match 'Standard_(<wbr>)?D4ds_v5'
         $ds3 | Should -Match 'Standard_(<wbr>)?D4s_v6'
         $ds3 | Should -Match 'Gen1 \+ NVMe \+ Resize'

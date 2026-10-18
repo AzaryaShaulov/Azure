@@ -8,6 +8,8 @@ $script:DisclaimerIndependence = 'This independently developed tool is not an of
 $script:DisclaimerValidation = 'Findings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.'
 $script:Disclaimer = "$script:DisclaimerWarranty $script:DisclaimerIndependence`n`n$script:DisclaimerValidation"
 $script:RepositoryUrl = 'https://github.com/AzaryaShaulov/Azure'
+# The name shown in the headers, titles and footers of the reports (the tool and its files keep the name VMSKURetirementReport).
+$script:ReportName = 'Azure VM SKU Retirement Report'
 
 # Export-Csv writes a zero-byte file, with no header, when there are no rows; typed consumers such as Power BI then fail on
 # refresh. These lists give those files their header row. A test compares them with the row builders.
@@ -248,9 +250,9 @@ function Export-ExecutiveSummaryMarkdown {
     param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)]$Run, [Parameter(Mandatory)]$Summary, [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Rows, $QuotaImpact, $CatalogResult, [object[]]$CollectionIssues = @())
     $s = $Summary
     $sb = New-Object System.Text.StringBuilder
-    [void]$sb.AppendLine("# VMSKURetirementReport - Executive Summary")
+    [void]$sb.AppendLine("# $script:ReportName - Executive Summary")
     [void]$sb.AppendLine()
-    [void]$sb.AppendLine("[Source repository]($script:RepositoryUrl) | VMSKURetirementReport v$(Get-ToolVersion)")
+    [void]$sb.AppendLine("[Source repository]($script:RepositoryUrl) | $script:ReportName v$(Get-ToolVersion)")
     [void]$sb.AppendLine()
     [void]$sb.AppendLine("| Item | Value |`n|---|---|")
     [void]$sb.AppendLine("| Tenant | $(ConvertTo-MarkdownText $Run.Tenant.Name) (``$(ConvertTo-MarkdownText $Run.Tenant.Id)``) |")
@@ -359,7 +361,7 @@ function Export-DetailedReportMarkdown {
     [void]$sb.AppendLine()
     [void]$sb.AppendLine("[Source repository]($script:RepositoryUrl)")
     [void]$sb.AppendLine()
-    [void]$sb.AppendLine("Tenant: **$(ConvertTo-MarkdownText $Run.Tenant.Name)** (``$(ConvertTo-MarkdownText $Run.Tenant.Id)``) | As of: **$($Run.AsOf.ToString('yyyy-MM-dd'))** | Tool: VMSKURetirementReport v$(Get-ToolVersion)")
+    [void]$sb.AppendLine("Tenant: **$(ConvertTo-MarkdownText $Run.Tenant.Name)** (``$(ConvertTo-MarkdownText $Run.Tenant.Id)``) | As of: **$($Run.AsOf.ToString('yyyy-MM-dd'))** | Tool: $script:ReportName v$(Get-ToolVersion)")
     [void]$sb.AppendLine()
     $affected = @(if ($checkModernization) {
         $Assessments | Sort-Object { $_.SubscriptionName }, { $_.Lifecycle.RetirementDate }, { $_.Vm.Name }
@@ -581,7 +583,7 @@ function New-HtmlPage {
 <title>$(& $e $Title)</title><style>$Css</style></head><body>
 <header class="hero"><div class="wrap">
 <div class="app-bar">
-<div class="brand-lockup"><span class="brand-mark" aria-hidden="true">&#9729;</span><span><strong>VMSKURetirementReport</strong><small>Assessment report v$version</small></span></div>
+<div class="brand-lockup"><span class="brand-mark" aria-hidden="true">&#9729;</span><span><strong>$script:ReportName</strong><small>Assessment report v$version</small></span></div>
 <span class="brand-divider" aria-hidden="true"></span>
 <span class="report-context">$(& $e $Eyebrow)</span>
 <span class="mode-pill">Read-only</span>
@@ -598,7 +600,7 @@ $(if ($navHtml) { "<nav class='toc'><div class='wrap'>$navHtml</div></nav>" })
 $Body
 <section class="callout disclaimer" aria-label="Disclaimer"><h2>Disclaimer</h2><p><strong>$(& $e $script:DisclaimerWarranty)</strong> $(& $e $script:DisclaimerIndependence)</p><p>$(& $e $script:DisclaimerValidation)</p></section>
 </main>
-<footer><div class="wrap">$statusHtml<span>VMSKURetirementReport v$version &middot; read-only assessment &middot; $(& $e $Title) &middot; <a href="$script:RepositoryUrl" target="_blank" rel="noopener noreferrer">Source repository</a></span></div></footer>
+<footer><div class="wrap">$statusHtml<span>$script:ReportName v$version &middot; read-only assessment &middot; $(& $e $Title) &middot; <a href="$script:RepositoryUrl" target="_blank" rel="noopener noreferrer">Source repository</a></span></div></footer>
 </body></html>
 "@
 }
@@ -899,12 +901,11 @@ function New-VmSummaryRowHtml {
     $toggle = if ($HasDetails) { "<input type='checkbox' class='vm-toggle' id='tg-$anchor' aria-label='Show details for $(& $e $r.VM)'><label class='vm-toggle-label' for='tg-$anchor'>Details</label>" } else { '' }
     $link = "<span class='strong'>$(& $e $r.VM)</span>"
     $currentCell = New-SizeSpecHtml -SkuName $r.CurrentSku -Vendor $r.CpuVendor -Vcpu $r.vCPU -MemoryGb $r.MemoryGB -Generation $a.Vm.HyperVGeneration -Controller $a.Vm.DiskControllerType
-    $retirement = if ($r.RetirementDate) { "<div class='sub'>$(& $e $r.RetirementDate) &middot; $(& $e $r.TimeRemaining)</div>" } else { '' }
     $retirementCell = if ($rt) {
         $record = if ($rt.PSObject.Properties.Name -contains 'Record') { $rt.Record } else { $null }
         $targetSpec = New-SizeSpecHtml -SkuName $rt.SkuName -Vendor $rt.CpuVendor -Vcpu $rt.vCPUs -MemoryGb $rt.MemoryGB `
             -Generation $(if ($record) { $record.HyperVGenerations }) -Controller $(if ($record) { $record.DiskControllerTypes })
-        "$targetSpec$(New-SpecLineHtml -Label 'Score' -Value (& $e $rt.Score))$(if ($s.RetirementQuotaStatus) { New-SpecLineHtml -Label 'Quota' -Value (& $e $s.RetirementQuotaStatus) -Tone (Get-ToneClass $s.RetirementQuotaStatus) })"
+        "$targetSpec$(New-SpecLineHtml -Label 'Score' -Value (& $e $rt.Score))"
     }
     elseif ($p -and -not $s.RetirementRequired -and -not $s.RetirementUnconfirmed) { "<span class='muted'>Not required</span><div class='sub'>Optional move: <code>$(& $e $p.SkuName)</code></div>" }
     elseif ($a.Action -eq 'No Action Required') { "<span class='muted'>Current generation</span>" }
@@ -930,7 +931,7 @@ function New-VmSummaryRowHtml {
         $modernQuota = if ($s.ModernizationTargetSku -and $s.ModernizationQuotaStatus) { New-SpecLineHtml -Label 'Quota' -Value (& $e $s.ModernizationQuotaStatus) -Tone (Get-ToneClass $s.ModernizationQuotaStatus) } else { '' }
         $optional = "<td class='target-cell modernization-target-cell'>$modernCell$modernStatus$modernQuota</td><td class='path-cell'><div class='path-primary'>$(& $e $s.ModernizationPath)</div></td>"
     }
-    "<tr class='vm-summary-row$(if ($Alt) { ' alt' })' id='$anchor'><td>$toggle$link<div class='sub'>$(& $e $r.ResourceGroup) &middot; $(& $e $r.Region)$(if ($r.Zone) { " &middot; zone $(& $e $r.Zone)" }) &middot; $(& $e $r.PowerState)</div></td><td>$currentCell</td><td>$(New-Badge $r.LifecycleStage)<div class='sub'>$(& $e $r.EvidenceClass)</div>$retirement</td><td class='target-cell retirement-target-cell'>$retirementCell</td><td class='change-cell'>$(Get-MaterialChangeLinesHtml -Assessment $a)</td><td>$nextStep</td>$optional<td class='num nowrap'>$cost</td></tr>"
+    "<tr class='vm-summary-row$(if ($Alt) { ' alt' })' id='$anchor'><td>$toggle$link<div class='sub'>$(& $e $r.ResourceGroup) &middot; $(& $e $r.Region)$(if ($r.Zone) { " &middot; zone $(& $e $r.Zone)" }) &middot; $(& $e $r.PowerState)</div></td><td>$currentCell</td><td>$(New-Badge $r.LifecycleStage)<div class='sub'>$(& $e $r.EvidenceClass)</div></td><td class='target-cell retirement-target-cell'>$retirementCell</td><td class='change-cell'>$(Get-MaterialChangeLinesHtml -Assessment $a)</td><td>$nextStep</td>$optional<td class='num nowrap'>$cost</td></tr>"
 }
 
 function New-VmTableHtml {
@@ -1437,10 +1438,10 @@ function Export-HtmlReports {
         foreach ($g in (@($Assessments | Where-Object { $_.Wave -eq $w -and (& $listed $_) }) | Group-Object { $_.Vm.SkuName } | Sort-Object Count -Descending)) {
             $f = $g.Group[0]
             $rec = @($g.Group | ForEach-Object { if ($_.Candidates -and $_.Candidates.Primary) { $_.Candidates.Primary.SkuName } else { 'No recommendation' } } | Group-Object | Sort-Object Count -Descending | ForEach-Object { if ($g.Count -gt 1) { "$($_.Name) &times;$($_.Count)" } else { $_.Name } }) -join ', '
-            "<tr><td>$(New-Badge $w)</td><td><code>$(& $e $g.Name)</code></td><td>$(New-Badge (Get-LifecycleStage -Lifecycle $f.Lifecycle))<div class='sub'>$(& $e $f.Lifecycle.EvidenceClass)</div></td><td class='nowrap'>$(if ($f.Lifecycle.RetirementDate) { & $e $f.Lifecycle.RetirementDate } else { "<span class='muted'>No date</span>" })</td><td class='num'>$($g.Count)</td><td>$rec</td></tr>"
+            "<tr><td>$(New-Badge $w)</td><td><code>$(& $e $g.Name)</code></td><td>$(New-Badge (Get-LifecycleStage -Lifecycle $f.Lifecycle))<div class='sub'>$(& $e $f.Lifecycle.EvidenceClass)</div></td><td class='num'>$($g.Count)</td><td>$rec</td></tr>"
         }
     }
-    $waveHtml = if (@($waveRows).Count) { "<div class='table-wrap'><table><thead><tr><th>Wave</th><th>Current size</th><th>Microsoft status</th><th>Retirement date</th><th class='num'>VMs</th><th>Recommended size</th></tr></thead><tbody>$($waveRows -join "`n")</tbody></table></div>" } else { "<div class='callout ok'>No VMs are on End of Life or retired sizes.</div>" }
+    $waveHtml = if (@($waveRows).Count) { "<div class='table-wrap'><table><thead><tr><th>Wave</th><th>Current size</th><th>Microsoft status</th><th class='num'>VMs</th><th>Recommended size</th></tr></thead><tbody>$($waveRows -join "`n")</tbody></table></div>" } else { "<div class='callout ok'>No VMs are on End of Life or retired sizes.</div>" }
     $waveIntro = "$scopeText Every VM is in <code>vm-assessment.csv</code> and <code>assessment.json</code>."
 
     $subRows = foreach ($g in ($Assessments | Group-Object { $_.Vm.SubscriptionId } | Sort-Object { $_.Group[0].SubscriptionName })) {
@@ -1465,7 +1466,7 @@ function Export-HtmlReports {
         $reference
     ) -join "`n"
     $nav = @(@{ Id = 'summary'; Label = 'Summary' }, @{ Id = 'waves'; Label = 'Waves' }, @{ Id = 'subscriptions'; Label = 'Subscriptions' }, @{ Id = 'evidence'; Label = 'Evidence' }) + $refNav
-    (New-HtmlPage -Title "VMSKURetirementReport - $($Run.Tenant.Name)" -Eyebrow 'VMSKURetirementReport' -Heading $Run.Tenant.Name -Subtitle "Tenant $($Run.Tenant.Id)" -Meta $meta -Body $body -Css $css -Nav $nav -Warnings $indexWarnings) | Out-File (Join-Path $OutDir $indexName) -Encoding utf8
+    (New-HtmlPage -Title "$script:ReportName - $($Run.Tenant.Name)" -Eyebrow $script:ReportName -Heading $Run.Tenant.Name -Subtitle "Tenant $($Run.Tenant.Id)" -Meta $meta -Body $body -Css $css -Nav $nav -Warnings $indexWarnings) | Out-File (Join-Path $OutDir $indexName) -Encoding utf8
 
     # -- Per-subscription pages --
     $waveRank = { param($w) switch -Regex ($w) { '^Wave 1' { 0 } '^Wave 2' { 1 } '^Wave 3' { 2 } '^Beyond' { 3 } '^Review' { 4 } '^Wave 4' { 5 } default { 9 } } }
@@ -1543,7 +1544,7 @@ function Export-HtmlReports {
         $metaSub = @("Subscription <strong>$(& $e $g.Name)</strong>", "Tenant <strong>$(& $e $Run.Tenant.Name)</strong>", "As of <strong>$asOf</strong>", 'Read-only')
         if ($dataSource) { $metaSub += "Data <strong>$(& $e $dataSource)</strong>" }
         $subWarnings = @(Get-PageCollectionIssue -Issues $CollectionIssues -SubscriptionId $g.Name).Count + $(if ($staleHtml) { 1 } else { 0 })
-        (New-HtmlPage -Title "VMSKURetirementReport - $name" -Eyebrow 'Subscription assessment' -Heading $name -Meta $metaSub -Body $body -Css $css -BackLink $indexName -Nav $nav -Warnings $subWarnings) | Out-File (Join-Path $OutDir (& $subFile $g.Name $name)) -Encoding utf8
+        (New-HtmlPage -Title "$script:ReportName - $name" -Eyebrow 'Subscription assessment' -Heading $name -Meta $metaSub -Body $body -Css $css -BackLink $indexName -Nav $nav -Warnings $subWarnings) | Out-File (Join-Path $OutDir (& $subFile $g.Name $name)) -Encoding utf8
     }
 }
 
