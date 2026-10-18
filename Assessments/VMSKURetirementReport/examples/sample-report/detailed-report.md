@@ -41,8 +41,6 @@ Tenant: **Contoso (Sample)** (`22222222-2222-2222-2222-222222222222`) | As of: *
 | Attribute | Value |
 |---|---|
 | Retirement Status | No Retirement Announced |
-| Retirement Date | Unknown |
-| Months Remaining | Unknown |
 | Microsoft Series | Unknown |
 | Microsoft Retirement Source | - |
 | Announcement | Unknown |
@@ -151,8 +149,6 @@ No Action Required. Next step: Manual Review Required.
 | Attribute | Value |
 |---|---|
 | Retirement Status | Retired |
-| Retirement Date | 2025-09-30 |
-| Months Remaining | 0 |
 | Microsoft Series | NCv3-Series |
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | Unknown |
@@ -244,8 +240,6 @@ Immediate Migration Required. Next step: Manual Review Required.
 | Attribute | Value |
 |---|---|
 | Retirement Status | Announced |
-| Retirement Date | 2028-05-01 |
-| Months Remaining | 18 |
 | Microsoft Series | Dsv2-series / Dv2 and Dsv2-series / Dsv2 |
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | \[2025-03-31\](https://azure.microsoft.com/updates?id=485569) |
@@ -383,8 +377,6 @@ Migration Required Within 24 Months. Next step: Request Quota Increase. Resize S
 | Attribute | Value |
 |---|---|
 | Retirement Status | Announced |
-| Retirement Date | 2028-05-01 |
-| Months Remaining | 18 |
 | Microsoft Series | Dsv2-series / Dv2 and Dsv2-series / Dsv2 |
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | \[2025-03-31\](https://azure.microsoft.com/updates?id=485569) |
@@ -522,8 +514,6 @@ Migration Required Within 24 Months. Next step: Request Quota Increase. Resize S
 | Attribute | Value |
 |---|---|
 | Retirement Status | Announced |
-| Retirement Date | 2028-11-15 |
-| Months Remaining | 25 |
 | Microsoft Series | B-series (V1) / Bv1 |
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | \[2025-10-15\](https://azure.microsoft.com/updates?id=500682) |
@@ -660,8 +650,6 @@ Migration Required Within 36 Months. Next step: Manual Review Required. Resize S
 | Attribute | Value |
 |---|---|
 | Retirement Status | Announced |
-| Retirement Date | 2029-11-15 |
-| Months Remaining | 37 |
 | Microsoft Series | Dsv3-series / Dv3 and Dsv3-series / Dsv3 |
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | Unknown |
@@ -799,8 +787,6 @@ Plan Migration. Next step: Request Quota Increase. Resize Standard_D4s_v3 -> Sta
 | Attribute | Value |
 |---|---|
 | Retirement Status | Announced |
-| Retirement Date | 2029-11-15 |
-| Months Remaining | 37 |
 | Microsoft Series | Dsv3-series / Dv3 and Dsv3-series / Dsv3 |
 | Microsoft Retirement Source | \[https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions\](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) |
 | Announcement | Unknown |

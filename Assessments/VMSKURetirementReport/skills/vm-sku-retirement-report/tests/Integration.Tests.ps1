@@ -148,12 +148,23 @@ Describe 'End-to-end assessment (mock Azure)' {
             $row.Value | Should -Match "<span class='badge b-(orange|red)'>(End of Life|Retired)</span>"
             $row.Value | Should -Match "<input type='checkbox' class='vm-toggle' id='tg-vm-[^']+'"
         }
-        foreach ($r in @($retiring | Where-Object RetirementDate)) { $html | Should -Match ([regex]::Escape($r.RetirementDate)) }
+        # The retirement date is data only (CSV and JSON); the HTML report does not show it.
+        foreach ($r in @($retiring | Where-Object RetirementDate)) { $html | Should -Not -Match ([regex]::Escape($r.RetirementDate)) }
+        $html | Should -Not -Match 'Earliest retirement|earliest retirement date|retires <strong>'
         # Each summary row is followed by its own collapsed detail row spanning the table.
         ([regex]::Matches($html, "<tr class='vm-detail-row' id='vm-[^']+-details'><td colspan='7' class='vm-detail-cell'>")).Count | Should -Be $retiring.Count
         ([regex]::Matches($html, "(?s)</tr>\s*<tr class='vm-detail-row'")).Count | Should -Be $retiring.Count
         $html | Should -Not -Match '<details class="vm"'
         $html | Should -Not -Match 'modernization-vm-detail|modernization-table|Optional &middot; v6/v7 modernization'
+    }
+    It 'keeps the retirement date in the CSV and JSON but not in the Markdown reports' {
+        $ds3 = @($Rows | Where-Object VM -eq 'vm-ds3v2')[0]
+        $ds3.RetirementDate | Should -Be '2028-05-01'
+        foreach ($name in 'executive-summary.md', 'detailed-report.md') {
+            $text = Get-Content (Join-Path $Out $name) -Raw
+            $text | Should -Not -Match '2028-05-01'
+            $text | Should -Not -Match '\| Retirement Date \||\| Months Remaining \|'
+        }
     }
     It 'keeps every existing vm-assessment.csv column in its original position and only appends new ones' {
         $original = 'Subscription, SubscriptionId, ResourceGroup, VM, VmResourceId, Region, Zone, PowerState, OsType, HyperVGeneration, CurrentSku, CurrentSkuGeneration, VmFamily, CpuVendor, CpuArchitecture, vCPU, MemoryGB, AffectedByRetirement, EvidenceClass, RetirementStatus, RetirementDate, TimeRemaining, Urgency, RecommendedSku, RecommendedSkuGeneration, TargetCpuVendor, TargetCpuArchitecture, TargetvCPU, TargetMemoryGB, CompatibilityScore, ScoreBand, CpuVendorPreserved, CpuVendorChangeRequired, RegionAvailable, CurrentVcpu, CurrentMemoryGB, RecommendedVcpu, RecommendedMemoryGB, SkuRegionalAvailability, QuotaStatus, ModernizationStatus, RecommendationReason, QuotaFamily, QuotaMinIncreaseFamily, QuotaMinIncreaseRegional, DeploymentReadiness, Confidence, Action, NextStep, Wave, AlternativeSku, AlternativeScore, AlternativeReason, ThirdCandidateSku, NewerGenerationIfConverted, NoCandidateReason, VendorChangeReason, MaterialDifferences, ValidationItems, RightsizingStatus, RightsizingSuggestedSku, CurrentMonthlyUSD, TargetMonthlyUSD, MicrosoftSource, AnnouncementUrl, MigrationGuideUrl, DQ_RetirementDate, DQ_CpuVendor, DQ_RegionalAvailability, DQ_Quota, DQ_PhysicalCapacity, LifecycleNotes, RetirementTargetSku, RetirementTargetGeneration, RetirementQuotaStatus, ModernizationTargetSku, ModernizationTargetGeneration, ModernizationTargetSource, ModernizationPath, ModernizationComplexity, ModernizationReadiness, ModernizationQuotaStatus, ModernizationPeakQuotaStatus, MigrationQuotaModel, RecommendedMigrationPath, ModernizationValidationItems, LifecycleStage' -split ',\s*'

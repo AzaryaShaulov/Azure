@@ -13,11 +13,17 @@ Version 1.2.3 includes everything below. The versions 1.2.1 and 1.2.2 were never
 
 - **The report is called "Azure VM SKU Retirement Report".** The header, page titles, footer and the Markdown report titles
   used the tool name `VMSKURetirementReport`. The tool, its scripts, the ZIP and `assessment.json` (`tool`) keep that name.
+- **No retirement date in the report.** The date is removed from the HTML and Markdown reports: the Overview tile and the
+  "earliest retirement date" sentence, the VM details header, the Markdown wave tables, the Markdown VM details and the
+  *By retirement date* grouping. Earlier in this version it was already removed from the tenant page's *Migration Waves*
+  table and from the subscription page's *Microsoft status* column. The date and the months remaining are still in
+  `vm-assessment.csv` and `assessment.json` (`RetirementDate`, `TimeRemaining`, `ByRetirementDate`), and the scripts that
+  collect and assess them are unchanged, so a report view can bring the date back later.
 - **Less repetition in the HTML tables.** The tenant page's *Migration Waves* table no longer has a *Retirement date*
   column. On a subscription page, the *Microsoft status* column shows the stage and evidence class (for example *End of
   Life* and *Confirmed Retirement*) but no longer the retirement date and time remaining, and the *Retirement target*
-  column no longer repeats the quota status. The dates are still in each VM's details, the CSV and the JSON, the retirement
-  target's quota status is still in the details and the quota table, and the *Modernization target* column keeps its quota line.
+  column no longer repeats the quota status. The retirement target's quota status is still in the details and the quota
+  table, and the *Modernization target* column keeps its quota line.
 - **Azure Advisor items are no longer all called retirement signals.** The query reads Advisor's "upgrade and retirement"
   category, which also holds suggestions such as Trusted launch, Premium disk or scale-set migration (found in a live run:
   7 such items on three VMs that all run current v7 sizes, none with a retirement date). The console line and the evidence

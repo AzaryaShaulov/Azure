@@ -559,8 +559,7 @@ There is no separate modernization part: with `--check-modernization` the v6/v7 
 the same table (grouped under *Optional - v6/v7 modernization*) and rows of each VM's comparison.
 
 The band starts with a banner (Required label, icon and short description) and has a coloured left edge. The navigation
-groups the *Retiring VMs* link under *Retirement*, the Overview has a tile (VM count,
-earliest retirement date) linking to the band, and the table groups its columns under *Required - retirement
+groups the *Retiring VMs* link under *Retirement*, the Overview has a tile (VM count) linking to the band, and the table groups its columns under *Required - retirement
 remediation* and (with the flag) *Optional - v6/v7 modernization*. Labels and icons carry the meaning as well as colour,
 and the colours have dark-mode variants and are kept when printed.
 
@@ -570,7 +569,7 @@ so they are shown together rather than in separate tables:
 - The table has one row per VM: VM, current size, Microsoft status (the lifecycle stage and evidence class, for example *End of
   Life* and *Confirmed Retirement*, without the date), the retirement target (recommended size) with its score, the material
   changes against the current size, the next step with readiness and confidence, and the monthly price. The retirement date
-  is in the VM's details, the CSV and the JSON. The current size, the retirement target and (with
+  is not shown in the report; it is in the CSV and the JSON. The current size, the retirement target and (with
   `--check-modernization`) the modernization target use the same layout, one attribute per line: *Vendor* (CPU vendor),
   *vCPU*, *vRAM*, *VM Gen* (Gen1 or Gen2; for a target the generations it supports) and *Disk controller* (SCSI or NVMe;
   for a target the controllers it supports); an attribute that is not reported shows *Unknown*. A target adds a *Score* line
@@ -588,7 +587,7 @@ so they are shown together rather than in separate tables:
   label and a CSS `:has()` rule, and an *Expand all details* switch above the table opens every block. Browsers
   without `:has()` and printed reports show every block open. The block has, in order:
   1. a header with the move `current -> retirement target [-> modernization target]` (green arrows), the Confidence,
-     Readiness and Modernization badges (hover for their explanations), the wave, the retirement date and the next step,
+     Readiness and Modernization badges (hover for their explanations), the wave and the next step,
      and a *Blockers* line of short chips;
   2. *What to do*: one numbered list that merges the quota request and the remediation steps (with Microsoft Learn links);
   3. *What changes*: only the attributes that differ from the current size (Attribute | Current | Retirement target |

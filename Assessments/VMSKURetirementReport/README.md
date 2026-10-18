@@ -46,7 +46,7 @@ auditable wave plan in HTML, Markdown, CSV and JSON.
 ### VMs with Retiring SKUs
 
 One row per VM with its Microsoft status (for example *End of Life*, *Retired* or *Confirmed Retirement*; the retirement date
-is in the VM's details and in the CSV and JSON), required retirement target and next step. The current size
+is not shown in the report, only in the CSV and JSON), required retirement target and next step. The current size
 and the retirement target (and, with `--check-modernization`, the modernization target) list the same attributes on
 separate lines (Vendor, vCPU, vRAM, VM Gen and Disk controller) so they can be read side by side; material changes and
 the next step use the same *Label: value* lines. With `--check-modernization`, the optional v6/v7 target and migration

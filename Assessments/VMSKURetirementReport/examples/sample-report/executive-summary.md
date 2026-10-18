@@ -6,7 +6,7 @@
 |---|---|
 | Tenant | Contoso (Sample) (`22222222-2222-2222-2222-222222222222`) |
 | Assessment date (as of) | 2026-10-05 |
-| Generated (UTC) | 2026-10-18T03:19:23.2640979Z |
+| Generated (UTC) | 2026-10-18T06:16:03.6692774Z |
 | Retirement evidence | Cached (2026-10-06 00:44 UTC) - Microsoft Learn |
 | Source: RetiredList | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/retirements-and-capacity-restrictions) (updated 09/27/2026 11:03:00, retrieved 10/06/2026 00:44:07) |
 | Source: PreviousGen | [https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list) (updated 09/26/2026 06:04:00, retrieved 10/06/2026 00:44:07) |
@@ -15,7 +15,7 @@
 
 > **Warning:** Offline mode requested.
 
-> **Microsoft lifecycle entries that are not VM sizes (validate separately):** Dsv3-Type1, Dsv3-Type2, Esv3-Type1, Esv3-Type2 (ADH, Retired 2023-06-30)
+> **Microsoft lifecycle entries that are not VM sizes (validate separately):** Dsv3-Type1, Dsv3-Type2, Esv3-Type1, Esv3-Type2 (ADH, Retired)
 
 ## Estate summary
 
@@ -55,27 +55,27 @@ Waves 1-3 contain only VMs with Microsoft-confirmed or announced retirement date
 
 ### Wave 1 - Urgent (1 VMs)
 
-| CurrentSku | LifecycleStage | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
-|---|---|---|---|---|---|---|---|---|
-| Standard\_NC6s\_v3 | Retired | Already Retired | 2025-09-30 | - | 1 | 0 | 0 | 1 |
+| CurrentSku | LifecycleStage | EvidenceClass | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
+|---|---|---|---|---|---|---|---|
+| Standard\_NC6s\_v3 | Retired | Already Retired | - | 1 | 0 | 0 | 1 |
 
 ### Wave 2 - Near Term (2 VMs)
 
-| CurrentSku | LifecycleStage | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
-|---|---|---|---|---|---|---|---|---|
-| Standard\_DS3\_v2 | End of Life | Confirmed Retirement | 2028-05-01 | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
+| CurrentSku | LifecycleStage | EvidenceClass | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
+|---|---|---|---|---|---|---|---|
+| Standard\_DS3\_v2 | End of Life | Confirmed Retirement | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
 
 ### Wave 3 - Planned (1 VMs)
 
-| CurrentSku | LifecycleStage | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
-|---|---|---|---|---|---|---|---|---|
-| Standard\_B2ms | End of Life | Confirmed Retirement | 2028-11-15 | Standard\_B2s\_v2 | 1 | 0 | 0 | 1 |
+| CurrentSku | LifecycleStage | EvidenceClass | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
+|---|---|---|---|---|---|---|---|
+| Standard\_B2ms | End of Life | Confirmed Retirement | Standard\_B2s\_v2 | 1 | 0 | 0 | 1 |
 
 ### Beyond Horizon (2 VMs)
 
-| CurrentSku | LifecycleStage | EvidenceClass | RetirementDate | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
-|---|---|---|---|---|---|---|---|---|
-| Standard\_D4s\_v3 | End of Life | Confirmed Retirement | 2029-11-15 | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
+| CurrentSku | LifecycleStage | EvidenceClass | RecommendedSku | VMs | Ready | QuotaIncrease | ManualReview |
+|---|---|---|---|---|---|---|---|
+| Standard\_D4s\_v3 | End of Life | Confirmed Retirement | Standard\_D4ds\_v5 | 2 | 0 | 2 | 0 |
 
 ## Groupings
 
@@ -133,15 +133,6 @@ Unless a heading says otherwise, each table counts only the VMs that have an act
 |---|---|
 | Intel | 6 |
 
-### By retirement date - the 6 VMs on retiring sizes
-
-| Key | Count |
-|---|---|
-| 2028-05-01 | 2 |
-| 2029-11-15 | 2 |
-| 2025-09-30 | 1 |
-| 2028-11-15 | 1 |
-
 ### By migration priority (action) - all 7 VMs
 
 | Key | Count |
@@ -173,7 +164,7 @@ Demand is aggregated for all VMs moving into the same subscription / region / fa
 
 ## Data quality
 
-- Retirement dates come only from Microsoft Learn (retired sizes list, previous-gen list, migration guide). No date is inferred.
+- Retirement dates come only from Microsoft Learn (retired sizes list, previous-gen list, migration guide). No date is inferred. The dates are kept in the JSON and CSV outputs and are not shown in this report.
 - CPU vendor: Microsoft Learn size-series processor tables (Verified) or the Azure VM naming convention (Partially Verified).
 - Regional availability and restrictions: subscription-scoped Azure Resource SKUs API (Verified).
 - Physical regional capacity, nested virtualization use and temp-disk usage cannot be verified from the control plane (Unable to Verify).

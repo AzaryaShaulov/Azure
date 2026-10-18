@@ -799,7 +799,7 @@ Describe 'Estate summary counters' {
         $md | Should -Match '(?m)^## Groupings\r?$'
         $md | Should -Match 'each table counts only the VMs that have an action \(\d+ of 4 VMs\)'
         $md | Should -Match '(?m)^### By subscription\r?$'
-        $md | Should -Match '(?m)^### By retirement date - the \d+ VMs on retiring sizes\r?$'
+        $md | Should -Not -Match '(?m)^### By retirement date'
         $md | Should -Match '(?m)^### By migration priority \(action\) - all 4 VMs\r?$'
     }
 
@@ -1619,11 +1619,13 @@ Describe 'Report name and table columns' {
         $summary | Should -Not -Match 'Advisor and \d+ Service Health retirement signals'
     }
 
-    It 'keeps the retirement date in the VM details and the quota status in the details and the quota table' {
+    It 'does not show the retirement date in the VM rows or details, but keeps the quota status in the details and the quota table' {
         $row = [regex]::Match($ReportSub, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>").Value
         $row | Should -Not -Match '2028-05-01'
         $detail = [regex]::Match($ReportSub, "(?s)<tr class='vm-detail-row'.*?</tr>").Value
-        $detail | Should -Match '2028-05-01'
+        $detail | Should -Not -Match '2028-05-01'
+        $detail | Should -Not -Match 'retires <strong>'
+        $ReportSub | Should -Not -Match 'Earliest retirement|earliest retirement date'
         $ReportSub | Should -Match '<h2>Quota Actions</h2>'
     }
 }
