@@ -1612,6 +1612,13 @@ Describe 'Report name and table columns' {
         $waves | Should -Match "<span class='badge [^']+'>End of Life</span>"
     }
 
+    It 'does not call every Advisor upgrade-and-retirement recommendation a retirement signal' {
+        $summary = $ReportIndex
+        $summary | Should -Match 'Advisor upgrade and retirement recommendations \(only those that name a VM size corroborate the lifecycle'
+        $summary | Should -Match 'Service Health retirement events'
+        $summary | Should -Not -Match 'Advisor and \d+ Service Health retirement signals'
+    }
+
     It 'keeps the retirement date in the VM details and the quota status in the details and the quota table' {
         $row = [regex]::Match($ReportSub, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>").Value
         $row | Should -Not -Match '2028-05-01'

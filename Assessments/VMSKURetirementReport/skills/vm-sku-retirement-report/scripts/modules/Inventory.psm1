@@ -224,7 +224,7 @@ function Get-EstateInventory {
                 if ($v -match '^\d{17,19}$') { $e.$p = ([datetime]::new([long]$v, [DateTimeKind]::Utc)).ToString('yyyy-MM-dd') }
             }
         }
-        Write-PhaseDone "$($advisor.Count) Advisor retirement recommendations, $($sh.Count) Service Health retirement events"
+        Write-PhaseDone "$($advisor.Count) Advisor upgrade-and-retirement recommendations, $($sh.Count) Service Health retirement events"
     }
 
     $nicByVm = @{}

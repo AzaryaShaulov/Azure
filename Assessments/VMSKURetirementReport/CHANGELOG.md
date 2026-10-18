@@ -18,6 +18,12 @@ Version 1.2.3 includes everything below. The versions 1.2.1 and 1.2.2 were never
   Life* and *Confirmed Retirement*) but no longer the retirement date and time remaining, and the *Retirement target*
   column no longer repeats the quota status. The dates are still in each VM's details, the CSV and the JSON, the retirement
   target's quota status is still in the details and the quota table, and the *Modernization target* column keeps its quota line.
+- **Azure Advisor items are no longer all called retirement signals.** The query reads Advisor's "upgrade and retirement"
+  category, which also holds suggestions such as Trusted launch, Premium disk or scale-set migration (found in a live run:
+  7 such items on three VMs that all run current v7 sizes, none with a retirement date). The console line and the evidence
+  table now say "Advisor upgrade and retirement recommendations" and that only items naming a VM size corroborate the
+  lifecycle; the other items were already listed as "Azure Advisor (not VM size)" notes. `counts.AdvisorRetirement` keeps
+  its name and meaning. The GitHub release title uses the report name.
 - **A "Ready" VM no longer says "Proceed with Resize" when something is still open.** The next step is now
   `Validate Before Resize` whenever readiness is `Ready` but confidence is below `HIGH` (availability-set or scale-set
   member, removed temp disk, reduced disk throughput, an older-generation target, partially verified lifecycle evidence);

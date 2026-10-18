@@ -72,4 +72,4 @@ jobs:
           if (-not $section) { $section = 'See CHANGELOG.md' }
           Set-Content -Path release-notes.md -Value $section
           $zip = "dist/VMSKURetirementReport-v$ver.zip"
-          gh release create $env:TAG $zip "$zip.sha256" --title "VMSKURetirementReport v$ver" --notes-file release-notes.md --verify-tag
+          gh release create $env:TAG $zip "$zip.sha256" --title "Azure VM SKU Retirement Report v$ver" --notes-file release-notes.md --verify-tag
