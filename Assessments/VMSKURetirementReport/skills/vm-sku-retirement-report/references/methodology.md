@@ -590,10 +590,12 @@ so they are shown together rather than in separate tables:
      Readiness and Modernization badges (hover for their explanations), the wave and the next step,
      and a *Blockers* line of short chips;
   2. *What to do*: one numbered list that merges the quota request and the remediation steps (with Microsoft Learn links);
-  3. *What changes*: only the attributes that differ from the current size (Attribute | Current | Retirement target |
-     Modernization target | Note), with *Show all N attributes* opening the full comparison;
-  4. *Validate before resizing*: the validation items in two columns, each with a bold topic (wording unchanged);
-  5. *Recommended sizes*: only the Primary, Secondary and Third sizes (matched by size name).
+     *Validate before resizing* sits directly under it in the same left column: the validation items, each with a bold
+     topic (wording unchanged);
+  3. *What changes* (the column beside them, stretched to the same height): only the attributes that differ from the
+     current size (Attribute | Current | Retirement target | Modernization target | Note), with *Show all N attributes*
+     opening the full comparison;
+  4. *Recommended sizes*: only the Primary, Secondary and Third sizes (matched by size name).
 
   With `-ExtendedDetails` (HTML only; scoring and the other outputs do not change) the block also has an *Extended
   details* section: the facts summary (Microsoft status, action, sizes, targets, path, quota, candidate series),
