@@ -17,6 +17,8 @@ The first release since 1.0.0. It includes everything listed for 1.1.0, 1.1.2 an
 - **The retirement date is no longer shown in the HTML and Markdown reports.** It is still in `vm-assessment.csv` and
   `assessment.json` (`RetirementDate`, `TimeRemaining`, `ByRetirementDate`). The *Retirement target* column also no longer
   repeats the quota status; the quota status stays in the VM details and the quota table.
+- **A more even VM details block, and a page 10% wider.** *Validate before resizing* now sits under *What to do*, beside
+  *What changes*, and both columns end at the same height. The report's maximum width grew from 1480 to 1630 px.
 - **A larger size of a series is now tried.** When the smallest fitting size fails a size-dependent check (NIC or data-disk
   limit, zone, restriction), the next sizes are evaluated (default 2 steps, `primarySelection.maxLargerSizeSteps`) and the
   first one that qualifies is offered as a *Larger size* variant with a validation item. Fewer VMs end up with no

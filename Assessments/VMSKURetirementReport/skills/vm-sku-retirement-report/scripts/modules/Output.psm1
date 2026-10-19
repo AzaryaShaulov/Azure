@@ -1138,10 +1138,12 @@ function New-VmDetailHtml {
 <div class="vd-head"><span class="vd-move">$move</span><span class="vd-badges">$badges</span><div class="vd-meta">$($metaParts -join ' &middot; ')</div></div>
 $blockerLine
 <div class="vd-cols">
+<div class="vd-col">
 <section class="vd-card"><h4>What to do</h4>$stepsHtml</section>
+$(if ($notes) { "<section class='vd-card'><h4>Validate before resizing</h4><ul class='vd-list'>$notes</ul></section>" })
+</div>
 <section class="vd-card"><h4>What changes</h4>$changesHtml</section>
 </div>
-$(if ($notes) { "<section class='vd-card'><h4>Validate before resizing</h4><ul class='vd-list'>$notes</ul></section>" })
 <section class="vd-card"><h4>$candsHeading</h4>$(if ($cands) { "<div class='table-wrap compact'><table class='ref'><thead><tr><th>Role</th><th>Size</th><th>CPU</th><th class='num'>Gen</th><th class='num'>vCPU / GB</th><th class='num'>Score</th><th>Availability</th><th>Notes</th></tr></thead><tbody>$cands</tbody></table></div>$candsNote" } else { "<p class='note'>No current-generation size in the permitted series is offered in this region for this subscription. Review Microsoft's migration guidance for this series manually.</p>" })</section>
 $extended
 </div>
@@ -1187,9 +1189,11 @@ function New-VmNoRecommendationDetailHtml {
 <div class="vd-head"><span class="vd-move"><code>$(& $e $a.Vm.SkuName)</code> <span class='move-arrow'>&rarr;</span> <code>no recommendation</code></span><span class="vd-badges">$badges</span><div class="vd-meta">$($metaParts -join ' &middot; ')</div></div>
 <div class="vd-cols">
 <section class="vd-card"><h4>Why there is no recommendation</h4>$why</section>
+<div class="vd-col">
 <section class="vd-card"><h4>What to do</h4>$steps</section>
-</div>
 $(if ($notes) { "<section class='vd-card'><h4>Validate before resizing</h4><ul class='vd-list'>$notes</ul></section>" })
+</div>
+</div>
 </div>
 "@
 }

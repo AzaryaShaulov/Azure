@@ -2903,7 +2903,7 @@ Describe 'HTML report safety' {
         $html | Should -Match 'class="footer-status( warn)?"'
         $html | Should -Match 'thead th \{ background: var\(--accent\); color: #fff;'
         $html | Should -Match 'tbody tr:nth-child\(even\)'
-        $html | Should -Match '\.wrap \{ max-width: 1480px;'
+        $html | Should -Match '\.wrap \{ max-width: 1630px;'
         $html | Should -Match '\.quota-table \.quota-usage \{ min-width: 112px;'
         $html | Should -Not -Match 'Readiness and Confidence'
         $html | Should -Not -Match "id='readiness'|href='#readiness'"
@@ -3451,12 +3451,14 @@ Describe 'In-table collapsible VM details' {
         $DetailHtml | Should -Match '--detail-edge: #2dd4bf; --detail-on-edge: #052e2a;'
         $DetailHtml | Should -Match '\.vm-detail \{ position: sticky; left: 0;'
     }
-    It 'shows what to do, what changes, what to validate and the recommended sizes in that order' {
+    It 'shows what to do with what to validate under it, what changes beside them, then the recommended sizes' {
         $first = [regex]::Match($DetailHtml, "(?s)<tr class='vm-detail-row'.*?</div>\s*</td></tr>").Value
         $first | Should -Not -BeNullOrEmpty
-        $order = '<div class="vd-head">', '<h4>What to do</h4>', '<h4>What changes</h4>', '<h4>Validate before resizing</h4>', '<h4>Recommended sizes</h4>'
+        $order = '<div class="vd-head">', '<h4>What to do</h4>', '<h4>Validate before resizing</h4>', '<h4>What changes</h4>', '<h4>Recommended sizes</h4>'
         $last = -1
         foreach ($marker in $order) { $i = $first.IndexOf($marker); $i | Should -BeGreaterThan $last; $last = $i }
+        # What to do and Validate before resizing share the left column; What changes is the other column.
+        $first | Should -Match '(?s)<div class="vd-cols">\s*<div class="vd-col">\s*<section class="vd-card"><h4>What to do</h4>.*?<h4>Validate before resizing</h4>.*?</div>\s*<section class="vd-card"><h4>What changes</h4>'
         $first | Should -Match "<ol class='vd-steps'><li>"
         $first | Should -Match "<span class='move-arrow'>&rarr;</span>"
         # "Topic: text" validation items get a bold topic; the compact table lists only differences and the full list is one click away.
