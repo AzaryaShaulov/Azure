@@ -35,12 +35,13 @@ function New-VmAssessment {
     )
     $rec = if ($RegionCatalog) { $RegionCatalog[$Vm.SkuName.ToLowerInvariant()] } else { $null }
     $proc = Get-ProcessorInfo -SkuName $Vm.SkuName -ProcessorCatalog $ProcessorCatalog -SkuRecord $rec
-    $current = New-CurrentProfile -SkuName $Vm.SkuName -SkuRecord $rec -ProcessorInfo $proc
+    $current = New-CurrentProfile -SkuName $Vm.SkuName -SkuRecord $rec -ProcessorInfo $proc -VmGeneration ([string]$Vm.HyperVGeneration) -VmDiskController ([string]$Vm.DiskControllerType)
     $lc = $Lifecycle
     if ($lc.EvidenceClass -eq 'No Retirement Announced' -and $RegionCatalog -and -not $rec) {
         # Size missing from the regional Resource SKU list for this subscription: may be retired/unlisted - do not guess.
         $lc = $Lifecycle.PSObject.Copy()
         $lc.EvidenceClass = 'Unable to Confirm'; $lc.RetirementStatus = 'Unable to Confirm'; $lc.Urgency = 'Unable to Determine'; $lc.DataQuality = 'Unable to Verify'
+        $lc | Add-Member -NotePropertyName LifecycleStage -NotePropertyValue 'Unknown' -Force
         $lc.Notes = @($Lifecycle.Notes) + "Size is not returned by the Resource SKUs API for $($Vm.Region) in this subscription and is not in the Microsoft retirement lists; it may be retired, unlisted or restricted. Manual confirmation required."
     }
     $advisorNotes = @()
@@ -69,14 +70,18 @@ function New-VmAssessment {
 
     $cand = $null
     if (((Test-NeedsCandidates -Lifecycle $lc) -or ($CheckModernization -and $current.NameInfo.Version -lt 6)) -and $RegionCatalog) {
+        # The key must contain every VM property the candidate search and scoring read; a test enforces this.
         $sig = @($Vm.SubscriptionId, $Vm.Region, $Vm.SkuName, $Vm.Zone, $Vm.HyperVGeneration, $Vm.DiskControllerType, $Vm.UsesPremiumStorage, $Vm.UsesUltraDisk,
             $Vm.AcceleratedNetworking, $Vm.EphemeralOsDisk, $Vm.EphemeralPlacement, $Vm.NicCount, $Vm.DataDiskCount, $Vm.WriteAcceleratorDisks, $Vm.SecurityType,
-            $Vm.EncryptionAtHost, [bool]$Vm.DedicatedHostId, [bool]$Vm.ProximityPlacementGroup, [bool]$Vm.AvailabilitySetId, [bool]$Vm.VmssId, $Vm.IsSpot, $Vm.Hibernation, $Vm.AzureDiskEncryption, $lc.EvidenceClass, [bool]$CheckModernization) -join '|'
+            $Vm.EncryptionAtHost, [bool]$Vm.DedicatedHostId, [bool]$Vm.ProximityPlacementGroup, [bool]$Vm.AvailabilitySetId, [bool]$Vm.VmssId, $Vm.IsSpot, $Vm.Hibernation, $Vm.AzureDiskEncryption, $lc.EvidenceClass, [bool]$CheckModernization,
+            [bool]$Vm.DedicatedHostGroupId, $Vm.DiskControllerReported, $Vm.AcceleratedNicCount) -join '|'
         if (-not $CandidateCache.ContainsKey($sig)) {
             $CandidateCache[$sig] = Find-ReplacementCandidates -Vm $Vm -Current $current -Lifecycle $lc -RegionCatalog $RegionCatalog -ProcessorCatalog $ProcessorCatalog `
                 -RetirementCatalog $RetirementCatalog -LifecycleCache $LifecycleCache -Weights $Weights -AsOf $AsOf -MaxCandidates $MaxCandidates -CheckModernization:$CheckModernization
         }
-        $cand = $CandidateCache[$sig]
+        # Each VM gets its own container: quota resolution changes Primary/Secondary per VM, and identical VMs share the
+        # cached evaluation (the candidate objects themselves are read-only after selection).
+        $cand = $CandidateCache[$sig].PSObject.Copy()
     }
     $modernization = $null
     if ($CheckModernization) {
@@ -117,7 +122,8 @@ function New-VmAssessment {
         Vm = $Vm; SubscriptionName = $SubscriptionName; Lifecycle = $lc; Current = $current; Candidates = $cand; Modernization = $modernization
         AffectedByRetirement = $affected
         Quota = $null; QuotaStatus = $null; Readiness = $null; Confidence = $null; Action = $null; NextStep = $null; Wave = $null
-        SecondaryReason = $null; Rightsizing = $null; Pricing = $null; DataQuality = $null; ValidationItems = @()
+        SecondaryReason = $null; Rightsizing = $null; Pricing = $null; DataQuality = $null; ValidationItems = @(); CollectionIssues = @()
+        RetirementQuota = $null; ModernizationQuota = $null; Strategy = $null
     }
 }
 
@@ -144,23 +150,53 @@ function Resolve-ModernizationQuotaChoices {
     <#
     .SYNOPSIS
         Finalizes opt-in modernization choices in v7, v6, existing-recommendation order using aggregate quota.
+    .DESCRIPTION
+        The choice depends only on whether the steady-state demand fits the current limit. The quota safety percentage
+        (-QuotaSafetyPct) has no part in it: it only enlarges the recommended quota increase that Measure-QuotaImpact reports.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'Usage', Justification = 'Read inside the quota status script block.')]
     param(
         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments,
-        [Parameter(Mandatory)][hashtable]$Usage,
-        [double]$SafetyPct = 20
+        [Parameter(Mandatory)][hashtable]$Usage
     )
     $active = @($Assessments | Where-Object { $_.Candidates -and $_.Candidates.Primary -and $_.Action -ne 'No Action Required' })
-    $toMoves = {
-        @($active | ForEach-Object {
-                [pscustomobject]@{
-                    SubscriptionId = $_.Vm.SubscriptionId; Region = $_.Vm.Region; VmId = $_.Vm.Id
-                    CurrentFamily = $_.Current.Family; CurrentVcpu = [int]$_.Current.vCPUs
-                    TargetSku = $_.Candidates.Primary.SkuName; TargetFamily = $_.Candidates.Primary.Family
-                    TargetVcpu = [int]$_.Candidates.Primary.vCPUs; IsAllocated = $_.Vm.IsAllocated
-                }
-            })
+
+    # Steady-state demand is aggregated once and then updated incrementally per decision, using the same rules and status
+    # precedence as Measure-QuotaImpact (family: allocated same-family move adds the vCPU delta, otherwise the target;
+    # regional: allocated adds the delta, deallocated the target). This keeps the choice linear in the number of VMs.
+    $familyDemand = @{}; $regionalDemand = @{}
+    $demandOf = {
+        param($Assessment, $Target)
+        $pair = "$($Assessment.Vm.SubscriptionId)|$($Assessment.Vm.Region)".ToLowerInvariant()
+        $family = if ($Target.Family) { "$($Target.Family)".ToLowerInvariant() } else { '' }
+        $vcpu = [int]$Target.vCPUs
+        $delta = [math]::Max(0, $vcpu - [int]$Assessment.Current.vCPUs)
+        $sameFamily = $Assessment.Current.Family -and $Target.Family -and $Assessment.Current.Family -ieq $Target.Family
+        [pscustomobject]@{
+            Pair = $pair; Family = $family; FamilyKey = "$pair|$family"
+            FamilyVcpu = if ($Assessment.Vm.IsAllocated -and $sameFamily) { $delta } else { $vcpu }
+            RegionalVcpu = if ($Assessment.Vm.IsAllocated) { $delta } else { $vcpu }
+        }
     }
+    $apply = {
+        param($Demand, [int]$Sign)
+        $familyDemand[$Demand.FamilyKey] = [int]$familyDemand[$Demand.FamilyKey] + $Sign * $Demand.FamilyVcpu
+        $regionalDemand[$Demand.Pair] = [int]$regionalDemand[$Demand.Pair] + $Sign * $Demand.RegionalVcpu
+    }
+    $statusOf = {
+        param($Demand)
+        $pairUsage = $Usage[$Demand.Pair]
+        $family = if (-not $Demand.Family) { 'Manual Validation Required' }
+        elseif (-not $pairUsage) { 'Quota Information Unavailable' }
+        elseif (-not $pairUsage.ContainsKey($Demand.Family)) { 'Manual Validation Required' }
+        else { $q = $pairUsage[$Demand.Family]; if ($q.Used + $familyDemand[$Demand.FamilyKey] -gt $q.Limit) { 'Quota Increase Required' } else { 'Quota OK' } }
+        $regional = if ($pairUsage -and $pairUsage.ContainsKey('cores')) {
+            $q = $pairUsage['cores']; if ($q.Used + $regionalDemand[$Demand.Pair] -gt $q.Limit) { 'Quota Increase Required' } else { 'Quota OK' }
+        }
+        else { 'Quota Information Unavailable' }
+        Get-CombinedQuotaStatus @($family, $regional)
+    }
+    foreach ($x in $active) { & $apply (& $demandOf $x $x.Candidates.Primary) 1 }
 
     foreach ($a in @($active | Where-Object { $_.Modernization -and $_.Modernization.Candidate } | Sort-Object { $_.Vm.Id })) {
         $modern = @($a.Candidates.Candidates | Where-Object {
@@ -172,13 +208,15 @@ function Resolve-ModernizationQuotaChoices {
         if ($options.Count -eq 0) { continue }
 
         $original = $a.Candidates.Primary
+        & $apply (& $demandOf $a $original) -1
         $selected = $null
         $selectedQuotaVerified = $false
         $blocked = New-Object System.Collections.Generic.List[object]
         foreach ($option in $options) {
-            $a.Candidates.Primary = $option
-            $scenario = Measure-QuotaImpact -Moves @(& $toMoves) -Usage $Usage -SafetyPct $SafetyPct
-            $status = if ($scenario.ByVm.ContainsKey($a.Vm.Id)) { $scenario.ByVm[$a.Vm.Id].Status } else { 'Quota Information Unavailable' }
+            $d = & $demandOf $a $option
+            & $apply $d 1
+            $status = & $statusOf $d
+            & $apply $d -1
             if ($status -eq 'Quota OK') {
                 $selected = $option
                 $selectedQuotaVerified = $true
@@ -192,6 +230,7 @@ function Resolve-ModernizationQuotaChoices {
                 $blocked.Add([pscustomobject]@{ Candidate = $option; QuotaStatus = $status })
             }
         }
+        & $apply (& $demandOf $a $(if ($selected) { $selected } else { $original })) 1
 
         if (-not $selected) {
             $a.Candidates.Primary = $original
@@ -210,6 +249,8 @@ function Resolve-ModernizationQuotaChoices {
             $a.Modernization.Status = "Modernize to v$($selected.Generation)"
             $quotaReason = if ($selectedQuotaVerified) { 'with sufficient aggregate quota' } else { 'whose quota requires manual validation' }
             $a.Modernization.Reason = "$($selected.SkuName) is the newest suitable modernization option $quotaReason that preserves $($a.Current.Vendor) / $($a.Current.Architecture) and passes the workload capability gates."
+            $sizeNote = Get-LargerSizeNote $selected
+            if ($sizeNote) { $a.Modernization.Reason += " $sizeNote." }
         }
         else {
             $a.Modernization.Candidate = $null
@@ -235,9 +276,21 @@ function Complete-VmAssessment {
     <#
     .SYNOPSIS
         Second pass: applies aggregated quota results and derives readiness, confidence, action, next step and wave.
+    .PARAMETER QuotaResult
+        Quota result for Candidates.Primary; drives QuotaStatus, Readiness and NextStep.
+    .PARAMETER RetirementQuotaResult
+        Quota result for the retirement target (Retirement scope).
+    .PARAMETER ModernizationQuotaResult
+        Quota result for the strategic v6/v7 target (Modernization scope, with steady-state and peak demand).
+    .PARAMETER CollectionIssues
+        Data-collection problems for this VM's subscription and region (SKU or quota data that could not be read). They explain
+        a missing recommendation and are added to the low-confidence reasons.
     #>
-    param([Parameter(Mandatory)]$Assessment, $QuotaResult, [hashtable]$Usage, [ValidateRange(12, 120)][int]$HorizonMonths = 36)
+    param([Parameter(Mandatory)]$Assessment, $QuotaResult, $RetirementQuotaResult, $ModernizationQuotaResult, [hashtable]$Usage, [ValidateRange(12, 120)][int]$HorizonMonths = 36, [object[]]$CollectionIssues = @())
     $a = $Assessment; $vm = $a.Vm; $c = $a.Candidates
+    $a.CollectionIssues = @($CollectionIssues)
+    $causes = @($a.CollectionIssues | ForEach-Object { "Data not collected ($($_.Api)): $($_.Message)" })
+    $a.RetirementQuota = $RetirementQuotaResult; $a.ModernizationQuota = $ModernizationQuotaResult
     $primary = if ($c) { $c.Primary } else { $null }
     $secondary = if ($c) { $c.Secondary } else { $null }
 
@@ -262,7 +315,7 @@ function Complete-VmAssessment {
     if (-not $c) {
         $a.Readiness = if ($a.Action -eq 'No Action Required') { 'Not Applicable' } else { 'Manual Review Required' }
         $a.NextStep = if ($a.Action -eq 'No Action Required') { 'None' } else { 'Manual Review Required' }
-        $a.Confidence = [pscustomobject]@{ Level = if ($a.Action -eq 'No Action Required') { 'N/A' } else { 'LOW' }; LowReasons = @(); ValidationItems = @() }
+        $a.Confidence = [pscustomobject]@{ Level = if ($a.Action -eq 'No Action Required') { 'N/A' } else { 'LOW' }; LowReasons = @(if ($a.Action -ne 'No Action Required') { $causes }); ValidationItems = @() }
     }
     else {
         $reviews = @(if ($primary) { $primary.Gates | Where-Object { $_.Result -in 'Review', 'Unknown' -and $_.Gate -notin 'CPU Vendor', 'Nested Virtualization' } | ForEach-Object { "$($_.Gate): $($_.Detail)" } })
@@ -272,15 +325,26 @@ function Complete-VmAssessment {
                 $reviews += "Capability reduced ($($reduced -join ', ')); validate against observed disk throughput or use the capability-preserving alternative"
             }
         }
+        if ($primary -and @($c.NewerGenerationUnavailable).Count -gt 0) {
+            $newer = @($c.NewerGenerationUnavailable)[0]
+            $reviews += "Newer generation unavailable: $($newer.SkuName) (v$($newer.Generation)) meets the mandatory checks but is $($newer.Availability) for this VM in $($vm.Region), so the older generation $($primary.SkuName) (v$($primary.Generation)) is recommended; re-check availability before the change"
+        }
+        $sizeNote = Get-LargerSizeNote $primary
+        if ($sizeNote) { $reviews += "Larger size: $sizeNote; validate licensing and cost impact" }
         $manual = $c.VendorChangeRequired -or ($primary -and @($primary.ReviewGates | Where-Object { $_ -in 'Dedicated Host', 'Confidential Computing', 'GPU' }).Count -gt 0) -or ($a.Lifecycle.EvidenceClass -eq 'Unable to Confirm')
         $capSensitive = [bool]($vm.ProximityPlacementGroup -or $vm.DedicatedHostId -or $vm.CapacityReservationGroup -or $vm.UsesUltraDisk -or ($a.Current.GPUs -gt 0) -or ($primary -and $primary.vCPUs -ge 64))
         $a.Readiness = Get-DeploymentReadiness -Primary $primary -QuotaStatus $quotaStatus -ManualReview $manual -CapacitySensitive $capSensitive
         $items = @($reviews)
         if (-not $a.Current.CapsKnown) { $items += 'Current size capabilities not available from Resource SKUs API' }
         $a.Confidence = Get-MigrationConfidence -Lifecycle $a.Lifecycle -Primary $primary -Current $a.Current -VendorChangeRequired $c.VendorChangeRequired -QuotaStatus $quotaStatus -ValidationItems $items
+        # An unverified quota already lowers confidence; name the reason it could not be verified.
+        $quotaCauses = @($a.CollectionIssues | Where-Object { $_.Api -like 'Compute usage*' } | ForEach-Object { "Data not collected ($($_.Api)): $($_.Message)" })
+        if ($quotaCauses.Count -gt 0) { $a.Confidence.LowReasons = @($a.Confidence.LowReasons) + $quotaCauses }
         $a.ValidationItems = @($a.Confidence.ValidationItems)
         $a.NextStep = switch ($a.Readiness) {
-            'Ready' { if ($a.Action -eq 'No Action Required') { 'None' } else { 'Proceed with Resize (change window)' } }
+            # 'Proceed with Resize' only when nothing is left to validate; availability set / scale set membership, a removed
+            # temp disk, reduced disk throughput or an older-generation target keep confidence below HIGH.
+            'Ready' { if ($a.Action -eq 'No Action Required') { 'None' } elseif ($a.Confidence.Level -eq 'HIGH') { 'Proceed with Resize (change window)' } else { 'Validate Before Resize' } }
             'Quota Increase Required' { 'Request Quota Increase' }
             'SKU Restricted' { 'Validate Regional Capacity' }
             'Regional Limitation' { 'Validate Regional Capacity' }
@@ -293,6 +357,7 @@ function Complete-VmAssessment {
             $why = New-Object System.Collections.Generic.List[string]
             if ($quotaStatus -eq 'Quota Increase Required' -and $secFits -and $secondary.Family -ne $primary.Family) { $why.Add("Quota: $($secondary.Family) has headroom while the primary family needs an increase") }
             if ($secondary.Variant -eq 'Capability-preserving') { $why.Add("Preserves disk throughput caps of the current size ($($secondary.vCPUs) vCPU - validate licensing/cost impact)") }
+            if (Get-LargerSizeNote $secondary) { $why.Add("Larger size: the closest fit $($secondary.ClosestSizeSku) does not qualify - validate licensing/cost impact") }
             if ($secondary.CpuVendor -ne $primary.CpuVendor) { $why.Add("CPU vendor alternative ($($secondary.CpuVendor))") }
             if ($secondary.Family -ne $primary.Family -and -not ($why | Where-Object { $_ -like 'Quota:*' })) { $why.Add("Different quota family ($($secondary.Family)) - fallback if primary quota, capacity or regional availability is constrained") }
             if (($secondary.TempDiskGB -gt 0) -ne ($primary.TempDiskGB -gt 0)) { $why.Add($(if ($secondary.TempDiskGB -gt 0) { "Feature: includes $($secondary.TempDiskGB) GB temp disk" } else { 'Feature: no temp disk (lower cost where local scratch is unused)' })) }
@@ -312,7 +377,226 @@ function Complete-VmAssessment {
         NestedVirtualization  = 'Unable to Verify'
         TempDiskUsage         = 'Unable to Verify'
     }
+    $a.Strategy = Get-TargetStrategy -Assessment $a
     return $a
+}
+
+# Guest operating systems that Microsoft excludes from the Gen1 to Trusted launch upgrade by name: Windows Server 2016, Debian and
+# Azure Linux (CBL-Mariner is its former name). Source: "Unsupported Gen1 VM configurations" in
+# https://learn.microsoft.com/azure/virtual-machines/trusted-launch-existing-vm-gen-1 (page updated 2026-09-24, checked 2026-10-17).
+# Microsoft also excludes every OS that is not on its Trusted launch supported list. A name cannot show that, so such a VM is not
+# sent to Redeploy / Rebuild Review; the Gen1 validation item states the rule. Check this list again at each release.
+$script:Gen1UpgradeUnsupportedOs = '(?i)(windows ?server[^0-9]*2016|/2016-|\bdebian\b|cbl-?mariner|azure[ -]?linux)'
+
+function Get-ModernizationTargetInfo {
+    <#
+    .SYNOPSIS
+        Strategic v6/v7 target of one assessment and the conversion work it implies. Independent of quota results, so
+        it can build the Modernization quota scope and the final target strategy. Returns $null target unless
+        -CheckModernization was used.
+    #>
+    param([Parameter(Mandatory)]$Assessment)
+    $a = $Assessment; $c = $a.Candidates; $m = $a.Modernization
+    $enabled = [bool]($m -and $m.Enabled)
+    $alreadyModern = [bool]($m -and $m.Status -eq 'Already on modern generation')
+    $target = $null; $source = $null
+    if ($enabled -and -not $alreadyModern -and $c) {
+        $blocked = @(if ($m.PSObject.Properties.Name -contains 'QuotaBlockedAlternatives') { $m.QuotaBlockedAlternatives | Where-Object { $_ -and $_.Candidate } })
+        if ($m.Candidate) { $target = $m.Candidate; $source = 'Selected' }
+        elseif ($c.Primary -and $c.Primary.Generation -ge 6) { $target = $c.Primary; $source = 'Primary' }
+        elseif ($blocked.Count -gt 0) { $target = $blocked[0].Candidate; $source = 'QuotaBlocked' }
+        elseif ($c.FutureGeneration -and $c.FutureGeneration.Generation -ge 6) { $target = $c.FutureGeneration; $source = 'Convertible' }
+    }
+    # Conversion flags come from the selected target only; a target that passed its gates needs no conversion.
+    $failed = @(if ($target -and $source -eq 'Convertible') { $target.FailedGates })
+    $requiresGen = $failed -contains 'VM Generation'
+    $requiresNvme = $failed -contains 'Disk Controller'
+    $osEvidence = (@($a.Vm.OsName, $a.Vm.OsVersion, $a.Vm.ImageReference) | Where-Object { $_ }) -join ' '
+    $redeploy = $false; $redeployReason = $null
+    if ($requiresGen -and $osEvidence -match $script:Gen1UpgradeUnsupportedOs) {
+        $redeploy = $true
+        $redeployReason = "Gen1 to Trusted launch upgrade is not supported for this guest OS ($osEvidence); deploy a Gen2 VM and migrate the workload"
+    }
+    [pscustomobject]@{
+        Enabled = $enabled; AlreadyModern = $alreadyModern; Target = $target; Source = $source
+        RequiresGenerationChange = $requiresGen; RequiresNvmeConversion = $requiresNvme
+        RedeployReview = $redeploy; RedeployReason = $redeployReason; GuestOsReported = [bool]$osEvidence
+        MigrationQuotaModel = if (-not $target) { $null } elseif ($requiresGen -or $redeploy) { 'SideBySide' } else { 'InPlace' }
+    }
+}
+
+function Get-TargetDifferences {
+    <#
+    .SYNOPSIS
+        Attribute comparison of the current size against one target. Reuses the differences computed during candidate
+        selection and computes them only for targets that were not ranked (for example a convertible newer generation).
+    #>
+    param([Parameter(Mandatory)]$Current, $Target)
+    if (-not $Target) { return @() }
+    $names = @($Target.PSObject.Properties.Name)
+    if ($names -contains 'Differences' -and $Target.Differences) { return @($Target.Differences) }
+    if ($names -notcontains 'Record' -or -not $Target.Record) { return @() }
+    return @(Get-MaterialDifferences -Current $Current -Candidate $Target.Record -CandidateProc ([pscustomobject]@{ Vendor = $Target.CpuVendor; Architecture = $Target.CpuArchitecture; Processors = $Target.Processors }))
+}
+
+function New-TargetComparison {
+    <#
+    .SYNOPSIS
+        One row per attribute: the current value and the result for the retirement target and the modernization target.
+    #>
+    param($RetirementDifferences, $ModernizationDifferences)
+    $ret = @($RetirementDifferences | Where-Object { $_ })
+    $mod = @($ModernizationDifferences | Where-Object { $_ })
+    $attributes = New-Object System.Collections.Generic.List[string]
+    foreach ($d in @($ret) + @($mod)) { if (-not $attributes.Contains([string]$d.Attribute)) { $attributes.Add([string]$d.Attribute) } }
+    foreach ($attribute in $attributes) {
+        $r = $ret | Where-Object Attribute -eq $attribute | Select-Object -First 1
+        $m = $mod | Where-Object Attribute -eq $attribute | Select-Object -First 1
+        $base = if ($r) { $r } else { $m }
+        [pscustomobject]@{
+            Attribute = $attribute
+            Current = $base.Current
+            RetirementTarget = if ($r) { $r.Target } else { $null }
+            RetirementChange = if ($r) { $r.Assessment } else { $null }
+            ModernizationTarget = if ($m) { $m.Target } else { $null }
+            ModernizationChange = if ($m) { $m.Assessment } else { $null }
+            RetirementNote = if ($r) { [string]$r.Note } else { '' }
+            ModernizationNote = if ($m) { [string]$m.Note } else { '' }
+        }
+    }
+}
+
+function Get-TargetStrategy {
+    <#
+    .SYNOPSIS
+        Single source of truth for the retirement target, the strategic modernization target, the migration path,
+        complexity, modernization readiness, modernization validation items and the current-vs-target attribute
+        comparison. Output only renders this object.
+    #>
+    param([Parameter(Mandatory)]$Assessment)
+    $a = $Assessment; $c = $a.Candidates
+    $p = if ($c) { $c.Primary } else { $null }
+    $info = Get-ModernizationTargetInfo -Assessment $a
+    $retirementScope = $a.AffectedByRetirement -in 'Yes', 'Unknown'
+
+    $retTarget = $null
+    if ($retirementScope -and $c) {
+        $retTarget = if ($c.Modernization -and $c.Modernization.ExistingRecommendation) { $c.Modernization.ExistingRecommendation } else { $p }
+    }
+    $retQuota = if (-not $retTarget) { if ($retirementScope -and $c) { 'Manual Validation Required' } else { $null } }
+    elseif ($a.RetirementQuota) { $a.RetirementQuota.Status }
+    elseif ($p -and $retTarget.SkuName -eq $p.SkuName) { $a.QuotaStatus }
+    else { 'Quota Information Unavailable' }
+
+    $t = $info.Target
+    $modernSku = if ($t) { $t.SkuName } elseif ($info.AlreadyModern) { $a.Vm.SkuName } else { $null }
+    $modernGen = if ($t) { $t.Generation } elseif ($info.AlreadyModern) { $a.Current.NameInfo.Version } else { $null }
+    $modernQuota = $null; $modernPeak = $null
+    if ($t) {
+        if ($a.ModernizationQuota) { $modernQuota = $a.ModernizationQuota.Status; $modernPeak = $a.ModernizationQuota.PeakStatus }
+        elseif ($p -and $t.SkuName -eq $p.SkuName) { $modernQuota = $a.QuotaStatus; $modernPeak = $a.QuotaStatus }
+        else { $modernQuota = 'Quota Information Unavailable'; $modernPeak = 'Quota Information Unavailable' }
+        if ($info.Source -eq 'QuotaBlocked' -and $modernQuota -ne 'Quota Increase Required') { $modernQuota = 'Quota Increase Required' }
+    }
+
+    $items = New-Object System.Collections.Generic.List[string]
+    if ($t) {
+        if ($info.RequiresNvmeConversion) {
+            # The controller is only known when Azure reports it; otherwise SCSI (the Azure default) is assumed, and this item rests on that.
+            $controllerNote = if ($a.Vm.DiskControllerReported) { '' } else { ' The VM''s disk controller is not reported by Azure; SCSI (the Azure default) was assumed, so confirm it.' }
+            $items.Add("Guest NVMe readiness: Validation Required - $($t.SkuName) supports NVMe only; confirm the guest OS has NVMe drivers and discovers OS/data disks over NVMe before conversion (Azure controller support does not prove guest readiness).$controllerNote")
+        }
+        if ($info.RequiresGenerationChange) {
+            $osNote = if ($info.GuestOsReported) { '' } else { ' Guest OS not reported by Azure; confirm it.' }
+            $items.Add("Gen1 to Gen2: Validation Required - Microsoft supports Gen1 to Gen2 only through the Trusted launch upgrade, for a Trusted launch supported size and OS version. Windows Server 2016, Debian, Azure Linux and any OS that is not on Microsoft's Trusted launch supported list are excluded, and a Linux VM must come from a supported Azure Marketplace image. Validate MBR to GPT conversion, boot and rollback.$osNote")
+        }
+        if ($info.RedeployReview) { $items.Add("Redeploy: Validation Required - $($info.RedeployReason).") }
+        if ($a.Vm.AcceleratedNetworking -and $t.Generation -ge 6) { $items.Add("MANA networking: Validation Required - $($t.SkuName) uses the Microsoft Azure Network Adapter; confirm guest MANA driver support (Accelerated Networking on the current VM does not prove MANA readiness).") }
+        $targetNoTemp = $null -ne $t.TempDiskGB -and $t.TempDiskGB -eq 0
+        if ($a.Current.HasTempDisk -and $targetNoTemp) { $items.Add("Temporary disk: Unknown / workload validation required - current size has a $($a.Current.TempDiskGB) GB temp disk and $($t.SkuName) has none; confirm the workload does not depend on it (pagefile, tempdb, caches, scripts).") }
+        elseif ($a.Current.HasTempDisk -and $t.Generation -ge 6) { $items.Add("Temporary disk: Unknown / workload validation required - $($t.SkuName) may present local temp storage as NVMe; validate drive letters, mount points, pagefile and scripts that use the temp drive.") }
+    }
+
+    $quotaIncrease = $modernQuota -eq 'Quota Increase Required'
+    $tempRemoved = $t -and $a.Current.HasTempDisk -and $null -ne $t.TempDiskGB -and $t.TempDiskGB -eq 0
+    $prereqs = @(@($info.RequiresNvmeConversion, $quotaIncrease, [bool]$tempRemoved) | Where-Object { $_ })
+
+    $path = if (-not $info.Enabled) { $null }
+    elseif ($info.AlreadyModern) { 'Already Modern' }
+    elseif (-not $t) { 'No Validated Modern Target' }
+    elseif ($info.RedeployReview) { 'Redeploy / Rebuild Review' }
+    elseif ($info.RequiresGenerationChange -and $info.RequiresNvmeConversion) { 'Gen1 + NVMe + Resize' }
+    elseif ($info.RequiresGenerationChange) { 'Gen1 Modernization + Resize' }
+    elseif ($info.RequiresNvmeConversion) { 'SCSI to NVMe + Resize' }
+    else { 'Direct Resize' }
+
+    $complexity = if (-not $info.Enabled) { $null }
+    elseif ($info.AlreadyModern) { 'None' }
+    elseif (-not $t) { 'Unknown' }
+    elseif ($info.RedeployReview -or $info.RequiresGenerationChange -or @($prereqs).Count -ge 2) { 'High' }
+    elseif (@($prereqs).Count -eq 1) { 'Medium' }
+    else { 'Low' }
+
+    $status = if (-not $info.Enabled) { $null }
+    elseif ($info.AlreadyModern) { 'Current' }
+    elseif (-not $t) { 'Manual Review' }
+    elseif ($info.RedeployReview) { 'Redeploy Review' }
+    elseif ($quotaIncrease) { 'Quota Increase' }
+    elseif ($info.RequiresGenerationChange -or $info.RequiresNvmeConversion) { 'Convertible' }
+    elseif ($modernQuota -in 'Quota Information Unavailable', 'Manual Validation Required') { 'Manual Review' }
+    elseif ($p -and $t.SkuName -eq $p.SkuName -and $a.Readiness -in 'SKU Restricted', 'Regional Limitation', 'Manual Review Required') { 'Manual Review' }
+    else { 'Ready' }
+
+    $retSku = if ($retTarget) { $retTarget.SkuName } else { $null }
+    $comparison = @(New-TargetComparison -RetirementDifferences (Get-TargetDifferences -Current $a.Current -Target $retTarget) -ModernizationDifferences (Get-TargetDifferences -Current $a.Current -Target $t))
+    $conversion = if ($info.RedeployReview) { ' (redeploy review required)' }
+    elseif ($info.RequiresGenerationChange -and $info.RequiresNvmeConversion) { ' (requires Gen1 to Trusted launch upgrade and SCSI to NVMe conversion)' }
+    elseif ($info.RequiresGenerationChange) { ' (requires Gen1 to Trusted launch upgrade)' }
+    elseif ($info.RequiresNvmeConversion) { ' (requires SCSI to NVMe conversion)' }
+    else { '' }
+    $prefix = if ($a.AffectedByRetirement -eq 'Unknown') { 'Retirement unconfirmed - validate lifecycle; ' } else { '' }
+    $migrationPath = if ($info.AlreadyModern -and -not $retirementScope) { 'No retirement move required; already on modern generation' }
+    elseif ($retirementScope -and $retSku) {
+        if ($t -and $modernSku -ne $retSku) {
+            if ($retTarget.Generation -lt $modernGen) { "${prefix}Retire to $retSku -> modernize to $modernSku$conversion" }
+            else { "${prefix}Retire to $retSku; alternative modern target $modernSku$conversion" }
+        }
+        elseif ($t) { "${prefix}Move directly to $modernSku" }
+        elseif ($info.Enabled) { "${prefix}Retire to $retSku; no validated v6/v7 target" }
+        else { "${prefix}Retire to $retSku" }
+    }
+    elseif ($retirementScope -and $c) { "${prefix}No validated retirement target - manual review" }
+    elseif ($t) { "Optional modernization to $modernSku$conversion" }
+    elseif ($p -and $a.Action -and $a.Action -ne 'No Action Required') { "Optional move to $($p.SkuName)" }
+    else { $null }
+
+    [pscustomobject]@{
+        RetirementRequired = $a.AffectedByRetirement -eq 'Yes'
+        RetirementUnconfirmed = $a.AffectedByRetirement -eq 'Unknown'
+        RetirementTarget = $retTarget
+        RetirementTargetSku = $retSku
+        RetirementTargetGeneration = if ($retTarget) { $retTarget.Generation } else { $null }
+        RetirementQuotaStatus = $retQuota
+        ModernizationEnabled = $info.Enabled
+        AlreadyModern = $info.AlreadyModern
+        ModernizationTarget = $t
+        ModernizationTargetSku = if ($info.Enabled) { $modernSku } else { $null }
+        ModernizationTargetGeneration = if ($info.Enabled) { $modernGen } else { $null }
+        ModernizationTargetSource = $info.Source
+        RequiresGenerationChange = $info.RequiresGenerationChange
+        RequiresNvmeConversion = $info.RequiresNvmeConversion
+        RedeployReview = $info.RedeployReview
+        RedeployReason = $info.RedeployReason
+        MigrationQuotaModel = $info.MigrationQuotaModel
+        ModernizationQuotaStatus = $modernQuota
+        ModernizationPeakQuotaStatus = $modernPeak
+        ModernizationPath = $path
+        Complexity = $complexity
+        ModernizationReadiness = $status
+        ValidationItems = $items.ToArray()
+        RecommendedMigrationPath = $migrationPath
+        TargetComparison = $comparison
+    }
 }
 
 function Get-TimeRemainingText {
@@ -320,6 +604,17 @@ function Get-TimeRemainingText {
     if ($Lifecycle.EvidenceClass -eq 'Already Retired') { return 'Retired' }
     if ($null -ne $Lifecycle.MonthsRemaining) { return "$($Lifecycle.MonthsRemaining) months" }
     return '-'
+}
+
+function Get-NoRecommendationReason {
+    <# Why a VM that needs action has no recommendation because no candidate search ran: the data that could not be collected, or the generic cause. $null when no action is needed. #>
+    param([Parameter(Mandatory)]$Assessment)
+    $a = $Assessment
+    if ($a.Candidates) { return $a.Candidates.NoCandidateReason }
+    if ($a.Action -eq 'No Action Required') { return $null }
+    $causes = @($a.CollectionIssues | ForEach-Object { "$($_.Api): $($_.Message)" })
+    if ($causes.Count -gt 0) { return "Data could not be collected - $($causes -join '; ')" }
+    return 'Size characteristics or region catalog unavailable'
 }
 
 function ConvertTo-AssessmentRow {
@@ -330,6 +625,7 @@ function ConvertTo-AssessmentRow {
     $t = if ($A.Candidates) { $A.Candidates.Third } else { $null }
     $f = if ($A.Candidates) { $A.Candidates.FutureGeneration } else { $null }
     $modern = $A.Modernization
+    $st = if ($A.Strategy) { $A.Strategy } else { Get-TargetStrategy -Assessment $A }
     $recommendedSku = if ($p) { $p.SkuName } elseif ($modern -and $modern.Status -eq 'Already on modern generation') { $vm.SkuName } else { $null }
     $recommendedGeneration = if ($p) { $p.Generation } elseif ($modern -and $modern.Status -eq 'Already on modern generation') { $A.Current.NameInfo.Version } else { $null }
     $diffs = if ($p -and $p.Differences) { (@($p.Differences | Where-Object { $_.Assessment -in 'Changed', 'Reduced', 'Improved' }) | ForEach-Object { "$($_.Attribute): $($_.Current) -> $($_.Target)" }) -join '; ' } else { '' }
@@ -375,7 +671,7 @@ function ConvertTo-AssessmentRow {
         SkuRegionalAvailability = if ($modern) { $modern.Availability } elseif ($p) { $p.Availability } else { $null }
         QuotaStatus             = $A.QuotaStatus
         ModernizationStatus     = if ($modern) { $modern.Status } else { 'Not Evaluated' }
-        RecommendationReason    = if ($modern) { $modern.Reason } elseif ($A.Candidates) { $A.Candidates.NoCandidateReason } else { $null }
+        RecommendationReason    = if ($modern) { $modern.Reason } elseif ($A.Candidates) { $A.Candidates.NoCandidateReason } else { Get-NoRecommendationReason -Assessment $A }
         QuotaFamily             = if ($A.Quota) { $A.Quota.Family.QuotaDisplayName } else { $null }
         QuotaMinIncreaseFamily  = if ($A.Quota) { $A.Quota.Family.MinimumIncrease } else { $null }
         QuotaMinIncreaseRegional = if ($A.Quota) { $A.Quota.Regional.MinimumIncrease } else { $null }
@@ -406,23 +702,50 @@ function ConvertTo-AssessmentRow {
         DQ_Quota                = $A.DataQuality.Quota
         DQ_PhysicalCapacity     = $A.DataQuality.PhysicalCapacity
         LifecycleNotes          = ($A.Lifecycle.Notes -join ' | ')
+        RetirementTargetSku     = $st.RetirementTargetSku
+        RetirementTargetGeneration = $st.RetirementTargetGeneration
+        RetirementQuotaStatus   = $st.RetirementQuotaStatus
+        ModernizationTargetSku  = $st.ModernizationTargetSku
+        ModernizationTargetGeneration = $st.ModernizationTargetGeneration
+        ModernizationTargetSource = $st.ModernizationTargetSource
+        ModernizationPath       = $st.ModernizationPath
+        ModernizationComplexity = $st.Complexity
+        ModernizationReadiness  = $st.ModernizationReadiness
+        ModernizationQuotaStatus = $st.ModernizationQuotaStatus
+        ModernizationPeakQuotaStatus = $st.ModernizationPeakQuotaStatus
+        MigrationQuotaModel     = $st.MigrationQuotaModel
+        RecommendedMigrationPath = $st.RecommendedMigrationPath
+        ModernizationValidationItems = (@($st.ValidationItems) -join ' | ')
+        LifecycleStage          = Get-LifecycleStage -Lifecycle $A.Lifecycle
+        ModernizationMaterialDifferences = if ($st.ModernizationTargetSku -and -not $st.AlreadyModern) { (@(@($st.TargetComparison) | Where-Object { $_.ModernizationChange -in 'Changed', 'Reduced', 'Improved' }) | ForEach-Object { "$($_.Attribute): $($_.Current) -> $($_.ModernizationTarget)" }) -join '; ' } else { '' }
     }
 }
 
 function New-AssessmentSummary {
+    <#
+    .SYNOPSIS
+        Estate counters and groupings. The set of VMs each counter and grouping covers is documented in output-schema.md
+        (Summary counters): the By* groupings other than ByEvidenceClass, ByWave and ByMigrationPriority cover only the
+        VMs that have an action (ActionableVms), and ByRetirementDate only the VMs on retiring sizes (AffectedVms).
+    #>
     param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Assessments, [int]$SubscriptionsScanned)
     $rows = @($Assessments)
     $cnt = { param($pred) @($rows | Where-Object $pred).Count }
     $affected = @($rows | Where-Object { $_.AffectedByRetirement -eq 'Yes' })
     $grp = {
         param($sel, [object[]]$set)
-        @($set | Group-Object $sel | Sort-Object Count -Descending | ForEach-Object { [pscustomobject]@{ Key = if ($_.Name) { $_.Name } else { '(none)' }; Count = $_.Count } })
+        # The leading comma returns the array itself: a bare array is unrolled by the pipeline, so zero groups became $null
+        # and one group became a single object in assessment.json instead of an array.
+        , @($set | Group-Object $sel | Sort-Object Count -Descending | ForEach-Object { [pscustomobject]@{ Key = if ($_.Name) { $_.Name } else { '(none)' }; Count = $_.Count } })
     }
     $withRec = @($rows | Where-Object { $_.Action -ne 'No Action Required' })
+    # VMs with a strategic v6/v7 target, whatever the path (direct resize, conversion first, or held back by quota).
+    $withTarget = @($rows | ForEach-Object { if ($_.Strategy) { $_.Strategy } else { Get-TargetStrategy -Assessment $_ } } | Where-Object { $_.ModernizationTargetSku -and -not $_.AlreadyModern })
     [pscustomobject][ordered]@{
         TotalSubscriptionsScanned   = $SubscriptionsScanned
         TotalVmsScanned             = $rows.Count
         AffectedVms                 = $affected.Count
+        ActionableVms               = $withRec.Count
         AlreadyRetired              = & $cnt { $_.Lifecycle.EvidenceClass -eq 'Already Retired' }
         RetirementWithin12Months    = & $cnt { $_.Lifecycle.Urgency -eq 'Less than 12 Months' }
         RetirementWithin24Months    = & $cnt { $_.Lifecycle.Urgency -eq '12-24 Months' }
@@ -430,6 +753,10 @@ function New-AssessmentSummary {
         RetirementBeyond36Months    = & $cnt { $_.Lifecycle.Urgency -eq 'More than 36 Months' }
         ModernizationRecommended    = & $cnt { $_.Lifecycle.EvidenceClass -eq 'Modernization Recommended' }
         ModernizationOptional       = & $cnt { $_.Action -eq 'Modernization Optional' }
+        ModernizationTargetV7       = @($withTarget | Where-Object { $_.ModernizationTargetGeneration -eq 7 }).Count
+        ModernizationTargetV6       = @($withTarget | Where-Object { $_.ModernizationTargetGeneration -eq 6 }).Count
+        ConvertibleToV7             = @($withTarget | Where-Object { $_.ModernizationTargetGeneration -eq 7 -and ($_.RequiresGenerationChange -or $_.RequiresNvmeConversion) }).Count
+        ConvertibleToV6             = @($withTarget | Where-Object { $_.ModernizationTargetGeneration -eq 6 -and ($_.RequiresGenerationChange -or $_.RequiresNvmeConversion) }).Count
         ModernizeToV7               = & $cnt { $_.Modernization -and $_.Modernization.Status -eq 'Modernize to v7' }
         ModernizeToV6               = & $cnt { $_.Modernization -and $_.Modernization.Status -eq 'Modernize to v6' }
         AlreadyOnModernGeneration   = & $cnt { $_.Modernization -and $_.Modernization.Status -eq 'Already on modern generation' }
@@ -457,4 +784,4 @@ function New-AssessmentSummary {
     }
 }
 
-Export-ModuleMember -Function Test-NeedsCandidates, New-VmAssessment, Update-VmAction, Complete-VmAssessment, Resolve-ModernizationQuotaChoices, Get-TimeRemainingText, ConvertTo-AssessmentRow, New-AssessmentSummary
+Export-ModuleMember -Function Test-NeedsCandidates, New-VmAssessment, Update-VmAction, Complete-VmAssessment, Resolve-ModernizationQuotaChoices, Get-ModernizationTargetInfo, Get-TargetDifferences, New-TargetComparison, Get-TargetStrategy, Get-TimeRemainingText, Get-NoRecommendationReason, ConvertTo-AssessmentRow, New-AssessmentSummary

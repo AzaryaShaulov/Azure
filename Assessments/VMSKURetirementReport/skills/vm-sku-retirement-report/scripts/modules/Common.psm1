@@ -1,7 +1,7 @@
 Set-StrictMode -Version Latest
 
 # Single source of truth for the tool version (kept in sync with SKILL.md metadata and CHANGELOG.md by tests/build).
-$script:ToolVersion = '1.0.0'
+$script:ToolVersion = '1.2.3'
 
 function Get-ToolVersion { return $script:ToolVersion }
 
@@ -19,16 +19,131 @@ function Write-PhaseDone {
     Write-Host ("    done{0} ({1}s)" -f $(if ($Detail) { ": $Detail" } else { '' }), $secs) -ForegroundColor DarkGray
 }
 
+# -- Snapshot record / replay of Azure reads (-SaveSnapshot / -FromSnapshot) --
+# Mode and folder live in process environment variables so parallel runspaces see them. Requests are keyed without
+# credentials, access tokens are never written, and the signed-in account is masked before it is saved.
+
+function Get-SnapshotMode {
+    if ($env:VMSKU_SNAPSHOT_DIR -and $env:VMSKU_SNAPSHOT_MODE -in 'Record', 'Replay') { return $env:VMSKU_SNAPSHOT_MODE }
+    return $null
+}
+
+function Get-SnapshotEntryPath {
+    param([Parameter(Mandatory)][string]$Kind, [Parameter(Mandatory)][string]$Request)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { $hash = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes("$Kind`n$Request"))).ToLowerInvariant() }
+    finally { $sha.Dispose() }
+    return Join-Path (Join-Path $env:VMSKU_SNAPSHOT_DIR 'responses') "$hash.json"
+}
+
+function Save-SnapshotEntry {
+    param([Parameter(Mandatory)][string]$Kind, [Parameter(Mandatory)][string]$Request, [AllowNull()][string]$Text, [switch]$Failed)
+    $path = Get-SnapshotEntryPath -Kind $Kind -Request $Request
+    New-Item -ItemType Directory -Path (Split-Path $path) -Force | Out-Null
+    [ordered]@{ Kind = $Kind; Request = $Request; Failed = [bool]$Failed; Text = $Text } | ConvertTo-Json -Depth 3 -Compress |
+        Set-Content -LiteralPath $path -Encoding utf8
+}
+
+function Read-SnapshotEntry {
+    param([Parameter(Mandatory)][string]$Kind, [Parameter(Mandatory)][string]$Request)
+    $path = Get-SnapshotEntryPath -Kind $Kind -Request $Request
+    if (-not (Test-Path -LiteralPath $path)) {
+        throw "The snapshot has no recorded response for this $Kind request. Replay with the same tenant, subscription and region scope as the capture, or capture a new snapshot with -SaveSnapshot."
+    }
+    return (Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -Depth 5)
+}
+
+function Get-AzSnapshotRequest {
+    <# Stable request key for an az command: '@file' arguments are replaced by the file content (temp paths differ per run). #>
+    param([Parameter(Mandatory)][string[]]$Arguments)
+    $parts = foreach ($a in $Arguments) {
+        if ($a -like '@*' -and (Test-Path -LiteralPath $a.Substring(1) -PathType Leaf)) { '@' + (Get-Content -LiteralPath $a.Substring(1) -Raw) } else { $a }
+    }
+    return ($parts -join ' ')
+}
+
+function Hide-SnapshotAccount {
+    <# Masks user.name in 'az account show/list' output before it is written to a snapshot. #>
+    param([Parameter(Mandatory)][string]$Text)
+    $o = $Text | ConvertFrom-Json -Depth 64
+    $changed = $false
+    foreach ($item in @($o)) {
+        if (-not $item -or $item.PSObject.Properties.Name -notcontains 'user' -or -not $item.user) { continue }
+        if ($item.user -is [string]) { $item.user = Get-MaskedAccount $item.user; $changed = $true }
+        elseif ($item.user.PSObject.Properties.Name -contains 'name' -and $item.user.name) { $item.user.name = Get-MaskedAccount $item.user.name; $changed = $true }
+    }
+    if (-not $changed) { return $Text }
+    return (ConvertTo-Json -InputObject $o -Depth 64 -Compress)
+}
+
+function Invoke-SnapshotRest {
+    <#
+    .SYNOPSIS
+        Wraps one read-only ARM REST call. Record mode saves the response; Replay mode returns the saved response without
+        calling Azure; otherwise the call runs live. -Request is the credential-free key (method, URL, body).
+    #>
+    param([Parameter(Mandatory)][string]$Request, [Parameter(Mandatory)][scriptblock]$Live)
+    $mode = Get-SnapshotMode
+    if ($mode -eq 'Replay') {
+        $entry = Read-SnapshotEntry -Kind 'rest' -Request $Request
+        if ($entry.Failed) { throw 'This request failed when the snapshot was captured.' }
+        if ($null -eq $entry.Text) { return $null }
+        return ($entry.Text | ConvertFrom-Json -Depth 100)
+    }
+    try { $resp = & $Live }
+    catch {
+        if ($mode -eq 'Record') { Save-SnapshotEntry -Kind 'rest' -Request $Request -Text $null -Failed }
+        throw
+    }
+    if ($mode -eq 'Record') { Save-SnapshotEntry -Kind 'rest' -Request $Request -Text $(if ($null -ne $resp) { ConvertTo-Json -InputObject $resp -Depth 100 -Compress } else { $null }) }
+    return $resp
+}
+
+function ConvertFrom-AzJsonText {
+    <#
+    .SYNOPSIS
+        Parses the JSON an az command printed. A malformed answer is reported with the command and a sanitized parser message;
+        with -AllowFailure it returns $null and the reason in -Failure instead of throwing.
+    #>
+    param([string]$Text, [Parameter(Mandatory)][string[]]$Arguments, [switch]$AllowFailure, $Failure)
+    try { return ($Text | ConvertFrom-Json -Depth 64) }
+    catch {
+        $detail = "The answer is not valid JSON: $(ConvertTo-SafeCliMessage $_.Exception.Message 200)"
+        $command = "az $($Arguments[0..([math]::Min(3, $Arguments.Count - 1))] -join ' ')"
+        if (-not $AllowFailure) { throw "$command failed: $detail" }
+        Write-Verbose "${command}: $detail"
+        if ($Failure) { $Failure.Value = $detail }
+        return $null
+    }
+}
+
 function Invoke-AzJson {
     <#
     .SYNOPSIS
         Runs an Azure CLI command (read-only) and returns parsed JSON, with retry on throttling/transient errors.
+    .PARAMETER AllowFailure
+        A failed call returns $null instead of throwing. Pass -Failure to receive the sanitized reason.
     #>
     param(
         [Parameter(Mandatory)][string[]]$Arguments,
         [int]$MaxRetries = 3,
-        [switch]$AllowFailure
+        [switch]$AllowFailure,
+        [ref]$Failure
     )
+    $snapshotMode = Get-SnapshotMode
+    $isToken = $Arguments -contains 'get-access-token'
+    $request = if ($snapshotMode -and -not $isToken) { Get-AzSnapshotRequest -Arguments $Arguments } else { $null }
+    if ($snapshotMode -eq 'Replay') {
+        # Replay never calls Azure; REST calls that need a token are replayed as well.
+        if ($isToken) { return [pscustomobject]@{ accessToken = 'snapshot-replay'; tokenType = 'Bearer' } }
+        $entry = Read-SnapshotEntry -Kind 'az' -Request $request
+        if ($entry.Failed) {
+            if ($AllowFailure) { if ($Failure) { $Failure.Value = 'The call failed when the snapshot was captured.' }; return $null }
+            throw "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed when the snapshot was captured."
+        }
+        if ([string]::IsNullOrWhiteSpace($entry.Text)) { return $null }
+        return ConvertFrom-AzJsonText -Text $entry.Text -Arguments $Arguments -AllowFailure:$AllowFailure -Failure $Failure
+    }
     $attempt = 0
     while ($true) {
         $attempt++
@@ -40,16 +155,23 @@ function Invoke-AzJson {
         } finally { Remove-Item $errFile -ErrorAction SilentlyContinue }
         if ($code -eq 0) {
             $text = ($out -join "`n")
+            if ($snapshotMode -eq 'Record' -and -not $isToken) {
+                $saved = if (-not [string]::IsNullOrWhiteSpace($text) -and $Arguments[0] -eq 'account' -and $Arguments[1] -in 'show', 'list') { Hide-SnapshotAccount -Text $text } else { $text }
+                Save-SnapshotEntry -Kind 'az' -Request $request -Text $saved
+            }
             if ([string]::IsNullOrWhiteSpace($text)) { return $null }
-            return $text | ConvertFrom-Json -Depth 64
+            return ConvertFrom-AzJsonText -Text $text -Arguments $Arguments -AllowFailure:$AllowFailure -Failure $Failure
         }
         $transient = $err -match '(429|TooManyRequests|throttl|timed out|temporar|ServiceUnavailable|503|502|ConnectionReset)'
         if ($transient -and $attempt -le $MaxRetries) {
             Start-Sleep -Seconds ([math]::Pow(2, $attempt) + (Get-Random -Maximum 3))
             continue
         }
+        if ($snapshotMode -eq 'Record' -and -not $isToken) { Save-SnapshotEntry -Kind 'az' -Request $request -Text $null -Failed }
         if ($AllowFailure) {
-            Write-Verbose "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed: $(ConvertTo-SafeCliMessage $err)"
+            $safe = ConvertTo-SafeCliMessage $err
+            Write-Verbose "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed: $safe"
+            if ($Failure) { $Failure.Value = if ($safe) { $safe } else { "az exited with code $code." } }
             return $null
         }
         throw "az $($Arguments[0..([math]::Min(3,$Arguments.Count-1))] -join ' ') failed (exit $code): $(ConvertTo-SafeCliMessage $err)"
@@ -65,6 +187,7 @@ function Test-AzAuthentication {
         in a background job so the assessment fails fast with sign-in guidance instead of hanging.
     #>
     param([string]$TenantId, [int]$TimeoutSec = 60)
+    if ((Get-SnapshotMode) -eq 'Replay') { return [pscustomobject]@{ Ok = $true; Reason = $null } }
     $argList = @('account', 'get-access-token', '--resource', 'https://management.azure.com', '-o', 'json', '--only-show-errors')
     if ($TenantId) { $argList += @('--tenant', $TenantId) }
     $job = Start-Job -ScriptBlock {
@@ -200,19 +323,100 @@ function ConvertTo-DisplayPath {
     return $Path
 }
 
+function Hide-Identity {
+    <#
+    .SYNOPSIS
+        Masks the email addresses and the object id of the signed-in identity in any text and keeps the rest as it is.
+    .DESCRIPTION
+        Azure error text names the caller ("The client 'jane.doe@contoso.com' with object id '<guid>' does not have authorization
+        ..."). The id follows the words "object id", with or without quotes. PowerShell writes the quote of a re-serialized JSON
+        error body as \u0027, so that form is covered too. Other GUIDs, such as a subscription id, are kept.
+    .PARAMETER Keep
+        Accounts that are shown as they are (the operator's own, when -IncludeOperatorAccount asked for it).
+    #>
+    param([AllowNull()][string]$Text, [string[]]$Keep = @())
+    if ([string]::IsNullOrEmpty($Text)) { return $Text }
+    $kept = @($Keep)
+    $masked = [regex]::Replace($Text, '(?<escape>(?:\\u00(?:27|22))?)(?<account>[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})', {
+            param($m)
+            $account = $m.Groups['account'].Value
+            $m.Groups['escape'].Value + $(if ($kept -contains $account) { $account } else { Get-MaskedAccount $account })
+        })
+    [regex]::Replace($masked, '(?i)(object id(?:\s|[''"\\]|u00(?:27|22))*)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '$1****')
+}
+
 function ConvertTo-SafeCliMessage {
     <#
     .SYNOPSIS
-        Sanitizes Azure CLI error text before it is shown, thrown or logged: masks email addresses, hides the home
-        directory, collapses whitespace and truncates.
+        Sanitizes Azure CLI error text before it is shown, thrown or logged: masks email addresses and the object id of the
+        signed-in identity, hides the home directory, collapses whitespace and truncates.
     #>
     param([AllowNull()][string]$Text, [int]$MaxLength = 400)
     if ([string]::IsNullOrWhiteSpace($Text)) { return '' }
     $t = ConvertTo-DisplayPath (($Text -replace '\s+', ' ').Trim())
-    $t = $t -replace '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', { Get-MaskedAccount $_.Value }
+    # An error body that PowerShell re-serialized as JSON writes each ' as \u0027; show it as the quote it is.
+    $t = Hide-Identity $t.Replace('\u0027', "'")
     if ($t.Length -gt $MaxLength) { $t = $t.Substring(0, $MaxLength) + '...' }
     return $t
 }
 
+function Protect-RunLog {
+    <#
+    .SYNOPSIS
+        Masks email addresses and object ids in the transcript (run.log) once it is closed.
+    .DESCRIPTION
+        PowerShell writes a terminating error to the transcript as it is raised, even when the script catches it, and an Azure
+        REST error body names the signed-in account and its object id. The report sanitizes that text before it uses it, but
+        the transcript has the original. A transcript that cannot be read or rewritten is reported as a warning; it never
+        fails the run.
+    .PARAMETER Keep
+        Accounts that stay as they are (see Hide-Identity).
+    #>
+    param([Parameter(Mandatory)][string]$Path, [string[]]$Keep = @())
+    try {
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return }
+        $text = [System.IO.File]::ReadAllText($Path)
+        $safe = Hide-Identity $text -Keep $Keep
+        if ($safe -cne $text) { [System.IO.File]::WriteAllText($Path, $safe, [System.Text.UTF8Encoding]::new($false)) }
+    }
+    catch { Write-Warning "run.log could not be checked for account names and object ids: $(ConvertTo-SafeCliMessage $_.Exception.Message)" }
+}
+
+function New-CollectionIssueSink {
+    <# A thread-safe list for data-collection problems. Parallel runspaces share it through $using:; the comma keeps the queue from being enumerated. #>
+    , [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
+}
+
+function Format-CollectionIssue {
+    param([Parameter(Mandatory)]$Issue)
+    $scope = @($Issue.Region, $(if ($Issue.SubscriptionId) { "subscription $($Issue.SubscriptionId)" })) | Where-Object { $_ }
+    "$($Issue.Api)$(if ($scope) { " ($($scope -join ', '))" }): $($Issue.Message)$(if ($Issue.Effect) { " $($Issue.Effect)" })"
+}
+
+function Add-CollectionIssue {
+    <#
+    .SYNOPSIS
+        Records a data-collection problem (what could not be read, for which subscription / region, why, and what it means
+        for the results). Without a sink the problem is written as a warning so it is never lost.
+    #>
+    param(
+        $Sink,
+        [Parameter(Mandatory)][string]$Api,
+        [Parameter(Mandatory)][string]$Message,
+        [string]$SubscriptionId,
+        [string]$Region,
+        [string]$Effect
+    )
+    $issue = [pscustomobject]@{ SubscriptionId = $SubscriptionId; Region = $Region; Api = $Api; Message = $Message; Effect = $Effect }
+    if ($Sink) { $Sink.Enqueue($issue) } else { Write-Warning (Format-CollectionIssue $issue) }
+}
+
+function Get-CollectionIssue {
+    <# The recorded problems in a stable order (parallel runspaces enqueue in an arbitrary order). #>
+    param($Sink)
+    if (-not $Sink) { return @() }
+    @($Sink.ToArray() | Sort-Object Api, SubscriptionId, Region, Message)
+}
+
 Export-ModuleMember -Function Get-ToolVersion, Write-Phase, Write-PhaseDone, Invoke-AzJson, Test-AzAuthentication, Get-SkuNameInfo, ConvertTo-InvariantDate, Get-MonthsBetween, Get-SafeFileName, Get-DefaultAssessmentOutputPath, ConvertTo-HtmlEncoded, `
-    Get-MaskedAccount, ConvertTo-DisplayPath, ConvertTo-SafeCliMessage
+    Get-MaskedAccount, ConvertTo-DisplayPath, Hide-Identity, ConvertTo-SafeCliMessage, Protect-RunLog, Get-SnapshotMode, Invoke-SnapshotRest, New-CollectionIssueSink, Format-CollectionIssue, Add-CollectionIssue, Get-CollectionIssue

@@ -8,12 +8,12 @@ All calls are read-only.
 | CPU vendor per series | Microsoft Learn size-series spec pages (via the public `MicrosoftDocs/azure-compute-docs` repository); refreshed by `Update-Catalogs.ps1` | Public | None |
 | VM inventory | Azure Resource Graph `Resources` (`microsoft.compute/virtualmachines`) via `az graph query`; with `-TenantId` for a non-default tenant, the Resource Graph REST API with a tenant-scoped token | All in-scope subscriptions | Reader |
 | NICs / disks / ADE | ARG `microsoft.network/networkinterfaces`, `microsoft.compute/disks`, `microsoft.compute/virtualmachines/extensions` | Subscriptions with VMs | Reader |
-| Advisor retirement signals | ARG `advisorresources` (`recommendationSubCategory = ServiceUpgradeAndRetirement`) | Subscriptions with VMs | Reader (best effort) |
+| Advisor upgrade and retirement recommendations | ARG `advisorresources` (`recommendationSubCategory = ServiceUpgradeAndRetirement`). The category also holds items that are not retirements (for example Trusted launch, Premium disk or scale-set suggestions), so only items that name a VM size corroborate the lifecycle; the rest are listed as notes. The count is `counts.AdvisorRetirement` | Subscriptions with VMs | Reader (best effort) |
 | Service Health retirements | ARG `servicehealthresources` (HealthAdvisory / Retirement) | Subscriptions with VMs | Reader (best effort) |
 | Size capabilities and restrictions | Compute SKUs REST `GET /subscriptions/<s>/providers/Microsoft.Compute/skus?$filter=location eq '<r>'` with a subscription-scoped token (fallback: `az vm list-skus --all`) | Each subscription/region needing recommendations, plus one per remaining region for capabilities | Reader |
 | Quota | `az vm list-usage --location <r> --subscription <s>` | Same pairs as above | Reader |
 | Utilization (optional) | Azure Monitor `metrics:getBatch` (`Percentage CPU`, `Available Memory Bytes`) | Running VMs with an action | Monitoring Reader |
-| Prices (optional) | `https://prices.azure.com/api/retail/prices` | Public | None |
+| Prices (default; `-SkipPricing` to skip) | `https://prices.azure.com/api/retail/prices` | Public | None |
 
 ## Performance notes
 

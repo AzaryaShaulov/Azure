@@ -11,7 +11,7 @@ description: >-
   For quota increase requests afterwards use azure-quotas; for general VM sizing/pricing use azure-compute.
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.2.3"
   requires: "PowerShell 7.2+, Azure CLI 2.60+ with the resource-graph extension, Reader role"
 ---
 
@@ -38,7 +38,7 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
 
 | Requirement | Check |
 |---|---|
-| PowerShell 7.2+ (Windows, Linux or macOS) | `pwsh -v` |
+| PowerShell 7.2+ on Windows | `pwsh -v` |
 | Azure CLI signed in to the target tenant | `az account show` (else `az login --tenant <tenant>`) |
 | Resource Graph extension | `az extension add --name resource-graph` |
 | RBAC | **Reader** on the subscriptions. Rightsizing: **Monitoring Reader**. Advisor/Service Health corroboration is best-effort |
@@ -48,7 +48,10 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
 
 1. **Confirm scope with the user**: tenant, subscriptions (default: all enabled in the signed-in tenant), regions,
    whether to check every VM for v7/v6 modernization (`--check-modernization`), and whether to include rightsizing
-   telemetry (`-IncludeRightsizing`) and PAYGO prices (`-IncludePricing`).
+   telemetry (`-IncludeRightsizing`). PAYGO prices are included by default; add `-SkipPricing` when
+   `prices.azure.com` is not reachable or prices are not wanted. An incomplete pricing region is discarded; completed
+   regions retain prices (`pricingStatus: Partial`), or `Unavailable` if none completed. The run warns and skips the
+   remaining pricing regions.
 2. **Preflight**: `az account show` - confirm the tenant is the one the user means. If not signed in, ask the user to
    run `az login --tenant <tenant>` (interactive; never automate or handle credentials). The script checks the token
    first and fails within `-AuthTimeoutSec` (default 60) with the exact `az login` command when a cached token has
@@ -61,20 +64,27 @@ analysis of actual spend (use `cost-optimization` / `cost-analysis`).
    pwsh <skill-dir>/scripts/Invoke-VMSKURetirementReport.ps1
    # scoped / optional extras
    pwsh <skill-dir>/scripts/Invoke-VMSKURetirementReport.ps1 `
-       -TenantId <tenant-id> -SubscriptionId <id1>,<id2> -Region eastus2 --check-modernization -IncludeRightsizing -IncludePricing
+       -TenantId <tenant-id> -SubscriptionId <id1>,<id2> -Region eastus2        --check-modernization -IncludeRightsizing
    ```
 
    Key parameters: `-TenantId`, `-AuthTimeoutSec 60`, `-HorizonMonths 36` (12-120; dated retirements this far out or
    more go to *Beyond Horizon*), `-QuotaSafetyPct 20`, `-MaxCandidates 3` (1 = primary only, 2 = + alternative,
    3 = + third), `--check-modernization` (opt-in v7 then v6 assessment for every VM), `-OfflineCatalog` (use cached
    Microsoft evidence), `-AsOfDate`, `-SkipHtml`, `-ThrottleLimit 6`,
-   `-IncludeOperatorAccount` (record the full signed-in account; masked by default), `-KeepRawData` (write raw `data/`).
+   `-IncludeOperatorAccount` (record the full signed-in account; masked by default), `-KeepRawData` (write raw `data/`),
+   `-SaveSnapshot` (record the Azure data to `<OutputPath>/snapshot`) and `-FromSnapshot <run folder>` (re-run from a
+   snapshot with different options and no Azure calls; prefer this when the user only wants another view of a recent run;
+   it warns when the snapshot is more than 7 days old), `-HtmlIncludeOptionalModernization` (also list optional-modernization
+   VMs in the HTML), `-HtmlMaxVmDetails 250` (cap the VMs that get collapsible HTML details; `0` = no limit) and `-ExtendedDetails` (HTML details
+   also show the facts summary, the confidence/readiness explanations, the mandatory requirement checks and every evaluated size).
 4. **Report back** from `executive-summary.md` (counts, waves, quota actions) and point the user to `index.html`.
    Answer drill-down questions from `vm-assessment.csv` / `assessment.json`; quote the Microsoft source URL for any
    retirement claim.
-5. **Follow-ups**: quota increases -> hand the `quota-impact.csv` rows (`Scope = Retirement` first) to the
+5. **Follow-ups**: quota increases -> hand the `quota-impact.csv` rows (`Scope = Retirement` first; `Modernization` rows
+   only for planned v6/v7 work, using the `Peak*` columns for side-by-side paths) to the
    `azure-quotas` skill. Resizes are the customer's change - provide `az vm resize` guidance only when asked and only
-   for `Ready` / `HIGH` rows, with the listed validation items.
+   for `Ready` / `HIGH` rows, with the listed validation items. Never present a v6/v7 target as guest-ready: relay the
+   `ModernizationValidationItems` (NVMe drivers, MANA, temp disk, Gen1 Trusted launch upgrade).
 
 ## Outputs (per run folder)
 
@@ -85,15 +95,16 @@ operator's account is masked (`j****@contoso.com`) unless `-IncludeOperatorAccou
 | File | Purpose |
 |---|---|
 | `executive-summary.md` | Estate counts, migration waves, groupings, quota actions, data-quality notes |
-| `detailed-report.md` | Per affected/unconfirmed VM: current config, retirement evidence, primary + alternative, material differences, considerations, action, data quality |
+| `detailed-report.md` | Per affected/unconfirmed VM: current config, retirement evidence, primary + alternative, current-vs-target comparison (retirement target and, with `--check-modernization`, modernization target), considerations, action, data quality |
 | `vm-assessment.csv` | One row per VM - the primary assessment table (Power BI / Excel) |
 | `candidates.csv` | One row per VM x evaluated candidate, with score breakdown and rejection reasons |
-| `quota-impact.csv` | Aggregated demand per subscription/region/family and regional vCPUs, in two scopes |
+| `quota-impact.csv` | Aggregated demand per subscription/region/family and regional vCPUs, in scopes `Retirement`, `Retirement+Modernization` and (with `--check-modernization`) `Modernization` with steady-state and peak demand |
 | `assessment.json` | Versioned structured document (schema in [output-schema.md](references/output-schema.md)) |
 | `retirement-evidence.json` | Exact Microsoft evidence used (URLs, git commit, retrieval time) + Advisor/Service Health signals |
-| `index.html` + `<subscription>-<id>.html` | Browsable report: summary cards and plain-language bottom line, waves, quota, per-VM recommendation cards, Cross-Vendor Migration Warnings, and collapsed reference sections for SKU families, CPU Vendor from SKU Name, and Known Limitations. Styling lives in `templates/report.css` |
+| `index.html` + `<subscription>-<id>.html` | Browsable report: summary cards (including a Gen1 VMs count) and plain-language bottom line, waves (collapsed on the tenant index), *VMs with Retiring SKUs* (one table, with the current size, retirement target and modernization target laid out as Vendor / vCPU / vRAM / VM Gen / Disk controller, and collapsible details under each VM row with a current-vs-target comparison, directly under Overview), an optional v6/v7 target and path as table columns, one quota table per subscription page (steady-state and peak), a collapsed upgrade guide (recommended steps per migration path with examples, SCSI to NVMe and Gen1 to Gen2, Microsoft Learn links), and collapsed reference sections (Cross-Vendor Migration Warnings, SKU families, CPU Vendor from SKU Name, Known Limitations). HTML VM lists include only VMs on End of Life or retired sizes (Microsoft-announced retirement) that need action, labelled with the Microsoft lifecycle stage; CSV/JSON include every VM. Styling lives in `templates/report.css` |
 | `run.log` | Console transcript with a minimal header (no local user or machine name); the account is masked unless `-IncludeOperatorAccount` |
 | `data/` | Only with `-KeepRawData`: raw VM inventory and Resource SKU responses for audit |
+| `snapshot/` | Only with `-SaveSnapshot`: recorded Azure responses and `snapshot.json` manifest for `-FromSnapshot` replay (no tokens, account masked; confidential) |
 
 ## Rules the skill enforces (do not override when explaining results)
 
@@ -130,3 +141,9 @@ Details: [methodology.md](references/methodology.md) | [scoring.md](references/s
 - A run warning **"Unmapped Microsoft series"** means Learn lists a series with no SKU pattern in
   `data/series-map.json`. Add the pattern (from the Learn size page) - affected VMs stay `Unable to Confirm` until then.
 - Tests (offline, mock Azure CLI, no Azure access): `Invoke-Pester -Path <skill-dir>/tests`.
+
+## Disclaimer
+
+**This assessment and its recommendations are provided "AS IS," without warranties or guarantees.** This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.
+
+Findings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.

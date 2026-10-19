@@ -1,6 +1,6 @@
 ﻿
 AVD-Alerts/avd-alerts-report.csv
-AVD-Alerts/avd-alerts-report-305f553d.csv
+AVD-Alerts/avd-alerts-report-*.csv
 AVD-Alerts/Deploy-AVD-Teams-Notifier.ps1
 AVD-AzAlerts/Deploy-AVD-Teams-Notifier.ps1
 AVD-AzAlerts/*.csv

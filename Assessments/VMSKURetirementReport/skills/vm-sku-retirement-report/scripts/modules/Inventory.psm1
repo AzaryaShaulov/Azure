@@ -15,7 +15,8 @@ function Invoke-ArgQuery {
         [string]$TenantId,
         [int]$ChunkSize = 200,
         [int]$PageSize = 1000,
-        [switch]$AllowFailure
+        [switch]$AllowFailure,
+        [ref]$Failure
     )
     $rows = New-Object System.Collections.Generic.List[object]
     $chunks = @()
@@ -37,13 +38,20 @@ function Invoke-ArgQuery {
                 $resp = $null
                 for ($attempt = 1; $attempt -le 4 -and -not $resp; $attempt++) {
                     try {
-                        $resp = Invoke-RestMethod -Method Post -Uri 'https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01' `
-                            -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body -TimeoutSec 120
+                        $resp = Invoke-SnapshotRest -Request "POST resourcegraph $body" -Live {
+                            Invoke-RestMethod -Method Post -Uri 'https://management.azure.com/providers/Microsoft.ResourceGraph/resources?api-version=2022-10-01' `
+                                -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body -TimeoutSec 120
+                        }
                     }
                     catch {
                         $status = if ($_.Exception.PSObject.Properties.Name -contains 'Response' -and $_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
                         if ($status -in 429, 500, 502, 503, 504 -and $attempt -lt 4) { Start-Sleep -Seconds ([math]::Pow(2, $attempt)); continue }
-                        if ($AllowFailure) { Write-Verbose "ARG REST query failed: $($_.Exception.Message)"; return $rows.ToArray() }
+                        if ($AllowFailure) {
+                            $safe = ConvertTo-SafeCliMessage $_.Exception.Message
+                            Write-Verbose "ARG REST query failed: $safe"
+                            if ($Failure) { $Failure.Value = "$safe$(if ($rows.Count) { " (the query stopped after $($rows.Count) rows)" })" }
+                            return $rows.ToArray()
+                        }
                         throw "Resource Graph query failed for tenant ${TenantId}: $($_.Exception.Message)"
                     }
                 }
@@ -64,8 +72,12 @@ function Invoke-ArgQuery {
                 $argList = @('graph', 'query', '-q', "@$qFile", '--first', "$PageSize")
                 if ($chunk.Count -gt 0) { $argList += '--subscriptions'; $argList += $chunk }
                 if ($skip) { $argList += @('--skip-token', $skip) }
-                $r = Invoke-AzJson -Arguments $argList -AllowFailure:$AllowFailure
-                if (-not $r) { break }
+                $queryFailure = $null
+                $r = Invoke-AzJson -Arguments $argList -AllowFailure:$AllowFailure -Failure ([ref]$queryFailure)
+                if (-not $r) {
+                    if ($AllowFailure -and $Failure) { $Failure.Value = "$(if ($queryFailure) { $queryFailure } else { 'The query returned no output.' })$(if ($rows.Count) { " (the query stopped after $($rows.Count) rows)" })" }
+                    break
+                }
                 foreach ($d in @($r.data)) { if ($d) { $rows.Add($d) } }
                 $skip = if ($r.PSObject.Properties.Name -contains 'skip_token') { $r.skip_token } else { $null }
             } while ($skip)
@@ -165,12 +177,24 @@ servicehealthresources
     lastUpdate = tostring(p.LastUpdateTime)
 '@
 
+function Invoke-OptionalArgQuery {
+    <# An optional Resource Graph query: a failure, or a query that stops part-way, is recorded in the sink instead of being hidden. #>
+    param(
+        [Parameter(Mandatory)][string]$Query, [Parameter(Mandatory)][string]$Api, [Parameter(Mandatory)][string]$Effect,
+        [string]$TenantId, [string[]]$SubscriptionIds, $IssueSink
+    )
+    $failure = $null
+    $rows = @(Invoke-ArgQuery -Query $Query -TenantId $TenantId -SubscriptionIds $SubscriptionIds -AllowFailure -Failure ([ref]$failure))
+    if ($failure) { Add-CollectionIssue -Sink $IssueSink -Api $Api -Message $failure -Effect $Effect }
+    $rows
+}
+
 function Get-EstateInventory {
     <#
     .SYNOPSIS
         Collects VM inventory plus NIC, disk, ADE, Advisor-retirement and Service Health retirement context (read-only).
     #>
-    param([Parameter(Mandatory)][string[]]$SubscriptionIds, [string[]]$Regions, [string]$TenantId)
+    param([Parameter(Mandatory)][string[]]$SubscriptionIds, [string[]]$Regions, [string]$TenantId, $IssueSink)
     Write-Phase 'Inventory: virtual machines (Azure Resource Graph)'
     $vms = @(Invoke-ArgQuery -Query $script:VmQuery -TenantId $TenantId -SubscriptionIds $SubscriptionIds)
     if ($Regions -and $Regions.Count -gt 0) {
@@ -185,19 +209,22 @@ function Get-EstateInventory {
         Write-Phase 'Inventory: NICs, disks, disk-encryption extensions'
         $nics = @(Invoke-ArgQuery -Query $script:NicQuery -TenantId $TenantId -SubscriptionIds $subsWithVms)
         $disks = @(Invoke-ArgQuery -Query $script:DiskQuery -TenantId $TenantId -SubscriptionIds $subsWithVms)
-        $ade = @(Invoke-ArgQuery -Query $script:AdeQuery -TenantId $TenantId -SubscriptionIds $subsWithVms -AllowFailure)
+        $ade = @(Invoke-OptionalArgQuery -Query $script:AdeQuery -Api 'Resource Graph: disk-encryption extensions' -TenantId $TenantId -SubscriptionIds $subsWithVms -IssueSink $IssueSink `
+                -Effect 'Azure Disk Encryption may be missing from the notes of some VMs (it does not change the recommendation).')
         Write-PhaseDone "$($nics.Count) NICs, $($disks.Count) attached disks, $($ade.Count) ADE extensions"
 
         Write-Phase 'Corroborating evidence: Azure Advisor + Service Health retirement signals'
-        $advisor = @(Invoke-ArgQuery -Query $script:AdvisorQuery -TenantId $TenantId -SubscriptionIds $subsWithVms -AllowFailure)
-        $sh = @(Invoke-ArgQuery -Query $script:ServiceHealthQuery -TenantId $TenantId -SubscriptionIds $subsWithVms -AllowFailure)
+        $advisor = @(Invoke-OptionalArgQuery -Query $script:AdvisorQuery -Api 'Resource Graph: Azure Advisor retirement recommendations' -TenantId $TenantId -SubscriptionIds $subsWithVms -IssueSink $IssueSink `
+                -Effect 'Advisor corroboration may be incomplete; the Microsoft Learn lifecycle evidence is not affected.')
+        $sh = @(Invoke-OptionalArgQuery -Query $script:ServiceHealthQuery -Api 'Resource Graph: Service Health retirement events' -TenantId $TenantId -SubscriptionIds $subsWithVms -IssueSink $IssueSink `
+                -Effect 'Service Health corroboration may be incomplete; the Microsoft Learn lifecycle evidence is not affected.')
         foreach ($e in $sh) {
             foreach ($p in 'impactStart', 'impactMitigation', 'lastUpdate') {
                 $v = if ($e.PSObject.Properties.Name -contains $p) { [string]$e.$p } else { '' }
                 if ($v -match '^\d{17,19}$') { $e.$p = ([datetime]::new([long]$v, [DateTimeKind]::Utc)).ToString('yyyy-MM-dd') }
             }
         }
-        Write-PhaseDone "$($advisor.Count) Advisor retirement recommendations, $($sh.Count) Service Health retirement events"
+        Write-PhaseDone "$($advisor.Count) Advisor upgrade-and-retirement recommendations, $($sh.Count) Service Health retirement events"
     }
 
     $nicByVm = @{}

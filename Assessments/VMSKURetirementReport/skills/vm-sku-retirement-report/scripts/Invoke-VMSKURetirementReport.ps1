@@ -28,13 +28,19 @@
 .PARAMETER OfflineCatalog
     Use the cached Microsoft retirement catalog (data/retirement-catalog.json) instead of fetching Microsoft Learn.
 .PARAMETER QuotaSafetyPct
-    Extra headroom added to the minimum quota increase, as % of the migration requirement (default 20).
+    Extra headroom added to the recommended quota increase, as % of the migration requirement (0-200, default 20). It only
+    enlarges the recommended request, and only when an increase is needed; it does not change a quota status, so a quota
+    that fits is 'Quota OK' however little room is left.
 .PARAMETER MaxCandidates
     Number of ranked recommendations per VM (1-3, default 3).
 .PARAMETER IncludeRightsizing
     Pull Azure Monitor CPU / memory metrics for VMs with an action and flag potential rightsizing (separate column only).
 .PARAMETER IncludePricing
-    Add informational pay-as-you-go monthly prices (retail API, USD, 730 h). Never used for ranking.
+    Kept for compatibility: retail pricing is now on by default. Informational pay-as-you-go monthly prices (public
+    Retail Prices API, USD, 730 h); never used for ranking.
+.PARAMETER SkipPricing
+    Do not add pay-as-you-go monthly prices. Use this when https://prices.azure.com is not reachable or for a fully
+    offline -FromSnapshot replay.
 .PARAMETER CheckModernization
     Evaluate every VM for a suitable v7 or v6 SKU. The exact CLI spelling --check-modernization is also accepted.
     This is assessment-only and never changes Azure resources.
@@ -49,10 +55,37 @@
 .PARAMETER KeepRawData
     Also write the raw VM inventory and Resource SKU responses to <OutputPath>/data for audit. Off by default: they are
     the most detailed copy of the estate and are not needed to read the report.
+.PARAMETER SaveSnapshot
+    Record every Azure read of this run (subscriptions, inventory, Resource SKUs, quota for every subscription/region,
+    Advisor / Service Health and, with -IncludeRightsizing, metrics) to <OutputPath>/snapshot so the run can be replayed
+    later with -FromSnapshot. Access tokens are never written and the signed-in account is masked. The snapshot is a full
+    copy of the estate inventory: treat it as confidential.
+.PARAMETER FromSnapshot
+    Replay a run folder (or its snapshot folder) captured with -SaveSnapshot instead of calling Azure. Every other option
+    can change (for example --check-modernization, -HorizonMonths, -QuotaSafetyPct, -MaxCandidates); tenant, subscription
+    and region scope come from the snapshot. -AsOfDate defaults to the capture's as-of date and the Microsoft retirement
+    evidence captured with the snapshot is reused, so a replay reproduces the capture. A warning is shown when the
+    snapshot is more than 7 days old. No Azure CLI sign-in is needed; only retail pricing (public Retail Prices API) goes
+    online. Add -SkipPricing for a fully offline replay.
+.PARAMETER HtmlIncludeOptionalModernization
+    Also list VMs whose action is 'Modernization Optional' (older generations without an announced retirement) in the HTML
+    VM tables, details and modernization view. By default the HTML lists only VMs with an announced retirement date and a
+    required action. CSV, JSON and Markdown always include every VM.
+.PARAMETER ExtendedDetails
+    Show the full assessment in each HTML VM details block: the facts summary, the confidence and readiness explanations, the mandatory requirement
+    checks, and every evaluated size. By default the details list only the Primary, Secondary and Third recommended sizes.
+    HTML only; it does not change scoring, CSV, JSON or Markdown.
+.PARAMETER HtmlMaxVmDetails
+    Maximum number of VMs per subscription page that get collapsible detail blocks under their table row (default 250, 0 = no limit), in wave order.
+    Every VM stays in the summary tables, vm-assessment.csv, detailed-report.md and assessment.json; this only keeps very
+    large subscription pages fast to open.
 .EXAMPLE
     pwsh ./Invoke-VMSKURetirementReport.ps1
 .EXAMPLE
-    pwsh ./Invoke-VMSKURetirementReport.ps1 -SubscriptionId 00000000-0000-0000-0000-000000000000 -Region eastus2 -IncludeRightsizing -IncludePricing
+    pwsh ./Invoke-VMSKURetirementReport.ps1 -SubscriptionId 00000000-0000-0000-0000-000000000000     -Region eastus2 -IncludeRightsizing
+.EXAMPLE
+    pwsh ./Invoke-VMSKURetirementReport.ps1 -SaveSnapshot -OutputPath C:\Reports\vm-sku\capture
+    pwsh ./Invoke-VMSKURetirementReport.ps1 -FromSnapshot C:\Reports\vm-sku\capture --check-modernization -OfflineCatalog -OutputPath C:\Reports\vm-sku\replay
 #>
 [CmdletBinding(PositionalBinding = $false)]
 param(
@@ -67,6 +100,7 @@ param(
     [switch]$IncludeRightsizing,
     [ValidateRange(7, 93)][int]$RightsizingLookbackDays = 30,
     [switch]$IncludePricing,
+    [switch]$SkipPricing,
     [Alias('check-modernization')][switch]$CheckModernization,
     [switch]$SkipHtml,
     [ValidateRange(1, 16)][int]$ThrottleLimit = 6,
@@ -74,10 +108,19 @@ param(
     [datetime]$AsOfDate = (Get-Date).Date,
     [switch]$IncludeOperatorAccount,
     [switch]$KeepRawData,
+    [switch]$SaveSnapshot,
+    [string]$FromSnapshot,
+    [switch]$HtmlIncludeOptionalModernization,
+    [switch]$ExtendedDetails,
+    [ValidateRange(0, 100000)][int]$HtmlMaxVmDetails = 250,
     [Parameter(ValueFromRemainingArguments = $true, DontShow = $true)][string[]]$RemainingArguments
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+# Snapshot mode is passed to modules through process environment variables; always restore the caller's values.
+$priorSnapshotEnv = @($env:VMSKU_SNAPSHOT_MODE, $env:VMSKU_SNAPSHOT_DIR)
+$restoreSnapshotEnv = { $env:VMSKU_SNAPSHOT_MODE = $priorSnapshotEnv[0]; $env:VMSKU_SNAPSHOT_DIR = $priorSnapshotEnv[1] }
+trap { & $restoreSnapshotEnv; break }
 if ($PSVersionTable.PSVersion -lt [version]'7.2') { throw 'PowerShell 7.2 or later is required.' }
 foreach ($arg in @($RemainingArguments)) {
     if ([string]::IsNullOrWhiteSpace($arg)) { continue }
@@ -89,6 +132,9 @@ foreach ($arg in @($RemainingArguments)) {
         throw "Unknown argument '$arg'."
     }
 }
+if ($IncludePricing -and $SkipPricing) { throw '-IncludePricing and -SkipPricing cannot be used together. Retail pricing is on by default; use -SkipPricing to turn it off.' }
+$pricingEnabled = -not $SkipPricing
+$pricingStatus = if ($pricingEnabled) { 'Done' } else { 'Skipped' }
 
 $skillRoot = Split-Path $PSScriptRoot -Parent
 foreach ($m in 'Common', 'Retirement', 'SkuCatalog', 'Inventory', 'Scoring', 'Candidates', 'Quota', 'Rightsizing', 'Assessment', 'Output') {
@@ -96,8 +142,41 @@ foreach ($m in 'Common', 'Retirement', 'SkuCatalog', 'Inventory', 'Scoring', 'Ca
 }
 $startTime = Get-Date
 
+# -- Snapshot: record this run's Azure reads (-SaveSnapshot) or replay a previous capture (-FromSnapshot) --
+if ($SaveSnapshot -and $FromSnapshot) { throw '-SaveSnapshot and -FromSnapshot cannot be used together.' }
+$snapshot = $null; $snapshotDir = $null
+if ($FromSnapshot) {
+    $snapshotDir = @((Join-Path $FromSnapshot 'snapshot'), $FromSnapshot) | Where-Object { Test-Path -LiteralPath (Join-Path $_ 'snapshot.json') -PathType Leaf } | Select-Object -First 1
+    if (-not $snapshotDir) { throw "No snapshot found at '$FromSnapshot'. Point -FromSnapshot to a run folder created with -SaveSnapshot, or to its 'snapshot' subfolder." }
+    $snapshotDir = (Resolve-Path -LiteralPath $snapshotDir).ProviderPath
+    $snapshot = Get-Content -LiteralPath (Join-Path $snapshotDir 'snapshot.json') -Raw | ConvertFrom-Json
+    $scopeText = { param($v) (@($v | Where-Object { $_ } | ForEach-Object { "$_".ToLowerInvariant() } | Sort-Object -Unique)) -join ', ' }
+    foreach ($s in @(@{ N = 'TenantId'; V = $TenantId; C = $snapshot.TenantId }, @{ N = 'SubscriptionId'; V = $SubscriptionId; C = $snapshot.SubscriptionId }, @{ N = 'Region'; V = $Region; C = $snapshot.Region })) {
+        if ($PSBoundParameters.ContainsKey($s.N) -and (& $scopeText $s.V) -ne (& $scopeText $s.C)) {
+            throw "-$($s.N) does not match the snapshot scope ($(if (& $scopeText $s.C) { & $scopeText $s.C } else { 'all' })). Omit it to reuse the captured scope, or capture a new snapshot."
+        }
+    }
+    $TenantId = $snapshot.TenantId
+    $capturedSubs = @($snapshot.SubscriptionId | Where-Object { $_ })
+    $capturedRegions = @($snapshot.Region | Where-Object { $_ })
+    $SubscriptionId = if ($capturedSubs.Count) { $capturedSubs } else { $null }
+    $Region = if ($capturedRegions.Count) { $capturedRegions } else { $null }
+    if (-not $PSBoundParameters.ContainsKey('AsOfDate')) {
+        $AsOfDate = if ($snapshot.AsOfDate -is [datetime]) { $snapshot.AsOfDate.Date } else { [datetime]::ParseExact("$($snapshot.AsOfDate)", 'yyyy-MM-dd', [cultureinfo]::InvariantCulture) }
+    }
+    $snapshotCaptured = ([datetime]$snapshot.CapturedUtc).ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC'
+    $snapshotAgeDays = [int][math]::Floor(((Get-Date).ToUniversalTime() - ([datetime]$snapshot.CapturedUtc).ToUniversalTime()).TotalDays)
+    $env:VMSKU_SNAPSHOT_DIR = $snapshotDir; $env:VMSKU_SNAPSHOT_MODE = 'Replay'
+}
+elseif ($SaveSnapshot) {
+    # Recorded to a temporary folder until the output folder (named after the tenant) exists.
+    $snapshotDir = Join-Path ([System.IO.Path]::GetTempPath()) ('vmskuretirementreport-snapshot-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $snapshotDir -Force | Out-Null
+    $env:VMSKU_SNAPSHOT_DIR = $snapshotDir; $env:VMSKU_SNAPSHOT_MODE = 'Record'
+}
+
 # -- Preflight --
-if (-not (Get-Command az -ErrorAction SilentlyContinue)) { throw 'Azure CLI (az) not found.' }
+if (-not $FromSnapshot -and -not (Get-Command az -ErrorAction SilentlyContinue)) { throw 'Azure CLI (az) not found.' }
 $acct = Invoke-AzJson -Arguments @('account', 'show') -AllowFailure
 if (-not $acct) { throw "Not signed in. Run 'az login --tenant <tenant-id>' first." }
 $ext = Invoke-AzJson -Arguments @('extension', 'show', '--name', 'resource-graph') -AllowFailure
@@ -141,6 +220,12 @@ elseif ((Test-Path -LiteralPath $OutputPath) -and @(Get-ChildItem -LiteralPath $
     throw "OutputPath '$OutputPath' already exists and is not empty. Choose a new directory to avoid mixing assessment runs."
 }
 New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
+if ($SaveSnapshot) {
+    $finalSnapshotDir = Join-Path $OutputPath 'snapshot'
+    Move-Item -LiteralPath $snapshotDir -Destination $finalSnapshotDir
+    $snapshotDir = (Resolve-Path -LiteralPath $finalSnapshotDir).ProviderPath
+    $env:VMSKU_SNAPSHOT_DIR = $snapshotDir
+}
 $rawDir = if ($KeepRawData) { Join-Path $OutputPath 'data' } else { $null }
 if ($rawDir) { New-Item -ItemType Directory -Path $rawDir -Force | Out-Null }
 # Minimal header: the default transcript header records the local user name, machine name and host command line.
@@ -149,10 +234,25 @@ try {
     Write-Host "Tenant: $tenantName ($tenantId)  Account: $accountDisplay$(if ($crossTenant) { '  [tenant-scoped; Azure CLI default unchanged]' })"
     Write-Host "Scope: $($subs.Count) subscription(s)$(if ($Region) { ", regions $($Region -join ',')" })  As of: $($AsOfDate.ToString('yyyy-MM-dd'))  Output: $(ConvertTo-DisplayPath $OutputPath)"
     Write-Host "VMSKURetirementReport v$(Get-ToolVersion)  Mode: READ-ONLY (no Azure resources are modified)" -ForegroundColor Green
+    if ($FromSnapshot) {
+        Write-Host "Data: replaying snapshot captured $snapshotCaptured, $snapshotAgeDays day(s) ago (no Azure calls; quota and availability are as of the capture)" -ForegroundColor Yellow
+        if ($snapshotAgeDays -gt 7) { Write-Warning "The snapshot is $snapshotAgeDays days old. Quota, availability and inventory may have changed; capture a new snapshot before acting on quota or resize decisions." }
+    }
+    elseif ($SaveSnapshot) { Write-Host "Data: live; recording a snapshot to $(ConvertTo-DisplayPath $snapshotDir)" -ForegroundColor DarkGray }
 
     # -- Microsoft evidence --
     Write-Phase 'Retirement evidence (Microsoft Learn)'
-    $catalogResult = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath (Join-Path $skillRoot 'data/retirement-catalog.json') -Offline:$OfflineCatalog
+    $snapshotCatalogPath = if ($snapshotDir) { Join-Path $snapshotDir 'retirement-catalog.json' } else { $null }
+    if ($FromSnapshot -and (Test-Path -LiteralPath $snapshotCatalogPath) -and $snapshot.PSObject.Properties.Name -contains 'CatalogSource') {
+        # Replay the Microsoft evidence captured with the snapshot, labelled as it was at capture, so results are reproducible.
+        $catalogResult = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath $snapshotCatalogPath -Offline
+        $catalogResult.Source = $snapshot.CatalogSource
+        $catalogResult.Warning = $null
+    }
+    else {
+        $catalogResult = Get-RetirementCatalog -SeriesMapPath (Join-Path $skillRoot 'data/series-map.json') -CachePath (Join-Path $skillRoot 'data/retirement-catalog.json') -Offline:$OfflineCatalog -AsOf $AsOfDate
+    }
+    if ($SaveSnapshot) { $catalogResult.Catalog | ConvertTo-Json -Depth 20 | Out-File -LiteralPath $snapshotCatalogPath -Encoding utf8 }
     $retCatalog = $catalogResult.Catalog
     Write-PhaseDone "$($catalogResult.Source); $(@($retCatalog.series).Count) series, $(@(Get-UnmappedSeriesNames -Catalog $retCatalog).Count) unmapped"
     foreach ($u in @(Get-UnmappedSeriesNames -Catalog $retCatalog)) { Write-Warning "Unmapped Microsoft series '$u' - VMs of this series will be 'Unable to Confirm'." }
@@ -162,7 +262,9 @@ try {
     $weights = Get-Content (Join-Path $skillRoot 'data/scoring-weights.json') -Raw | ConvertFrom-Json
 
     # -- Inventory --
-    $inventory = Get-EstateInventory -SubscriptionIds @($subs | ForEach-Object id) -Regions $Region -TenantId $argTenant
+    # Every problem that leaves part of the data missing is recorded here, and reported in the console, run.log and all outputs.
+    $issueSink = New-CollectionIssueSink
+    $inventory = Get-EstateInventory -SubscriptionIds @($subs | ForEach-Object id) -Regions $Region -TenantId $argTenant -IssueSink $issueSink
     $vms = @($inventory.Vms)
     if ($rawDir) { $vms | ConvertTo-Json -Depth 8 -Compress | Out-File (Join-Path $rawDir 'vm-inventory.json') -Encoding utf8 }
 
@@ -179,13 +281,15 @@ try {
     $needPairs = @($needs | ForEach-Object { [pscustomobject]@{ SubscriptionId = $_.SubscriptionId; Region = $_.Region } } | Sort-Object SubscriptionId, Region -Unique)
     $allPairs = @($vms | ForEach-Object { [pscustomobject]@{ SubscriptionId = $_.SubscriptionId; Region = $_.Region } } | Sort-Object SubscriptionId, Region -Unique)
     Write-Phase "Resource SKUs (capabilities + restrictions): $($allPairs.Count) subscription/region pair(s)"
-    $skuCatalogs = if ($allPairs.Count) { Get-SkuCatalogs -Pairs $allPairs -RawCacheDir $rawDir -ThrottleLimit $ThrottleLimit } else { @{} }
-    $emptyCats = @($skuCatalogs.Keys | Where-Object { $skuCatalogs[$_].Count -eq 0 })
-    foreach ($k in $emptyCats) { Write-Warning "No SKU data returned for $k (permissions or provider registration)." }
+    $skuCatalogs = if ($allPairs.Count) { Get-SkuCatalogs -Pairs $allPairs -RawCacheDir $rawDir -ThrottleLimit $ThrottleLimit -IssueSink $issueSink } else { @{} }
     Write-PhaseDone "$($skuCatalogs.Count) catalogs"
-    Write-Phase "Compute quota usage: $($needPairs.Count) subscription/region pair(s)"
-    $usage = if ($needPairs.Count) { Get-QuotaUsages -Pairs $needPairs -ThrottleLimit $ThrottleLimit } else { @{} }
+    # A snapshot records quota for every subscription/region so a replay can enable --check-modernization later.
+    $quotaPairs = @(if ($SaveSnapshot) { $allPairs } else { $needPairs })
+    Write-Phase "Compute quota usage: $($quotaPairs.Count) subscription/region pair(s)"
+    $usage = if ($quotaPairs.Count) { Get-QuotaUsages -Pairs $quotaPairs -ThrottleLimit $ThrottleLimit -IssueSink $issueSink } else { @{} }
     Write-PhaseDone "$(@($usage.Keys | Where-Object { $usage[$_] }).Count) with data"
+    $collectionIssues = @(Get-CollectionIssue -Sink $issueSink)
+    foreach ($issue in $collectionIssues) { Write-Warning (Format-CollectionIssue $issue) }
 
     # -- Per-VM assessment --
     Write-Phase "Assessing $($vms.Count) VMs"
@@ -206,57 +310,94 @@ try {
     Write-PhaseDone "$($candidateCache.Count) distinct candidate evaluations"
 
     # -- Aggregated quota impact --
-    # Two scopes so optional modernization never inflates the quota needed for mandatory retirement migrations:
-    #   Retirement               : retirement-affected + unconfirmed VMs (used for their quota status)
-    #   Retirement+Modernization : all VMs with an action (used for modernization VMs' quota status)
+    # Scopes, so optional work never inflates the quota needed for mandatory retirement migrations:
+    #   Retirement               : retirement-affected + unconfirmed VMs, moving to their retirement target
+    #   Retirement+Modernization : all VMs with an action, moving to Candidates.Primary (also drives QuotaStatus of non-affected VMs)
+    #   Modernization            : -CheckModernization only; strategic v6/v7 target, steady-state and peak (side-by-side) demand
     Write-Phase 'Quota impact (aggregated per subscription / region / family)'
     foreach ($a in $assessments) { [void](Update-VmAction -Assessment $a -HorizonMonths $HorizonMonths) }
     if ($CheckModernization) {
-        [void](Resolve-ModernizationQuotaChoices -Assessments $assessments.ToArray() -Usage $usage -SafetyPct $QuotaSafetyPct)
+        [void](Resolve-ModernizationQuotaChoices -Assessments $assessments.ToArray() -Usage $usage)
     }
-    $toMove = { param($set) @($set | ForEach-Object {
-                [pscustomobject]@{ SubscriptionId = $_.Vm.SubscriptionId; Region = $_.Vm.Region; VmId = $_.Vm.Id; CurrentFamily = $_.Current.Family; CurrentVcpu = [int]$_.Current.vCPUs
-                    TargetSku = $_.Candidates.Primary.SkuName; TargetFamily = $_.Candidates.Primary.Family; TargetVcpu = [int]$_.Candidates.Primary.vCPUs; IsAllocated = $_.Vm.IsAllocated }
+    $toMoves = { param([object[]]$Set, [scriptblock]$Pick) @($Set | ForEach-Object {
+                $chosen = & $Pick $_
+                if (-not $chosen -or -not $chosen.Target) { return }
+                [pscustomobject]@{
+                    SubscriptionId = $_.Vm.SubscriptionId; Region = $_.Vm.Region; VmId = $_.Vm.Id
+                    CurrentFamily = $_.Current.Family; CurrentVcpu = [int]$_.Current.vCPUs
+                    TargetSku = $chosen.Target.SkuName; TargetFamily = $chosen.Target.Family; TargetVcpu = [int]$chosen.Target.vCPUs
+                    IsAllocated = $_.Vm.IsAllocated; MigrationQuotaModel = $chosen.Model
+                }
             }) }
+    $pickPrimary = { param($a) @{ Target = $a.Candidates.Primary; Model = 'InPlace' } }
+    $pickRetirement = { param($a)
+        $existing = if ($a.Candidates.Modernization) { $a.Candidates.Modernization.ExistingRecommendation } else { $null }
+        @{ Target = if ($existing) { $existing } else { $a.Candidates.Primary }; Model = 'InPlace' } }
+    $pickModernization = { param($a) $i = Get-ModernizationTargetInfo -Assessment $a; @{ Target = $i.Target; Model = $i.MigrationQuotaModel } }
+
     $withPrimary = @($assessments | Where-Object { $_.Candidates -and $_.Candidates.Primary -and $_.Action -ne 'No Action Required' })
     $mandatory = @($withPrimary | Where-Object { $_.AffectedByRetirement -in 'Yes', 'Unknown' })
-    $quotaRequired = Measure-QuotaImpact -Moves @(& $toMove $mandatory) -Usage $usage -SafetyPct $QuotaSafetyPct
-    $quotaAll = Measure-QuotaImpact -Moves @(& $toMove $withPrimary) -Usage $usage -SafetyPct $QuotaSafetyPct
-    foreach ($r in @($quotaRequired.FamilyRows + $quotaRequired.RegionalRows)) { $r | Add-Member -NotePropertyName Scope -NotePropertyValue 'Retirement' -Force }
-    foreach ($r in @($quotaAll.FamilyRows + $quotaAll.RegionalRows)) { $r | Add-Member -NotePropertyName Scope -NotePropertyValue 'Retirement+Modernization' -Force }
+    $quotaRetirement = Measure-QuotaImpact -Moves @(& $toMoves $mandatory $pickRetirement) -Usage $usage -SafetyPct $QuotaSafetyPct -Scope 'Retirement'
+    $quotaAll = Measure-QuotaImpact -Moves @(& $toMoves $withPrimary $pickPrimary) -Usage $usage -SafetyPct $QuotaSafetyPct -Scope 'Retirement+Modernization'
+    # QuotaStatus / Readiness follow Candidates.Primary. When modernization promoted Primary away from the retirement
+    # target, measure the mandatory set against Primary separately (not exported; Retirement rows stay lifecycle targets).
+    $promoted = @($mandatory | Where-Object { $r = & $pickRetirement $_; $r.Target -and $r.Target.SkuName -ne $_.Candidates.Primary.SkuName })
+    $quotaPrimaryMandatory = if ($promoted.Count -gt 0) { Measure-QuotaImpact -Moves @(& $toMoves $mandatory $pickPrimary) -Usage $usage -SafetyPct $QuotaSafetyPct } else { $quotaRetirement }
+    $quotaModern = $null
+    if ($CheckModernization) {
+        $modernSet = @($assessments | Where-Object { $_.Candidates })
+        $quotaModern = Measure-QuotaImpact -Moves @(& $toMoves $modernSet $pickModernization) -Usage $usage -SafetyPct $QuotaSafetyPct -Scope 'Modernization'
+    }
+    $scopes = @($quotaRetirement, $quotaAll) + @(if ($quotaModern) { $quotaModern })
     $quotaImpact = [pscustomobject]@{
-        FamilyRows = @($quotaRequired.FamilyRows) + @($quotaAll.FamilyRows)
-        RegionalRows = @($quotaRequired.RegionalRows) + @($quotaAll.RegionalRows)
+        FamilyRows = @($scopes | ForEach-Object { $_.FamilyRows })
+        RegionalRows = @($scopes | ForEach-Object { $_.RegionalRows })
     }
+    $byVm = { param($result, $id) if ($result -and $result.ByVm.ContainsKey($id)) { $result.ByVm[$id] } else { $null } }
     foreach ($a in $assessments) {
-        $src = if ($a.AffectedByRetirement -in 'Yes', 'Unknown') { $quotaRequired } else { $quotaAll }
-        $q = if ($src.ByVm.ContainsKey($a.Vm.Id)) { $src.ByVm[$a.Vm.Id] } else { $null }
-        [void](Complete-VmAssessment -Assessment $a -QuotaResult $q -Usage $usage -HorizonMonths $HorizonMonths)
+        $id = $a.Vm.Id
+        $q = if ($a.AffectedByRetirement -in 'Yes', 'Unknown') { & $byVm $quotaPrimaryMandatory $id } else { & $byVm $quotaAll $id }
+        [void](Complete-VmAssessment -Assessment $a -QuotaResult $q -RetirementQuotaResult (& $byVm $quotaRetirement $id) `
+                -ModernizationQuotaResult (& $byVm $quotaModern $id) -Usage $usage -HorizonMonths $HorizonMonths `
+                -CollectionIssues @($collectionIssues | Where-Object { $_.SubscriptionId -eq $a.Vm.SubscriptionId -and $_.Region -eq $a.Vm.Region }))
     }
-    Write-PhaseDone "$(@($quotaRequired.FamilyRows + $quotaRequired.RegionalRows | Where-Object Status -eq 'Quota Increase Required').Count) retirement-scope quota(s) need an increase; $(@($quotaAll.FamilyRows + $quotaAll.RegionalRows | Where-Object Status -eq 'Quota Increase Required').Count) incl. modernization"
-
+    $increase = { param($result) if ($result) { @($result.FamilyRows + $result.RegionalRows | Where-Object Status -eq 'Quota Increase Required').Count } else { 0 } }
+    $phase = "$(& $increase $quotaRetirement) retirement-scope quota(s) need an increase; $(& $increase $quotaAll) incl. modernization"
+    if ($quotaModern) { $phase += "; $(& $increase $quotaModern) for v6/v7 targets ($(@($quotaModern.FamilyRows + $quotaModern.RegionalRows | Where-Object PeakStatus -eq 'Quota Increase Required').Count) at peak)" }
+    Write-PhaseDone $phase
     # -- Optional: rightsizing --
     if ($IncludeRightsizing) {
         $targets = @($assessments | Where-Object { $_.Candidates -and $_.Candidates.Primary -and $_.Action -ne 'No Action Required' -and $_.Vm.PowerState -eq 'Running' })
         Write-Phase "Rightsizing telemetry (Azure Monitor, $RightsizingLookbackDays days): $($targets.Count) VMs"
         if ($targets.Count -eq 0) { Write-PhaseDone 'no running VMs with an action' }
         else { try {
-            $util = Get-VmUtilization -Vms @($targets | ForEach-Object Vm) -LookbackDays $RightsizingLookbackDays -TenantId $argTenant
+            $util = Get-VmUtilization -Vms @($targets | ForEach-Object Vm) -LookbackDays $RightsizingLookbackDays -TenantId $argTenant -IssueSink $issueSink
             foreach ($a in $targets) {
                 $key = "$($a.Vm.SubscriptionId)|$($a.Vm.Region)".ToLowerInvariant()
-                $a.Rightsizing = Get-RightsizingOpportunity -Utilization $util[$a.Vm.Id] -Primary $a.Candidates.Primary -RegionCatalog $skuCatalogs[$key] -MemoryGB $a.Current.MemoryGB
+                $a.Rightsizing = Get-RightsizingOpportunity -Utilization $util[$a.Vm.Id] -Primary $a.Candidates.Primary -RegionCatalog $skuCatalogs[$key] -MemoryGB $a.Current.MemoryGB -Vm $a.Vm -Current $a.Current -ProcessorCatalog $procCatalog
             }
             Write-PhaseDone "$(@($targets | Where-Object { $_.Rightsizing -and $_.Rightsizing.Status -eq 'Potential Rightsizing Opportunity' }).Count) potential opportunities"
         }
-        catch { Write-Warning "Rightsizing telemetry unavailable: $($_.Exception.Message)" } }
+        catch {
+            $safe = ConvertTo-SafeCliMessage $_.Exception.Message
+            Write-Warning "Rightsizing telemetry unavailable: $safe"
+            Add-CollectionIssue -Sink $issueSink -Api 'Azure Monitor metrics (rightsizing)' -Message $safe -Effect 'Rightsizing opportunities are not shown.'
+        } }
     }
 
     # -- Optional: pricing --
-    if ($IncludePricing) {
+    if ($pricingEnabled) {
         Write-Phase 'Retail pricing (informational, PAYGO USD)'
+        $completedPricingRegions = 0
         foreach ($rg in ($assessments | Group-Object { $_.Vm.Region })) {
             $skuSet = @($rg.Group | ForEach-Object { $_.Vm.SkuName; if ($_.Candidates -and $_.Candidates.Primary) { $_.Candidates.Primary.SkuName; if ($_.Candidates.Secondary) { $_.Candidates.Secondary.SkuName } } } | Sort-Object -Unique)
-            $prices = Get-RetailPrices -Region $rg.Name -SkuNames $skuSet
+            try { $prices = Get-RetailPrices -Region $rg.Name -SkuNames $skuSet }
+            catch {
+                $pricingStatus = if ($completedPricingRegions -gt 0) { 'Partial' } else { 'Unavailable' }
+                Write-Warning "Retail pricing unavailable for region '$($rg.Name)'. Incomplete region prices discarded; prices from $completedPricingRegions completed region(s) retained. Remaining regions skipped. $($_.Exception.Message) Use -SkipPricing to skip this step."
+                Add-CollectionIssue -Sink $issueSink -Api 'Azure Retail Prices' -Region $rg.Name -Message (ConvertTo-SafeCliMessage $_.Exception.Message) -Effect 'Pricing is unavailable or partial (see pricingStatus in assessment.json).'
+                break
+            }
             foreach ($a in $rg.Group) {
                 $os = if ($a.Vm.OsType -eq 'Windows') { 'Windows' } else { 'Linux' }
                 $cur = $prices["$($a.Vm.SkuName.ToLowerInvariant())|$os"]
@@ -266,35 +407,57 @@ try {
                     Basis = 'Retail pay-as-you-go list price x 730 h; excludes EA/MCA discounts, reservations, savings plans, Azure Hybrid Benefit'
                 }
             }
+            $completedPricingRegions++
         }
-        Write-PhaseDone
+        Write-PhaseDone $(if ($pricingStatus -eq 'Done') { '' } else { $pricingStatus.ToLowerInvariant() })
     }
-
-    # -- Outputs --
     Write-Phase 'Writing outputs'
+    $collectionIssues = @(Get-CollectionIssue -Sink $issueSink)
     $summary = New-AssessmentSummary -Assessments $assessments.ToArray() -SubscriptionsScanned $subs.Count
     $run = [pscustomobject]@{
         GeneratedUtc = (Get-Date).ToUniversalTime().ToString('o'); AsOf = $AsOfDate; ToolVersion = (Get-ToolVersion)
         Tenant = [pscustomobject]@{ Id = $tenantId; Name = $tenantName }; Account = $accountDisplay
+        DataSource = if ($snapshot) { "Snapshot captured $snapshotCaptured" } else { 'Live' }
+        SnapshotAgeDays = if ($snapshot) { $snapshotAgeDays } else { $null }
+        PricingStatus = $pricingStatus
         Parameters = [ordered]@{
             TenantId = $tenantId; SubscriptionId = $SubscriptionId; Region = $Region; HorizonMonths = $HorizonMonths; OfflineCatalog = [bool]$OfflineCatalog; QuotaSafetyPct = $QuotaSafetyPct
-            MaxCandidates = $MaxCandidates; IncludeRightsizing = [bool]$IncludeRightsizing; RightsizingLookbackDays = $RightsizingLookbackDays; IncludePricing = [bool]$IncludePricing
+            MaxCandidates = $MaxCandidates; IncludeRightsizing = [bool]$IncludeRightsizing; RightsizingLookbackDays = $RightsizingLookbackDays; IncludePricing = $pricingEnabled; SkipPricing = [bool]$SkipPricing
             CheckModernization = [bool]$CheckModernization; IncludeOperatorAccount = [bool]$IncludeOperatorAccount; KeepRawData = [bool]$KeepRawData
+            SaveSnapshot = [bool]$SaveSnapshot; FromSnapshot = [bool]$FromSnapshot
+            HtmlIncludeOptionalModernization = [bool]$HtmlIncludeOptionalModernization; HtmlMaxVmDetails = $HtmlMaxVmDetails; ExtendedDetails = [bool]$ExtendedDetails
         }
         Counts = $inventory.Counts
     }
-    $rows = @(Export-AssessmentData -OutDir $OutputPath -Run $run -Assessments $assessments.ToArray() -Summary $summary -QuotaImpact $quotaImpact -CatalogResult $catalogResult -Inventory $inventory)
-    Export-ExecutiveSummaryMarkdown -Path (Join-Path $OutputPath 'executive-summary.md') -Run $run -Summary $summary -Rows $rows -QuotaImpact $quotaImpact -CatalogResult $catalogResult
+    $rows = @(Export-AssessmentData -OutDir $OutputPath -Run $run -Assessments $assessments.ToArray() -Summary $summary -QuotaImpact $quotaImpact -CatalogResult $catalogResult -Inventory $inventory -CollectionIssues $collectionIssues)
+    Export-ExecutiveSummaryMarkdown -Path (Join-Path $OutputPath 'executive-summary.md') -Run $run -Summary $summary -Rows $rows -QuotaImpact $quotaImpact -CatalogResult $catalogResult -CollectionIssues $collectionIssues
     Export-DetailedReportMarkdown -Path (Join-Path $OutputPath 'detailed-report.md') -Assessments $assessments.ToArray() -Run $run
-    if (-not $SkipHtml) { Export-HtmlReports -OutDir $OutputPath -CssPath (Join-Path $skillRoot 'templates/report.css') -Run $run -Summary $summary -Assessments $assessments.ToArray() -QuotaImpact $quotaImpact -CatalogResult $catalogResult -ProcessorCatalog $procCatalog }
+    if (-not $SkipHtml) { Export-HtmlReports -OutDir $OutputPath -CssPath (Join-Path $skillRoot 'templates/report.css') -Run $run -Summary $summary -Assessments $assessments.ToArray() -QuotaImpact $quotaImpact -CatalogResult $catalogResult -ProcessorCatalog $procCatalog -CollectionIssues $collectionIssues }
     Write-PhaseDone
+
+    if ($SaveSnapshot) {
+        # The manifest is written last, so an interrupted capture is never mistaken for a complete snapshot.
+        [ordered]@{
+            SnapshotVersion = 1; Tool = 'VMSKURetirementReport'; ToolVersion = (Get-ToolVersion); CapturedUtc = $startTime.ToUniversalTime().ToString('o')
+            AsOfDate = $AsOfDate.ToString('yyyy-MM-dd'); TenantId = $tenantId; TenantName = $tenantName; CatalogSource = $catalogResult.Source
+            SubscriptionId = @(if ($SubscriptionId) { $SubscriptionId }); Region = @(if ($Region) { $Region })
+            Subscriptions = $subs.Count; Vms = $vms.Count; IncludeRightsizing = [bool]$IncludeRightsizing; RightsizingLookbackDays = $RightsizingLookbackDays
+            Note = 'Raw Azure read responses (inventory, Resource SKUs, quota, Advisor / Service Health) and the Microsoft retirement evidence used. No access tokens; the signed-in account is masked. Treat as confidential inventory data.'
+        } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $snapshotDir 'snapshot.json') -Encoding utf8
+        Write-Host "Snapshot: $(ConvertTo-DisplayPath $snapshotDir) (replay with -FromSnapshot)" -ForegroundColor Green
+    }
 
     Write-Host ''
     Write-Host '==== Summary ====' -ForegroundColor Cyan
     $summary | Select-Object TotalSubscriptionsScanned, TotalVmsScanned, AffectedVms, AlreadyRetired, RetirementWithin12Months, RetirementWithin24Months, RetirementWithin36Months, ModernizationRecommended, ModernizationOptional, UnableToDetermine, VmsRequiringQuotaIncrease, VmsWithRegionalRestrictions, VmsRequiringCpuVendorChange, VmsRequiringManualReview, HighConfidence, MediumConfidence, LowConfidence | Format-List | Out-String | Write-Host
     Write-Host "Outputs: $(ConvertTo-DisplayPath $OutputPath)" -ForegroundColor Green
+    if ($collectionIssues.Count) { Write-Host "Data-collection issues: $($collectionIssues.Count). Results for the affected scopes are incomplete; the causes are listed in executive-summary.md, the HTML reports and assessment.json (collectionIssues)." -ForegroundColor Yellow }
     Write-Host ("Elapsed: {0:N0}s" -f ((Get-Date) - $startTime).TotalSeconds)
 }
 finally {
     Stop-Transcript | Out-Null
+    # A caught error is written to the transcript as it is raised, so an HTTP error body that names the signed-in account and its
+    # object id is in run.log before the report can sanitize it. The account the operator asked to see stays.
+    Protect-RunLog -Path (Join-Path $OutputPath 'run.log') -Keep @(if ($IncludeOperatorAccount) { $accountName })
+    & $restoreSnapshotEnv
 }

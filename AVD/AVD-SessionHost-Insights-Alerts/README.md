@@ -1,4 +1,4 @@
-﻿# AVD Session Host Insights LogicApp Alerts
+# AVD Session Host Insights LogicApp Alerts
 
 ## Overview
 
@@ -193,17 +193,6 @@ These are category-consolidated scheduled query alerts built on AVD Insights tel
 
 See [LICENSE](../LICENSE) file for details.
 
-## Disclaimer
-
-**THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.**
-
-This solution is provided as-is under the MIT License. The authors and contributors:
-
-- Make no warranties or guarantees about functionality, reliability, or suitability for any purpose
-- Accept no responsibility or liability for damages, data loss, service interruptions, or other impacts from use
-- Provide no support or maintenance obligations, though community contributions are welcome
-- Recommend thorough testing in non-production environments before production rollout
-
 ### Important Notes
 
 - Test first in a development or staging environment before production rollout
@@ -212,4 +201,23 @@ This solution is provided as-is under the MIT License. The authors and contribut
 - Review Azure Monitor and Log Analytics ingestion costs before broad enablement
 - Ensure organizational security and compliance requirements are met
 
-By using this solution, you acknowledge and accept these terms and assume all associated risks.
+### Disclaimer – Independent Community Tools
+
+**These tools are provided "AS IS," without warranties or guarantees of any kind.**
+
+These independently developed tools, scripts, dashboards and workbooks are **not an official Microsoft product or Microsoft-supported solution**. Microsoft does not provide support, maintenance, warranties, or guarantees for these tools or their outputs.
+
+Monitoring results, deployment guidance and any assessment or migration recommendations are provided for informational and planning purposes only. Findings may not reflect the latest Azure capabilities, regional availability, pricing, retirement announcements, or Microsoft documentation.
+
+**Before making production changes, users must independently validate, as applicable:**
+
+- VM SKU compatibility and supported migration paths.
+- Regional SKU availability and subscription quotas.
+- Pricing and capacity requirements.
+- VM generation, disk controller, NVMe, and storage compatibility.
+- Redeployment, downtime, and migration requirements.
+- Official Azure retirement dates and Microsoft documentation.
+
+Users are solely responsible for validating assessment findings, evaluating potential operational impacts, and planning and executing changes within their environments.
+
+**Use of these tools and reliance on its outputs are at the user's own risk.**

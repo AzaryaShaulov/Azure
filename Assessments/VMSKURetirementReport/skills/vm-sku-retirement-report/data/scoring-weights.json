@@ -22,6 +22,7 @@
     { "min": 0,  "label": "Manual Review Required" }
   ],
   "primarySelection": {
-    "preferNewestGenerationAtOrAboveScore": 80
+    "preferNewestGenerationAtOrAboveScore": 80,
+    "maxLargerSizeSteps": 2
   }
 }

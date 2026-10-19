@@ -1,14 +1,19 @@
 #Requires -Modules @{ ModuleName = 'Pester'; ModuleVersion = '5.0.0' }
 <#
     End-to-end run of Invoke-VMSKURetirementReport.ps1 against a mock Azure CLI (tests/mock/az.ps1).
-    Exercises inventory joins, subscription-scoped SKU catalogs, aggregated quota, two quota scopes and all outputs.
+    Exercises inventory joins, subscription-scoped SKU catalogs, aggregated quota, the Retirement / Retirement+Modernization /
+    Modernization quota scopes and all outputs.
 #>
 BeforeAll {
     $script:Root = Split-Path $PSScriptRoot -Parent
     $script:Out = Join-Path $TestDrive 'run'
     $mockDir = Join-Path $PSScriptRoot 'mock'
     $env:PATH = "$mockDir$([System.IO.Path]::PathSeparator)$env:PATH"
-    $script:Log = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$Out' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+    # Retail pricing is on by default; these shims keep it offline (fixture prices, or a blocked API).
+    $prices = Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json'
+    $script:PricesShim = "function global:Invoke-RestMethod { param([string]`$Uri, [int]`$TimeoutSec) if (`$Uri -like 'https://prices.azure.com/*') { return (Get-Content -LiteralPath '$prices' -Raw | ConvertFrom-Json) }; throw `"Test is offline; blocked request to `$Uri`" }"
+    $script:BlockedPricesShim = "function global:Invoke-RestMethod { param([string]`$Uri, [int]`$TimeoutSec) throw `"Test is offline; blocked request to `$Uri`" }"
+    $script:Log = & pwsh -NoProfile -Command "$PricesShim; `$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$Out' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
     $script:Rows = if (Test-Path (Join-Path $Out 'vm-assessment.csv')) { Import-Csv (Join-Path $Out 'vm-assessment.csv') } else { @() }
     $script:ByVm = @{}; foreach ($r in $Rows) { $ByVm[$r.VM] = $r }
 }
@@ -20,6 +25,43 @@ Describe 'End-to-end assessment (mock Azure)' {
             Join-Path $Out $f | Should -Exist
         }
         $Rows.Count | Should -Be 7
+    }
+    It 'links the source repository from every human-readable report' {
+        foreach ($file in Get-ChildItem $Out -Filter '*.html') {
+            (Get-Content $file.FullName -Raw) | Should -Match '<a href="https://github.com/AzaryaShaulov/Azure" target="_blank" rel="noopener noreferrer">Source repository</a>'
+        }
+        foreach ($name in 'executive-summary.md', 'detailed-report.md') {
+            (Get-Content (Join-Path $Out $name) -Raw) | Should -Match '\[Source repository\]\(https://github.com/AzaryaShaulov/Azure\)'
+        }
+    }
+    It 'includes one standard disclaimer in all supported report formats' {
+            $warranty = 'This assessment and its recommendations are provided "AS IS," without warranties or guarantees.'
+            $independence = 'This independently developed tool is not an official Microsoft product and is not supported or endorsed by Microsoft.'
+            $validation = 'Findings, retirement timelines, SKU compatibility, and modernization recommendations are informational only. Users must verify all recommendations, regional availability, quotas, pricing, VM generation, storage compatibility, and migration requirements against current official Microsoft documentation before implementing production changes.'
+            $expected = "$warranty $independence`n`n$validation"
+            foreach ($file in Get-ChildItem $Out -Filter '*.html') {
+                $html = Get-Content $file.FullName -Raw
+                $html | Should -Match '<h2>Disclaimer</h2>'
+                ([regex]::Matches($html, 'class="callout disclaimer"')).Count | Should -Be 1
+                $html.IndexOf('class="callout disclaimer"') | Should -BeLessThan $html.IndexOf('<footer>')
+                $plain = [Net.WebUtility]::HtmlDecode(($html -replace '<[^>]+>', ' '))
+                $plain | Should -Match ([regex]::Escape($warranty))
+                $plain | Should -Match ([regex]::Escape($independence))
+                $plain | Should -Match ([regex]::Escape($validation))
+            }
+            foreach ($name in 'executive-summary.md', 'detailed-report.md') {
+                $md = Get-Content (Join-Path $Out $name) -Raw
+                ([regex]::Matches($md, '(?m)^## Disclaimer\r?$')).Count | Should -Be 1
+                $md | Should -Match ([regex]::Escape("**$warranty** $independence"))
+                $md.TrimEnd() | Should -Match ([regex]::Escape($validation) + '$')
+            }
+            foreach ($name in 'assessment.json', 'retirement-evidence.json') {
+                $j = Get-Content (Join-Path $Out $name) -Raw | ConvertFrom-Json -Depth 40
+                $j.disclaimer.Replace("`r`n", "`n") | Should -Be $expected
+            }
+            foreach ($name in 'vm-assessment.csv', 'candidates.csv', 'quota-impact.csv') {
+                (Get-Content (Join-Path $Out $name) -Raw) | Should -Not -Match 'without warranties or guarantees|Disclaimer'
+            }
     }
     It 'keeps operator details out of the shared outputs by default' {
         (Get-Content (Join-Path $Out 'assessment.json') -Raw | ConvertFrom-Json).signedInAccount | Should -Be 'a****@contoso.example'
@@ -77,14 +119,260 @@ Describe 'End-to-end assessment (mock Azure)' {
         $sub | Should -Not -BeNullOrEmpty
         (Get-Content $sub.FullName -Raw) | Should -Match 'Tenant summary'
     }
+    It 'lists only VMs on End of Life or retired sizes that need action in the HTML, under Overview' {
+        $html = Get-Content (Get-ChildItem $Out -Filter 'contoso-prod-*.html').FullName -Raw
+        $html | Should -Match '<h2>VMs with Retiring SKUs</h2>'
+        $html | Should -Not -Match 'VM Assessment</h2>|Recommendations in Detail'
+        # The details are collapsed rows under each VM; there is no separate details section, heading or navigation link.
+        $html | Should -Not -Match "<h2>VMs with Retiring SKUs details</h2>|id='details'|href='#details'"
+        $html.IndexOf("id='overview'") | Should -BeLessThan $html.IndexOf("id='vms'")
+        $html.IndexOf("id='vms'") | Should -BeLessThan $html.IndexOf("id='quota'")
+        # The retirement band holds the retiring-VM section; there is no modernization part.
+        $html | Should -Match "<div class='track track-retirement' id='track-retirement'"
+        $html.IndexOf("id='track-retirement'") | Should -BeLessThan $html.IndexOf("id='vms'")
+        $html | Should -Not -Match "id='track-modernization'"
+        $html | Should -Match "<span class='toc-group toc-retirement'><span class='toc-group-label'>Retirement</span>"
+        $html | Should -Match "class='track-tile track-tile-retirement' href='#track-retirement'"
+        $retiring = @($Rows | Where-Object { $_.AffectedByRetirement -eq 'Yes' -and $_.LifecycleStage -in 'End of Life', 'Retired' -and $_.Action -ne 'No Action Required' })
+        $excluded = @($Rows | Where-Object { $_.VM -notin $retiring.VM })
+        $retiring.Count | Should -BeGreaterThan 0
+        $excluded.Count | Should -BeGreaterThan 0
+        foreach ($r in $retiring) { $html | Should -Match ">$([regex]::Escape($r.VM))<" }
+        foreach ($r in $excluded) { $html | Should -Not -Match ">$([regex]::Escape($r.VM))<" }
+        $Rows.Count | Should -Be 7
+        # One merged table row and one collapsed detail row per listed VM; the required retirement date and stage are in the row.
+        $summaryRows = [regex]::Matches($html, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>")
+        $summaryRows.Count | Should -Be $retiring.Count
+        foreach ($row in $summaryRows) {
+            ([regex]::Matches($row.Value, '<td[ >]')).Count | Should -Be 7
+            $row.Value | Should -Match "<span class='badge b-(orange|red)'>(End of Life|Retired)</span>"
+            $row.Value | Should -Match "<input type='checkbox' class='vm-toggle' id='tg-vm-[^']+'"
+        }
+        # The retirement date is data only (CSV and JSON); the HTML report does not show it.
+        foreach ($r in @($retiring | Where-Object RetirementDate)) { $html | Should -Not -Match ([regex]::Escape($r.RetirementDate)) }
+        $html | Should -Not -Match 'Earliest retirement|earliest retirement date|retires <strong>'
+        # Each summary row is followed by its own collapsed detail row spanning the table.
+        ([regex]::Matches($html, "<tr class='vm-detail-row' id='vm-[^']+-details'><td colspan='7' class='vm-detail-cell'>")).Count | Should -Be $retiring.Count
+        ([regex]::Matches($html, "(?s)</tr>\s*<tr class='vm-detail-row'")).Count | Should -Be $retiring.Count
+        $html | Should -Not -Match '<details class="vm"'
+        $html | Should -Not -Match 'modernization-vm-detail|modernization-table|Optional &middot; v6/v7 modernization'
+    }
+    It 'keeps the retirement date in the CSV and JSON but not in the Markdown reports' {
+        $ds3 = @($Rows | Where-Object VM -eq 'vm-ds3v2')[0]
+        $ds3.RetirementDate | Should -Be '2028-05-01'
+        foreach ($name in 'executive-summary.md', 'detailed-report.md') {
+            $text = Get-Content (Join-Path $Out $name) -Raw
+            $text | Should -Not -Match '2028-05-01'
+            $text | Should -Not -Match '\| Retirement Date \||\| Months Remaining \|'
+        }
+    }
+    It 'keeps every existing vm-assessment.csv column in its original position and only appends new ones' {
+        $original = 'Subscription, SubscriptionId, ResourceGroup, VM, VmResourceId, Region, Zone, PowerState, OsType, HyperVGeneration, CurrentSku, CurrentSkuGeneration, VmFamily, CpuVendor, CpuArchitecture, vCPU, MemoryGB, AffectedByRetirement, EvidenceClass, RetirementStatus, RetirementDate, TimeRemaining, Urgency, RecommendedSku, RecommendedSkuGeneration, TargetCpuVendor, TargetCpuArchitecture, TargetvCPU, TargetMemoryGB, CompatibilityScore, ScoreBand, CpuVendorPreserved, CpuVendorChangeRequired, RegionAvailable, CurrentVcpu, CurrentMemoryGB, RecommendedVcpu, RecommendedMemoryGB, SkuRegionalAvailability, QuotaStatus, ModernizationStatus, RecommendationReason, QuotaFamily, QuotaMinIncreaseFamily, QuotaMinIncreaseRegional, DeploymentReadiness, Confidence, Action, NextStep, Wave, AlternativeSku, AlternativeScore, AlternativeReason, ThirdCandidateSku, NewerGenerationIfConverted, NoCandidateReason, VendorChangeReason, MaterialDifferences, ValidationItems, RightsizingStatus, RightsizingSuggestedSku, CurrentMonthlyUSD, TargetMonthlyUSD, MicrosoftSource, AnnouncementUrl, MigrationGuideUrl, DQ_RetirementDate, DQ_CpuVendor, DQ_RegionalAvailability, DQ_Quota, DQ_PhysicalCapacity, LifecycleNotes, RetirementTargetSku, RetirementTargetGeneration, RetirementQuotaStatus, ModernizationTargetSku, ModernizationTargetGeneration, ModernizationTargetSource, ModernizationPath, ModernizationComplexity, ModernizationReadiness, ModernizationQuotaStatus, ModernizationPeakQuotaStatus, MigrationQuotaModel, RecommendedMigrationPath, ModernizationValidationItems, LifecycleStage' -split ',\s*'
+        $original.Count | Should -Be 87
+        $header = @((Get-Content (Join-Path $Out 'vm-assessment.csv') -TotalCount 1) -replace '"', '' -split ',')
+        @($header[0..($original.Count - 1)]) | Should -Be $original
+        @($header[$original.Count..($header.Count - 1)]) | Should -Be @('ModernizationMaterialDifferences')
+    }
+    It 'reports the Microsoft lifecycle stage (End of Life / Retired) for every VM' {
+        $ByVm['vm-ds3v2'].LifecycleStage | Should -Be 'End of Life'
+        $ByVm['vm-d4sv3'].LifecycleStage | Should -Be 'End of Life'
+        $ByVm['vm-nc6'].LifecycleStage | Should -Be 'Retired'
+        $ByVm['vm-d4sv5'].LifecycleStage | Should -Be 'Not End of Life'
+        $html = Get-Content (Get-ChildItem $Out -Filter 'contoso-prod-*.html').FullName -Raw
+        $html | Should -Match "<span class='badge b-orange'>End of Life</span>"
+        $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/sizes/lifecycle/end-of-life-sizes-list'
+        (Get-Content (Join-Path $Out 'detailed-report.md') -Raw) | Should -Match 'Microsoft Lifecycle Stage'
+    }
+    It 'collapses the guidance and reference sections and combines the upgrade path with example steps' {
+        foreach ($page in @(Get-ChildItem $Out -Filter '*.html')) {
+            $html = Get-Content $page.FullName -Raw
+            foreach ($id in 'upgrade-guidance', 'cross-vendor', 'sku-families', 'cpu-vendor', 'limitations') {
+                $html | Should -Match "<details id='$id' class='card collapsible-section'>"
+                $html | Should -Not -Match "<details id='$id'[^>]+open"
+            }
+            $html | Should -Match '<h3>Recommended steps by migration path</h3>'
+            $html | Should -Match 'Upgrade and Modernization Scenarios'
+            $html | Should -Not -Match 'Upgrade Path and SCSI to NVMe Guidance'
+            foreach ($path in 'Direct Resize', 'SCSI to NVMe \+ Resize', 'Gen1 \+ NVMe \+ Resize', 'Gen1 Modernization \+ Resize', 'Redeploy / Rebuild Review') { $html | Should -Match "<td class='path-name'>$path</td>" }
+            ([regex]::Matches($html, '<ol class=.steps.>')).Count | Should -Be 5
+            $html | Should -Not -Match 'Migration Path Examples'
+            $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/nvme-linux'
+            $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/migration/scsi-to-nvme-migration'
+            $html | Should -Match 'https://learn\.microsoft\.com/azure/virtual-machines/trusted-launch-existing-vm-gen-1'
+        }
+    }
+    It 'keeps modernization outputs empty without --check-modernization' {
+        $q = @(Import-Csv (Join-Path $Out 'quota-impact.csv'))
+        @($q | Where-Object Scope -eq 'Modernization').Count | Should -Be 0
+        @($q | Where-Object Scope -eq 'Retirement+Modernization').Count | Should -BeGreaterThan 0
+        @($Rows | Where-Object { $_.ModernizationTargetSku -or $_.ModernizationPath -or $_.MigrationQuotaModel }).Count | Should -Be 0
+        $ByVm['vm-ds3v2'].RetirementTargetSku | Should -Be 'Standard_D4ds_v5'
+        $ByVm['vm-ds3v2'].RecommendedMigrationPath | Should -Be 'Retire to Standard_D4ds_v5'
+        $ByVm['vm-ds3v2'].NewerGenerationIfConverted | Should -Match '^Standard_D4s_v6'
+        $sub = Get-ChildItem $Out -Filter 'contoso-prod-*.html'
+        (Get-Content $sub.FullName -Raw) | Should -Not -Match "id='modernization'"
+        # The v6/v7 status is hidden in the Recommended size column when the check was not run.
+        $vmTable = [regex]::Match((Get-Content $sub.FullName -Raw), "(?s)<table class='vm-table'>.*?</tbody></table></div></div>").Value
+        $vmTable | Should -Not -BeNullOrEmpty
+        $vmTable | Should -Not -Match 'Not Evaluated|v6/v7:'
+    }
+    It 'includes retail PAYGO pricing by default' {
+        $j = Get-Content (Join-Path $Out 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        $j.pricingStatus | Should -Be 'Done'
+        $j.parameters.IncludePricing | Should -BeTrue
+        $j.parameters.SkipPricing | Should -BeFalse
+        $ByVm['vm-ds3v2'].CurrentMonthlyUSD | Should -Not -BeNullOrEmpty
+        $ByVm['vm-ds3v2'].TargetMonthlyUSD | Should -Not -BeNullOrEmpty
+        $html = Get-Content (Get-ChildItem $Out -Filter 'contoso-prod-*.html').FullName -Raw
+        $html | Should -Match "<td class='num nowrap'>\`$\d+ &rarr; \`$\d+</td>"
+    }
+    It 'rejects -IncludePricing together with -SkipPricing' {
+        $log = & pwsh -NoProfile -Command "& '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -IncludePricing -SkipPricing" 2>&1 | Out-String
+        (($log -replace '\s*\|\s*', ' ') -replace '\s+', ' ') | Should -Match '-IncludePricing and -SkipPricing cannot be used together'
+    }
+}
+
+Describe 'End-to-end pricing pagination failures (mock Azure)' {
+    It 'discards the incomplete region and reports <Status>' -ForEach @(
+        @{ FailedRegion = 'eastus2'; Status = 'Unavailable'; CompletedRegions = 0 }
+        @{ FailedRegion = 'westus2'; Status = 'Partial'; CompletedRegions = 1 }
+    ) {
+        $out = Join-Path $TestDrive "pricing-$Status"
+        $requests = Join-Path $TestDrive "pricing-$Status-requests.txt"
+        $prices = Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json'
+        $mockDir = Join-Path $PSScriptRoot 'mock'
+        $shim = @"
+function global:Invoke-RestMethod {
+    param([string]`$Uri, [int]`$TimeoutSec)
+    Add-Content -LiteralPath '$requests' -Value `$Uri
+    if (`$Uri -eq 'https://prices.azure.com/$FailedRegion/page2') { throw 'later page blocked' }
+    if (`$Uri -notlike 'https://prices.azure.com/*') { throw "Test is offline; blocked request to `$Uri" }
+    `$response = Get-Content -LiteralPath '$prices' -Raw | ConvertFrom-Json
+    if (`$Uri -match "armRegionName eq '$FailedRegion'") { `$response.NextPageLink = 'https://prices.azure.com/$FailedRegion/page2' }
+    return `$response
+}
+function global:Start-Sleep { param([int]`$Seconds) }
+"@
+        $log = & pwsh -NoProfile -Command "$shim; `$env:MOCK_AZ_MULTI_REGION='1'; `$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$out' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+        $log | Should -Match 'Outputs:'
+        $flat = ($log -replace '\s*\|\s*', ' ') -replace '\s+', ' '
+        ([regex]::Matches($flat, 'Retail pricing unavailable')).Count | Should -Be 1
+        $flat | Should -Match "prices from $CompletedRegions completed region\(s\) retained"
+        $j = Get-Content (Join-Path $out 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        $j.pricingStatus | Should -Be $Status
+        $rows = @(Import-Csv (Join-Path $out 'vm-assessment.csv'))
+        @($rows | Where-Object { $_.Region -eq $FailedRegion -and ($_.CurrentMonthlyUSD -or $_.TargetMonthlyUSD) }).Count | Should -Be 0
+        @($j.vms | Where-Object { $_.row.Region -eq $FailedRegion -and $null -ne $_.pricing }).Count | Should -Be 0
+        if ($CompletedRegions) {
+            @($rows | Where-Object { $_.Region -eq 'eastus2' -and $_.CurrentMonthlyUSD }).Count | Should -BeGreaterThan 0
+        }
+        else {
+            @($rows | Where-Object { $_.CurrentMonthlyUSD -or $_.TargetMonthlyUSD }).Count | Should -Be 0
+        }
+        (Get-Content $requests -Raw) | Should -Not -Match "armRegionName eq 'westus3'"
+        (Get-Content (Join-Path $out 'index.html') -Raw) | Should -Match ">${Status}</span>"
+        $html = Get-Content (Get-ChildItem $out -Filter 'contoso-prod-*.html').FullName -Raw
+        $failedVm = if ($FailedRegion -eq 'eastus2') { 'vm-ds3v2' } else { 'vm-d4sv3' }
+        $failedRow = [regex]::Match($html, "(?s)<tr class='vm-summary-row[^']*'[^>]*><td>(<input[^>]+><label[^>]+>Details</label>)?<span class='strong'>$failedVm</span>.*?</tr>").Value
+        $failedRow | Should -Not -BeNullOrEmpty
+        $failedRow | Should -Not -Match '\$\d'
+    }
+}
+
+Describe 'End-to-end rightsizing (mock Azure)' {
+    BeforeAll {
+        $mockDir = Join-Path $PSScriptRoot 'mock'
+        $script:RsOut = Join-Path $TestDrive 'rightsizing'
+        # The fixture sizes plus a 2-vCPU Ddsv5 size that is not offered in zone 3: the VM without a zone can be suggested it,
+        # the zonal VM cannot.
+        $skus = @(Get-Content (Join-Path $PSScriptRoot 'fixtures/skus-eastus2.json') -Raw | ConvertFrom-Json)
+        $half = (@($skus | Where-Object name -eq 'Standard_D4ds_v5')[0] | ConvertTo-Json -Depth 20) | ConvertFrom-Json
+        $half.name = 'Standard_D2ds_v5'
+        foreach ($capability in $half.capabilities) {
+            switch ($capability.name) { 'vCPUs' { $capability.value = '2' } 'vCPUsAvailable' { $capability.value = '2' } 'MemoryGB' { $capability.value = '8' } 'MaxNetworkInterfaces' { $capability.value = '2' } 'MaxDataDiskCount' { $capability.value = '4' } }
+        }
+        $half.locationInfo[0].zones = @('1', '2')
+        $skuFile = Join-Path $TestDrive 'skus-with-half-size.json'
+        ConvertTo-Json -InputObject @($skus + $half) -Depth 20 | Set-Content -LiteralPath $skuFile
+        # Offline REST: fixture prices, and Azure Monitor metrics chosen by VM (nothing is returned for vm-b2ms).
+        $shimFile = Join-Path $TestDrive 'metrics-shim.ps1'
+        Set-Content -LiteralPath $shimFile -Value @'
+function global:Invoke-RestMethod {
+    param([string]$Uri, [string]$Method, $Headers, [string]$ContentType, $Body, [int]$TimeoutSec)
+    if ($Uri -like 'https://prices.azure.com/*') { return (Get-Content -LiteralPath $env:SHIM_PRICES -Raw | ConvertFrom-Json) }
+    if ($Uri -notlike 'https://*.metrics.monitor.azure.com/*') { throw "Test is offline; blocked request to $Uri" }
+    $series = {
+        param($Average, $Maximum, $Points, $AvailableGB)
+        $cpu = @(1..$Points | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]$Average; maximum = [double]$Maximum } })
+        $mem = @(1..$Points | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]($AvailableGB * 1GB) } })
+        @([pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = $cpu }) },
+            [pscustomobject]@{ name = [pscustomobject]@{ value = 'Available Memory Bytes' }; timeseries = @([pscustomobject]@{ data = $mem }) })
+    }
+    $values = foreach ($id in @(($Body | ConvertFrom-Json).resourceids)) {
+        $metrics = switch -Wildcard ($id) {
+            '*vm-ds3v2' { & $series 5 20 200 12 }
+            '*vm-zonal' { & $series 5 20 200 14 }
+            '*vm-d4sv3' { & $series 60 95 200 12 }
+        }
+        if ($metrics) { [pscustomobject]@{ resourceid = $id; value = $metrics } }
+    }
+    [pscustomobject]@{ values = @($values) }
+}
+'@
+        $script:RsLog = & pwsh -NoProfile -Command "`$env:MOCK_AZ_SKUS_FILE='$skuFile'; `$env:SHIM_PRICES='$(Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json')'; . '$shimFile'; `$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$RsOut' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2 -IncludeRightsizing" 2>&1 | Out-String
+        $script:RsRows = @{}
+        if (Test-Path (Join-Path $RsOut 'vm-assessment.csv')) { foreach ($row in Import-Csv (Join-Path $RsOut 'vm-assessment.csv')) { $RsRows[$row.VM] = $row } }
+    }
+
+    It 'completes and reads the metrics without a warning' {
+        $RsLog | Should -Match 'Outputs:'
+        $RsLog | Should -Not -Match 'Rightsizing telemetry unavailable'
+        $RsRows.Count | Should -Be 7
+    }
+
+    It 'reports the signal for each running VM that has a recommendation' {
+        $RsRows['vm-ds3v2'].RightsizingStatus | Should -Be 'Potential Rightsizing Opportunity'
+        $RsRows['vm-zonal'].RightsizingStatus | Should -Be 'Potential Rightsizing Opportunity'
+        $RsRows['vm-d4sv3'].RightsizingStatus | Should -Be 'No Opportunity'
+        $RsRows['vm-b2ms'].RightsizingStatus | Should -Be 'Insufficient Data'
+    }
+
+    It 'leaves the VMs that are not rightsizing targets without a signal' {
+        foreach ($name in 'vm-dealloc', 'vm-d4sv5', 'vm-nc6') { $RsRows[$name].RightsizingStatus | Should -BeNullOrEmpty -Because "$name is deallocated, needs no action or has no recommendation" }
+    }
+
+    It 'suggests the half size only where it passes the checks for the VM' {
+        $RsRows['vm-ds3v2'].RightsizingSuggestedSku | Should -Be 'Standard_D2ds_v5'
+        $RsRows['vm-zonal'].RightsizingSuggestedSku | Should -BeNullOrEmpty
+        $RsRows['vm-d4sv3'].RightsizingSuggestedSku | Should -BeNullOrEmpty
+    }
+
+    It 'explains why no size is suggested, shows the peak and leaves the recommendation alone' {
+        $j = Get-Content (Join-Path $RsOut 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        $zonal = @($j.vms | Where-Object { $_.row.VM -eq 'vm-zonal' })[0]
+        $zonal.rightsizing.Status | Should -Be 'Potential Rightsizing Opportunity'
+        $zonal.rightsizing.Note | Should -Match 'highest hourly maximum 20%'
+        $zonal.rightsizing.Note | Should -Match ([regex]::Escape('No smaller size is suggested: no 2-vCPU size passes the mandatory checks for this VM (Standard_D2ds_v5: Region / Zone: Not Available in zone 3).'))
+        $zonal.row.RecommendedSku | Should -Be 'Standard_D4ds_v5'
+        $RsRows['vm-ds3v2'].RecommendedSku | Should -Be 'Standard_D4ds_v5'
+    }
 }
 
 Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
     BeforeAll {
         $mockDir = Join-Path $PSScriptRoot 'mock'
         $script:ModernOut = Join-Path $TestDrive 'modernization'
-        $script:ModernLog = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' --check-modernization -OutputPath '$ModernOut' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+        $script:ModernLog = & pwsh -NoProfile -Command "$BlockedPricesShim; `$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' --check-modernization -OutputPath '$ModernOut' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
         $script:ModernRows = if (Test-Path (Join-Path $ModernOut 'vm-assessment.csv')) { Import-Csv (Join-Path $ModernOut 'vm-assessment.csv') } else { @() }
+    }
+
+    It 'completes with one warning and no prices when the Retail Prices API is unreachable' {
+        $ModernLog | Should -Match 'Outputs:'
+        $flat = ($ModernLog -replace '\s*\|\s*', ' ') -replace '\s+', ' '
+        ([regex]::Matches($flat, 'Retail pricing unavailable')).Count | Should -Be 1
+        $flat | Should -Match 'Use -SkipPricing to skip this step'
+        (Get-Content (Join-Path $ModernOut 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).pricingStatus | Should -Be 'Unavailable'
+        @($ModernRows | Where-Object { $_.CurrentMonthlyUSD -or $_.TargetMonthlyUSD }).Count | Should -Be 0
     }
 
     It 'accepts the exact double-dash flag and records the opt-in parameter' {
@@ -101,6 +389,204 @@ Describe 'End-to-end opt-in modernization assessment (mock Azure)' {
         $row.ModernizationStatus | Should -Not -BeNullOrEmpty
         $row.RecommendationReason | Should -Not -BeNullOrEmpty
         (Get-Content (Join-Path $ModernOut 'detailed-report.md') -Raw) | Should -Match 'VM: vm-d4sv5'
+    }
+
+    It 'renders the same three-way comparison in detailed-report.md' {
+        $md = Get-Content (Join-Path $ModernOut 'detailed-report.md') -Raw
+        $ds3 = [regex]::Match($md, '(?s)### VM: vm-ds3v2.*?(?=\r?\n---\r?\n)').Value
+        $ds3 | Should -Match '\*\*CURRENT VS TARGET SIZE\*\*'
+        $ds3 | Should -Match 'Retirement target: \*\*Standard\\_D4ds\\_v5\*\* \| Modernization target: \*\*Standard\\_D4s\\_v6\*\*'
+        $ds3 | Should -Match '\| Attribute \| Current \| Retirement target \| Modernization target \| Note \|'
+        $ds3 | Should -Match '\| Disk Controller \| SCSI \| SCSI \(Same\) \| NVMe \(Changed\) \| Modernization target: NVMe only \|'
+        $ds3 | Should -Match '\| Modernization Target \| Standard\\_D4s\\_v6 \|'
+        $ds3 | Should -Match '\| Modernization Readiness \| Convertible \|'
+        $ds3 | Should -Not -Match 'No suitable modern SKU|Not Evaluated'
+        $md | Should -Not -Match '\*\*MATERIAL DIFFERENCES\*\*'
+    }
+
+    It 'separates the retirement target from the strategic modernization target' {
+        $row = $ModernRows | Where-Object VM -eq 'vm-ds3v2'
+        $row.RetirementTargetSku | Should -Be 'Standard_D4ds_v5'
+        $row.ModernizationTargetSku | Should -Be 'Standard_D4s_v6'
+        $row.ModernizationTargetSource | Should -Be 'Convertible'
+        $row.ModernizationPath | Should -Be 'Gen1 + NVMe + Resize'
+        $row.MigrationQuotaModel | Should -Be 'SideBySide'
+        $row.RecommendedMigrationPath | Should -Match 'Retire to Standard_D4ds_v5 -> modernize to Standard_D4s_v6'
+        $row.ModernizationValidationItems | Should -Match 'Guest NVMe readiness: Validation Required'
+        $nvme = $ModernRows | Where-Object VM -eq 'vm-d4sv3'
+        $nvme.ModernizationPath | Should -Be 'SCSI to NVMe + Resize'
+        $nvme.MigrationQuotaModel | Should -Be 'InPlace'
+    }
+
+    It 'adds a Modernization quota scope with steady-state and peak demand without changing the other scopes' {
+        $q = @(Import-Csv (Join-Path $ModernOut 'quota-impact.csv'))
+        $retirement = $q | Where-Object { $_.Scope -eq 'Retirement' -and $_.QuotaName -eq 'standardddsv5family' }
+        [int]$retirement.RequiredVcpu | Should -Be 16
+        $modernRegional = $q | Where-Object { $_.Scope -eq 'Modernization' -and $_.QuotaName -eq 'cores' }
+        $modernRegional | Should -Not -BeNullOrEmpty
+        [int]$modernRegional.PeakMigrationRequiredVcpu | Should -BeGreaterThan ([int]$modernRegional.SteadyStateRequiredVcpu)
+        $modernRegional.MigrationQuotaModel | Should -Be 'Mixed'
+        @($ModernRows | Where-Object { $_.ModernizationTargetSku -and -not $_.ModernizationQuotaStatus }).Count | Should -Be 0
+    }
+
+    It 'renders the modernization section from backend quota rows' {
+        $html = Get-Content (Get-ChildItem $ModernOut -Filter 'contoso-prod-*.html').FullName -Raw
+        $html | Should -Not -Match "id='modernization'|id='track-modernization'|track-tile-modernization|toc-modernization"
+        $html | Should -Not -Match 'v6/v7 Generation Modernization Paths|Migration Path Examples|Contextual Modernization Guidance|Part 2 &middot;|Part 1 &middot;'
+        $html | Should -Not -Match 'v6/v7 Modernization Readiness|<th>Complexity</th>|<dt>Complexity</dt>| complexity</span>'
+        $vmTable = [regex]::Match($html, "(?s)<table class='vm-table'>.*?</tbody></table></div></div>").Value
+        $vmTable | Should -Not -BeNullOrEmpty
+        $vmTable | Should -Match 'Optional &middot; v6/v7 modernization'
+        $headerRows = [regex]::Matches([regex]::Match($vmTable, '(?s)<thead>.*?</thead>').Value, '(?s)<tr>.*?</tr>')
+        $headerRows.Count | Should -Be 2
+        ([regex]::Matches($headerRows[1].Value, '<th>')).Count | Should -Be 6
+        $summaryRows = [regex]::Matches($vmTable, "(?s)<tr class='vm-summary-row[^']*'[^>]*>.*?</tr>")
+        $summaryRows.Count | Should -Be 6
+        foreach ($row in $summaryRows) { ([regex]::Matches($row.Value, '<td[ >]')).Count | Should -Be 9 }
+        # Both tracks are in the same row: the required retirement target with its Microsoft status (no date) and the optional v6/v7 target and path.
+        $ds3 = @($summaryRows | Where-Object { $_.Value -match '>vm-ds3v2<' })[0].Value
+        $ds3 | Should -Not -Match '2028-05-01'
+        $retirementCell = [regex]::Match($ds3, "(?s)<td class='target-cell retirement-target-cell'>.*?</td>").Value
+        $retirementCell | Should -Not -Match 'Quota' -Because 'the retirement target column does not repeat the quota status'
+        $retirementCell | Should -Match 'Standard_(<wbr>)?D4ds_v5'
+        $ds3 | Should -Match 'Standard_(<wbr>)?D4ds_v5'
+        $ds3 | Should -Match 'Standard_(<wbr>)?D4s_v6'
+        $ds3 | Should -Match 'Gen1 \+ NVMe \+ Resize'
+        # The path column keeps only the short path label; the blocker topics and the sequence are in the VM's details.
+        $pathCell = [regex]::Match($ds3, "(?s)<td class='path-cell'>.*?</td>").Value
+        $pathCell | Should -Be "<td class='path-cell'><div class='path-primary'>Gen1 + NVMe + Resize</div></td>"
+        $vmTable | Should -Match '<th>Migration path</th>'
+        $vmTable | Should -Not -Match 'Path and blockers|recommended-sequence|blocker-text'
+        $vmTable | Should -Not -Match 'v6/v7: |Not Evaluated'
+        $html | Should -Not -Match 'modernization-table|modernization-vm-detail|modernization-summary-row|Extended VM details|Top Evaluated Alternatives|Mandatory Compatibility Gates'
+        # One collapsed detail row per listed VM, under its VM: what to do, what changes (with all attributes behind a nested toggle), what to validate, recommended sizes.
+        ([regex]::Matches($vmTable, "<tr class='vm-detail-row' id='vm-[^']+-details'><td colspan='9' class='vm-detail-cell'>")).Count | Should -Be $summaryRows.Count
+        $html | Should -Not -Match '<details class="vm"'
+        ([regex]::Matches($html, '<h4>What to do</h4>')).Count | Should -Be $summaryRows.Count
+        ([regex]::Matches($html, '<h4>What changes</h4>')).Count | Should -Be $summaryRows.Count
+        ([regex]::Matches($html, "<details class='vd-more'><summary>Show all \d+ attributes</summary>")).Count | Should -BeGreaterOrEqual 4
+        $html | Should -Match 'Modernization target <code>Standard_(<wbr>)?D4s_v6</code>'
+        $html | Should -Not -Match '<h3>Mandatory requirement checks</h3>|<h3>Assessment explanations</h3>|<h3>Sizes evaluated</h3>|<h3>Current vs target size</h3>'
+        $html | Should -Match '<h4>Recommended sizes</h4>'
+        $html | Should -Match 'class=.vm-toggle-all. id=.vm-expand-all.'
+        # A VM with no target gets the "no replacement" step and no quota step.
+        $nc6 = [regex]::Match($html, "(?s)<tr class='vm-detail-row' id='vm-rg-app-vm-nc6-[0-9a-f]{6}-details'>.*?</div>\s*</td></tr>").Value
+        $nc6 | Should -Not -BeNullOrEmpty
+        $nc6 | Should -Match 'No replacement size was found'
+        $nc6 | Should -Not -Match 'Confirm the target-family vCPU quota|Request vCPU quota'
+        # Every id on the page is unique (rows, detail rows and toggles).
+        @([regex]::Matches($html, " id='([^']+)'") | ForEach-Object { $_.Groups[1].Value } | Group-Object | Where-Object Count -gt 1).Count | Should -Be 0
+        $html | Should -Not -Match "class='chips'"
+        # The modernization target cell uses the same layout as the current size and the retirement target.
+        $modernCell = [regex]::Match($ds3, "(?s)<td class='target-cell modernization-target-cell'>.*?</td>").Value
+        $modernCell | Should -Not -BeNullOrEmpty
+        $modernCell | Should -Match "<code>Standard_(<wbr>)?D4s_v6</code><div class='spec'>"
+        $modernCell | Should -Match 'Vendor:</span> Intel</div>.*?vCPU:</span> 4 vCPU</div>.*?vRAM:</span> 16 GB</div>.*?VM Gen:</span> Gen2</div>.*?Disk controller:</span> NVMe</div>'
+        $modernCell | Should -Match "<span class='spec-label'>Score:</span> \d+</div>"
+        $modernCell | Should -Match "<span class='spec-label'>Status:</span> <span class='tone-yellow'>Convertible</span>"
+        $modernCell | Should -Match "<span class='spec-label'>Quota:</span> <span class='tone-yellow'>Manual Validation Required</span>"
+        $modernCell | Should -Not -Match "class='badge|strategic"
+        $html | Should -Not -Match "href='#vm-rg-app-vm-d4sv3'"
+        @($ModernRows | Where-Object ModernizationComplexity).Count | Should -BeGreaterThan 0
+        $json = Get-Content (Join-Path $ModernOut 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        @($json.vms | Where-Object { $_.strategy.Complexity }).Count | Should -BeGreaterThan 0
+        @($json.vms | Where-Object { @($_.strategy.TargetComparison).Count -gt 10 }).Count | Should -BeGreaterThan 0
+        ($ModernRows | Where-Object VM -eq 'vm-ds3v2').ModernizationMaterialDifferences | Should -Match 'Disk Controller: SCSI -> NVMe'
+        $html | Should -Match "class='quota-table'"
+        $html | Should -Not -Match 'quota-impact-table|Quota Impact: Steady State vs Peak Migration'
+        $html | Should -Match 'Total Regional vCPUs'
+        $html | Should -Match '<th class=.num.>Peak needed</th>'
+        $html | Should -Match "class='sub'>Mixed \(3 side-by-side\)"
+        # Identical scopes are shown once in the HTML; quota-impact.csv keeps every scope.
+        $quotaCsv = Import-Csv (Join-Path $ModernOut 'quota-impact.csv')
+        @($quotaCsv | Where-Object Scope -eq 'Retirement+Modernization').Count | Should -BeGreaterThan 0
+        $quotaTable = [regex]::Match($html, "(?s)<table class='quota-table'>.*?</table>").Value
+        $quotaTable | Should -Not -Match '<td>Retirement\+Modernization'
+        ([regex]::Matches($quotaTable, '<tr><td>')).Count | Should -BeLessThan $quotaCsv.Count
+        $html | Should -Match 'Upgrade Gen1 VMs to Trusted launch'
+        # The v6/v7 targets are columns of the one retirement table; there is no separate modernization part, band or section.
+        $html.IndexOf("id='track-retirement'") | Should -BeLessThan $html.IndexOf("id='vms'")
+        $html | Should -Match "<span class='track-part'><strong>Required</strong></span>"
+        $html | Should -Match "<span class='track-tile-part'>Required</span>"
+        $html | Should -Match "<span class='toc-group toc-retirement'><span class='toc-group-label'>Retirement</span>"
+        $html | Should -Not -Match "href='#modernization'|href='#track-modernization'"
+        $html | Should -Match "class='target-cell retirement-target-cell'"
+        $html | Should -Not -Match '<script'
+    }
+}
+
+Describe 'Snapshot capture and replay (mock Azure)' {
+    BeforeAll {
+        $mockDir = Join-Path $PSScriptRoot 'mock'
+        $script:Script = Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1'
+        $script:Capture = Join-Path $TestDrive 'capture'
+        $script:CaptureLog = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$Script' -SaveSnapshot -SkipPricing -OutputPath '$Capture' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2" 2>&1 | Out-String
+        # Replay runs with no Azure CLI on PATH at all, proving that no Azure call is made (-SkipPricing: fully offline).
+        $script:NoAz = { param([string]$ArgText)
+            $cmd = "`$env:PATH = ((`$env:PATH -split [regex]::Escape([string][System.IO.Path]::PathSeparator)) | Where-Object { `$_ -and -not (Test-Path (Join-Path `$_ 'az.cmd')) -and -not (Test-Path (Join-Path `$_ 'az.ps1')) -and -not (Test-Path (Join-Path `$_ 'az')) }) -join [System.IO.Path]::PathSeparator; if (Get-Command az -ErrorAction SilentlyContinue) { throw 'az still on PATH' }; & '$Script' -SkipPricing $ArgText"
+            & pwsh -NoProfile -Command $cmd 2>&1 | Out-String }
+        $script:Replay = Join-Path $TestDrive 'replay'
+        $script:ReplayLog = & $NoAz "-FromSnapshot '$Capture' --check-modernization -OutputPath '$Replay' -OfflineCatalog -ThrottleLimit 2"
+    }
+    It 'records a complete snapshot without tokens or the unmasked account' {
+        $CaptureLog | Should -Match 'Snapshot: '
+        $manifest = Get-Content (Join-Path $Capture 'snapshot/snapshot.json') -Raw | ConvertFrom-Json
+        $manifest.TenantId | Should -Be '22222222-2222-2222-2222-222222222222'
+        $manifest.Vms | Should -Be 7
+        $text = (Get-ChildItem (Join-Path $Capture 'snapshot') -Recurse -File | ForEach-Object { Get-Content $_.FullName -Raw }) -join "`n"
+        $text | Should -Not -Match 'admin@contoso\.example'
+        $text | Should -Not -Match 'accessToken'
+    }
+    It 'replays without Azure CLI and can enable --check-modernization after the capture' {
+        $ReplayLog | Should -Match 'Data: replaying snapshot captured'
+        $ReplayLog | Should -Match 'Outputs:'
+        $j = Get-Content (Join-Path $Replay 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        $j.dataSource | Should -Match '^Snapshot captured '
+        $j.asOfDate | Should -Be '2026-09-24'
+        $j.parameters.FromSnapshot | Should -BeTrue
+        $j.parameters.CheckModernization | Should -BeTrue
+        @(Import-Csv (Join-Path $Replay 'quota-impact.csv') | Where-Object Scope -eq 'Modernization').Count | Should -BeGreaterThan 0
+        (Get-Content (Get-ChildItem $Replay -Filter 'contoso-prod-*.html').FullName -Raw) | Should -Match 'Data <strong>Snapshot captured'
+    }
+    It 'reproduces the captured assessment exactly' {
+        $out = Join-Path $TestDrive 'replay-same'
+        $null = & $NoAz "-FromSnapshot '$Capture' -OutputPath '$out' -OfflineCatalog -ThrottleLimit 2"
+        foreach ($file in 'vm-assessment.csv', 'quota-impact.csv', 'candidates.csv') {
+            (Get-Content (Join-Path $out $file) -Raw) | Should -Be (Get-Content (Join-Path $Capture $file) -Raw)
+        }
+    }
+    It 'stores the Microsoft evidence with the snapshot and replays it without -OfflineCatalog' {
+        Join-Path $Capture 'snapshot/retirement-catalog.json' | Should -Exist
+        (Get-Content (Join-Path $Capture 'snapshot/snapshot.json') -Raw | ConvertFrom-Json).CatalogSource | Should -Match '^Cached'
+        $out = Join-Path $TestDrive 'replay-evidence'
+        $null = & $NoAz "-FromSnapshot '$Capture' -OutputPath '$out' -ThrottleLimit 2"
+        (Get-Content (Join-Path $out 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).catalog.source | Should -Match '^Cached'
+        (Get-Content (Join-Path $out 'vm-assessment.csv') -Raw) | Should -Be (Get-Content (Join-Path $Capture 'vm-assessment.csv') -Raw)
+    }
+    It 'warns when the snapshot is more than 7 days old' {
+        $old = Join-Path $TestDrive 'old-capture'
+        Copy-Item -Path $Capture -Destination $old -Recurse
+        $manifestPath = Join-Path $old 'snapshot/snapshot.json'
+        $m = Get-Content $manifestPath -Raw | ConvertFrom-Json
+        $m.CapturedUtc = (Get-Date).ToUniversalTime().AddDays(-10).ToString('o')
+        $m | ConvertTo-Json -Depth 4 | Set-Content $manifestPath -Encoding utf8
+        $out = Join-Path $TestDrive 'replay-old'
+        $log = & $NoAz "-FromSnapshot '$old' -OutputPath '$out' -ThrottleLimit 2"
+        (($log -replace '\s*\|\s*', ' ') -replace '\s+', ' ') | Should -Match 'The snapshot is 10 days old'
+        (Get-Content (Join-Path $out 'index.html') -Raw) | Should -Match 'Replayed data is 10 days old'
+    }
+    It 'caps the per-VM HTML details and points to the full outputs' {
+        $out = Join-Path $TestDrive 'replay-capped'
+        $null = & $NoAz "-FromSnapshot '$Capture' -HtmlMaxVmDetails 2 -OutputPath '$out' -ThrottleLimit 2"
+        $html = Get-Content (Get-ChildItem $out -Filter 'contoso-prod-*.html').FullName -Raw
+        ([regex]::Matches($html, "<tr class='vm-detail-row'")).Count | Should -Be 2
+        ([regex]::Matches($html, "<input type='checkbox' class='vm-toggle' id=")).Count | Should -Be 2
+        $html | Should -Match 'Details are shown for the first 2 VMs'
+        @(Import-Csv (Join-Path $out 'vm-assessment.csv')).Count | Should -Be 7
+    }
+    It 'rejects a scope that differs from the capture' {
+        $log = & $NoAz "-FromSnapshot '$Capture' -SubscriptionId 99999999-9999-9999-9999-999999999999 -OutputPath '$(Join-Path $TestDrive 'bad')' -OfflineCatalog"
+        (($log -replace '\s*\|\s*', ' ') -replace '\s+', ' ') | Should -Match 'SubscriptionId does not match the snapshot scope'
     }
 }
 
@@ -137,5 +623,408 @@ Describe 'Authentication preflight (mock Azure)' {
         $log | Should -Match 'az login --tenant 22222222-2222-2222-2222-222222222222'
         $sw.Elapsed.TotalSeconds | Should -BeLessThan 90
         Join-Path $out 'vm-assessment.csv' | Should -Not -Exist
+    }
+}
+
+Describe 'Age of the cached retirement evidence (mock Azure)' {
+    It 'tells the reader when the offline evidence is much older than the assessment date' {
+        $mockDir = Join-Path $PSScriptRoot 'mock'
+        $out = Join-Path $TestDrive 'old-evidence'
+        $log = & pwsh -NoProfile -Command "`$env:PATH='$mockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$out' -OfflineCatalog -AsOfDate '2027-06-01' -ThrottleLimit 2 -SkipPricing" 2>&1 | Out-String
+        $log | Should -Match 'Outputs:'
+        $warning = (Get-Content (Join-Path $out 'retirement-evidence.json') -Raw | ConvertFrom-Json -Depth 20).catalogWarning
+        $warning | Should -Match '^Offline mode requested\. The cached catalog was retrieved 2026-10-0\d, \d+ days before the assessment date'
+        (Get-Content (Join-Path $out 'index.html') -Raw) | Should -Match 'Evidence warning:</strong> Offline mode requested\. The cached catalog was retrieved'
+        (Get-Content (Join-Path $out 'executive-summary.md') -Raw) | Should -Match '> \*\*Warning:\*\* Offline mode requested\. The cached catalog was retrieved'
+    }
+    It 'adds no age warning when the offline evidence is recent (the standard run)' {
+        (Get-Content (Join-Path $Out 'retirement-evidence.json') -Raw | ConvertFrom-Json -Depth 20).catalogWarning | Should -Be 'Offline mode requested.'
+    }
+}
+
+Describe 'Data-collection problems (mock Azure with an injected fault)' {
+    BeforeAll {
+        $script:MockDir = Join-Path $PSScriptRoot 'mock'
+        $script:RunFault = {
+            param([string]$Fault)
+            $dir = Join-Path $TestDrive "fault-$Fault"
+            $log = & pwsh -NoProfile -Command "`$env:MOCK_AZ_FAULT='$Fault'; `$env:PATH='$MockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$(Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1')' -OutputPath '$dir' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2 -SkipPricing" 2>&1 | Out-String
+            [pscustomobject]@{ Dir = $dir; Log = $log; Json = (Get-Content (Join-Path $dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40); Csv = @(Import-Csv (Join-Path $dir 'vm-assessment.csv')); RunLog = (Get-Content (Join-Path $dir 'run.log') -Raw) }
+        }
+        $script:SkuDenied = & $RunFault 'skus-denied'
+        $script:UsageDenied = & $RunFault 'usage-denied'
+        $script:UsageGarbage = & $RunFault 'usage-garbage'
+    }
+
+    It 'reports no problem when every call succeeds' {
+        $j = Get-Content (Join-Path $Out 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+        ($j.collectionIssues -is [System.Array]) | Should -BeTrue
+        @($j.collectionIssues).Count | Should -Be 0
+        $Log | Should -Not -Match 'Data-collection issues'
+        (Get-Content (Join-Path $Out 'executive-summary.md') -Raw) | Should -Not -Match 'Data collection issues'
+        foreach ($page in Get-ChildItem $Out -Filter '*.html') { (Get-Content $page.FullName -Raw) | Should -Not -Match 'Some data could not be collected' }
+    }
+
+    Context 'when the Resource SKUs call is denied' {
+        It 'stops nothing, says what failed and why in every output, and masks the identity in the message' {
+            $SkuDenied.Log | Should -Match 'Outputs:'
+            $SkuDenied.Log | Should -Match 'Data-collection issues: 1'
+            $issues = @($SkuDenied.Json.collectionIssues)
+            $issues.Count | Should -Be 1
+            $issues[0].api | Should -Be 'Resource SKUs'
+            $issues[0].region | Should -Be 'eastus2'
+            $issues[0].subscriptionId | Should -Be '11111111-1111-1111-1111-111111111111'
+            $issues[0].message | Should -Match 'AuthorizationFailed'
+            $issues[0].message | Should -Match "'a\*\*\*\*@contoso\.example'"
+            $issues[0].message | Should -Match "object id '\*\*\*\*'"
+            $issues[0].effect | Should -Match 'No replacement size'
+            $SkuDenied.RunLog | Should -Match 'WARNING: Resource SKUs \(eastus2, subscription 11111111-1111-1111-1111-111111111111\): .*AuthorizationFailed'
+            $SkuDenied.RunLog | Should -Match 'Resource SKUs REST failed|used az vm list-skus instead|Data-collection issues'
+            (Get-Content (Join-Path $SkuDenied.Dir 'executive-summary.md') -Raw) | Should -Match '(?m)^## Data collection issues'
+            foreach ($file in Get-ChildItem $SkuDenied.Dir -File -Recurse) {
+                $content = Get-Content $file.FullName -Raw
+                $content | Should -Not -Match 'admin@contoso\.example' -Because "$($file.Name) must not contain the raw account"
+                $content | Should -Not -Match '99999999-9999-9999-9999-999999999999' -Because "$($file.Name) must not contain the raw object id"
+            }
+        }
+
+        It 'puts the cause into the low-confidence reasons and the recommendation reason of every VM that needs action' {
+            $needAction = @($SkuDenied.Json.vms | Where-Object { $_.action -ne 'No Action Required' })
+            $needAction.Count | Should -BeGreaterThan 0
+            foreach ($vm in $needAction) {
+                $vm.recommendation | Should -BeNullOrEmpty
+                $vm.readiness | Should -Be 'Manual Review Required'
+                @($vm.confidence.LowReasons | Where-Object { $_ -like 'Data not collected (Resource SKUs): *AuthorizationFailed*' }).Count | Should -Be 1
+            }
+            foreach ($row in @($SkuDenied.Csv | Where-Object { $_.Action -ne 'No Action Required' })) { $row.RecommendationReason | Should -Match '^Data could not be collected - Resource SKUs: ' }
+        }
+
+        It 'shows the problem on the index and the subscription page and gives every listed VM a detail panel that explains it' {
+            (Get-Content (Join-Path $SkuDenied.Dir 'index.html') -Raw) | Should -Match 'Some data could not be collected \(1\)'
+            $page = Get-Content (Get-ChildItem $SkuDenied.Dir -Filter 'contoso-prod-*.html').FullName -Raw
+            $page | Should -Match 'Some data could not be collected \(1\)'
+            $summaryRows = ([regex]::Matches($page, "<tr class='vm-summary-row")).Count
+            $summaryRows | Should -BeGreaterThan 0
+            ([regex]::Matches($page, "<tr class='vm-detail-row'")).Count | Should -Be $summaryRows
+            ([regex]::Matches($page, 'Why there is no recommendation')).Count | Should -Be $summaryRows
+            ([regex]::Matches($page, "<input type='checkbox' class='vm-toggle'")).Count | Should -Be $summaryRows
+        }
+    }
+
+    Context 'when the compute usage (quota) call is denied' {
+        It 'records the cause, names it in the low-confidence reasons and warns' {
+            $UsageDenied.Log | Should -Match 'Data-collection issues: 1'
+            $issues = @($UsageDenied.Json.collectionIssues)
+            $issues.Count | Should -Be 1
+            $issues[0].api | Should -BeLike 'Compute usage*'
+            $issues[0].message | Should -Match 'AuthorizationFailed'
+            $issues[0].message | Should -Not -Match 'admin@contoso\.example|99999999-9999'
+            $UsageDenied.RunLog | Should -Match 'WARNING: Compute usage'
+            $withQuota = @($UsageDenied.Json.vms | Where-Object { $_.action -ne 'No Action Required' -and $_.recommendation })
+            $withQuota.Count | Should -BeGreaterThan 0
+            foreach ($vm in $withQuota) {
+                $vm.confidence.LowReasons | Should -Contain 'Quota could not be validated'
+                @($vm.confidence.LowReasons | Where-Object { $_ -like 'Data not collected (Compute usage*AuthorizationFailed*' }).Count | Should -Be 1
+            }
+        }
+
+        It 'still gives the VMs their normal recommendations and details' {
+            $page = Get-Content (Get-ChildItem $UsageDenied.Dir -Filter 'contoso-prod-*.html').FullName -Raw
+            $page | Should -Match 'Some data could not be collected \(1\)'
+            $page | Should -Not -Match 'Why there is no recommendation'
+            @($UsageDenied.Csv | Where-Object { $_.RecommendedSku }).Count | Should -BeGreaterThan 0
+        }
+    }
+
+    Context 'when the compute usage (quota) call answers with text that is not JSON' {
+        It 'records one problem with a readable cause instead of a raw parser error' {
+            $UsageGarbage.Log | Should -Match 'Outputs:'
+            $UsageGarbage.Log | Should -Match 'Data-collection issues: 1'
+            $UsageGarbage.Log | Should -Not -Match 'ConvertFrom-Json'
+            $issues = @($UsageGarbage.Json.collectionIssues)
+            $issues.Count | Should -Be 1
+            $issues[0].api | Should -BeLike 'Compute usage*'
+            $issues[0].subscriptionId | Should -Be '11111111-1111-1111-1111-111111111111'
+            $issues[0].message | Should -Match '^The answer is not valid JSON: '
+            $UsageGarbage.RunLog | Should -Match 'WARNING: Compute usage .*The answer is not valid JSON'
+            $withQuota = @($UsageGarbage.Json.vms | Where-Object { $_.action -ne 'No Action Required' -and $_.recommendation })
+            $withQuota.Count | Should -BeGreaterThan 0
+            foreach ($vm in $withQuota) { @($vm.confidence.LowReasons | Where-Object { $_ -like 'Data not collected (Compute usage*The answer is not valid JSON*' }).Count | Should -Be 1 }
+        }
+    }
+}
+
+Describe 'End-to-end I/O boundaries and options (mock Azure)' {
+    BeforeAll {
+        $script:MockDir = Join-Path $PSScriptRoot 'mock'
+        $script:StartScript = Join-Path $Root 'scripts/Invoke-VMSKURetirementReport.ps1'
+        # A pause is a no-op in the run, so a retried call does not make the test wait.
+        $script:NoSleep = 'function global:Start-Sleep { param([double]$Seconds) }'
+        # One report run in its own process against the mock az. $Prelude is PowerShell that runs first (shims, environment variables).
+        $script:RunReport = {
+            param([string]$Name, [string]$Prelude = '', [string]$Arguments = '')
+            $dir = Join-Path $TestDrive $Name
+            $log = & pwsh -NoProfile -Command "$Prelude `$env:PATH='$MockDir$([System.IO.Path]::PathSeparator)' + `$env:PATH; & '$StartScript' -OutputPath '$dir' -OfflineCatalog -AsOfDate '2026-09-24' -ThrottleLimit 2 $Arguments" 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
+            [pscustomobject]@{ Dir = $dir; Log = $log; Flat = ($log -replace '\s+', ' '); ExitCode = $exitCode }
+        }
+        # Offline REST for a run: fixture prices and an Azure Monitor that either answers or refuses with HTTP 403
+        # (SHIM_METRICS_MODE). Every metrics request is written to SHIM_METRICS_LOG.
+        $script:MetricsShim = Join-Path $TestDrive 'metrics-boundary-shim.ps1'
+        Set-Content -LiteralPath $MetricsShim -Value @'
+function global:Invoke-RestMethod {
+    param([string]$Uri, [string]$Method, $Headers, [string]$ContentType, $Body, [int]$TimeoutSec)
+    if ($Uri -like 'https://prices.azure.com/*') { return (Get-Content -LiteralPath $env:SHIM_PRICES -Raw | ConvertFrom-Json) }
+    if ($Uri -notlike 'https://*.metrics.monitor.azure.com/*') { throw "Test is offline; blocked request to $Uri" }
+    Add-Content -LiteralPath $env:SHIM_METRICS_LOG -Value $Uri
+    if ($env:SHIM_METRICS_MODE -eq 'forbidden') {
+        $record = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('Response status code does not indicate success: 403 (Forbidden).'), 'WebCmdletWebResponseException', [System.Management.Automation.ErrorCategory]::InvalidOperation, $Uri)
+        $record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('{"error":{"code":"AuthorizationFailed","message":"The client ''admin@contoso.example'' with object id ''99999999-9999-9999-9999-999999999999'' does not have authorization to perform action ''microsoft.insights/metrics/read'' over scope ''/subscriptions/11111111-1111-1111-1111-111111111111''."}}')
+        throw $record
+    }
+    $values = foreach ($id in @(($Body | ConvertFrom-Json).resourceids)) {
+        $cpu = @(1..50 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double]5; maximum = [double]20 } })
+        $mem = @(1..50 | ForEach-Object { [pscustomobject]@{ timeStamp = 't'; average = [double](12 * 1GB) } })
+        [pscustomobject]@{ resourceid = $id; value = @(
+                [pscustomobject]@{ name = [pscustomobject]@{ value = 'Percentage CPU' }; timeseries = @([pscustomobject]@{ data = $cpu }) },
+                [pscustomobject]@{ name = [pscustomobject]@{ value = 'Available Memory Bytes' }; timeseries = @([pscustomobject]@{ data = $mem }) }) }
+    }
+    [pscustomobject]@{ values = @($values) }
+}
+'@
+        $script:RunWithMetrics = {
+            param([string]$Name, [string]$Mode, [string]$Arguments)
+            $uris = Join-Path $TestDrive "$Name-metrics-requests.log"
+            $prices = Join-Path $PSScriptRoot 'fixtures/retail-prices-eastus2.json'
+            $run = & $RunReport $Name ". '$MetricsShim'; $NoSleep; `$env:SHIM_PRICES='$prices'; `$env:SHIM_METRICS_LOG='$uris'; `$env:SHIM_METRICS_MODE='$Mode';" $Arguments
+            $run | Add-Member -NotePropertyName Requests -NotePropertyValue @(if (Test-Path -LiteralPath $uris) { Get-Content -LiteralPath $uris }) -PassThru
+        }
+    }
+
+    Context 'Resource Graph pages, throttling and denial' {
+        BeforeAll {
+            $state = Join-Path $TestDrive 'throttle-state'
+            New-Item -ItemType Directory -Path $state | Out-Null
+            $script:ThrottleState = $state
+            $script:PagedCalls = Join-Path $TestDrive 'paged-calls.log'
+            $script:Paged = & $RunReport 'paged' "$PricesShim; $NoSleep; `$env:MOCK_AZ_GRAPH_PAGE_SIZE='3'; `$env:MOCK_AZ_THROTTLE='graph query=2'; `$env:MOCK_AZ_STATE_DIR='$state'; `$env:MOCK_AZ_CALL_LOG='$PagedCalls';"
+            $script:PageDenied = & $RunReport 'page-denied' "$PricesShim; $NoSleep; `$env:MOCK_AZ_GRAPH_PAGE_SIZE='3'; `$env:MOCK_AZ_FAULT='graph-page2-denied';"
+            $script:OptionalDenied = & $RunReport 'optional-denied' "$PricesShim; $NoSleep; `$env:MOCK_AZ_FAULT='graph-optional-denied';"
+        }
+
+        It 'reads an inventory that comes in pages through a throttled Resource Graph and gets the same results as the unpaged run' {
+            $Paged.ExitCode | Should -Be 0
+            $Paged.Log | Should -Match 'Outputs:'
+            $Paged.Log | Should -Not -Match 'Data-collection issues'
+            foreach ($name in 'vm-assessment.csv', 'candidates.csv', 'quota-impact.csv') {
+                (Get-Content (Join-Path $Paged.Dir $name) -Raw) | Should -Be (Get-Content (Join-Path $Out $name) -Raw) -Because "$name must not depend on the page size"
+            }
+        }
+
+        It 'follows every skip token and repeats a throttled call' {
+            $calls = @(Get-Content $PagedCalls)
+            # 7 VMs and 7 NICs read 3 rows at a time are 3 calls each; disks, disk-encryption extensions, Advisor and Service Health
+            # are one call each; and 2 calls were answered with HTTP 429 and made again.
+            $calls.Count | Should -Be 12
+            @($calls | Where-Object { $_ -match ' --skip-token ' }).Count | Should -Be 4
+            (Get-Content (Join-Path $ThrottleState 'throttle-count.txt') -Raw).Trim() | Should -Be '2'
+        }
+
+        It 'stops with the reason, and writes no assessment, when a later page of the inventory is denied' {
+            $PageDenied.ExitCode | Should -Not -Be 0
+            $PageDenied.Flat | Should -Match 'az graph query .* failed \(exit 1\)'
+            $PageDenied.Flat | Should -Match 'AuthorizationFailed'
+            $PageDenied.Flat | Should -Match "The client 'a\*\*\*\*@contoso\.example' with object id '\*\*\*\*'"
+            $PageDenied.Flat | Should -Not -Match 'admin@contoso\.example|99999999-9999'
+            $PageDenied.Log | Should -Not -Match 'Outputs:'
+            foreach ($name in 'assessment.json', 'vm-assessment.csv', 'executive-summary.md') { Join-Path $PageDenied.Dir $name | Should -Not -Exist }
+        }
+
+        It 'completes without the optional queries that were denied and names each of them' {
+            $OptionalDenied.ExitCode | Should -Be 0
+            $OptionalDenied.Log | Should -Match 'Outputs:'
+            $OptionalDenied.Flat | Should -Match 'Data-collection issues: 3\.'
+            $json = Get-Content (Join-Path $OptionalDenied.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+            $issues = @($json.collectionIssues)
+            $issues.Count | Should -Be 3
+            $issues.api | Should -Contain 'Resource Graph: Azure Advisor retirement recommendations'
+            $issues.api | Should -Contain 'Resource Graph: Service Health retirement events'
+            $issues.api | Should -Contain 'Resource Graph: disk-encryption extensions'
+            foreach ($issue in $issues) {
+                $issue.message | Should -Match 'AuthorizationFailed'
+                $issue.message | Should -Not -Match 'admin@contoso\.example|99999999-9999'
+            }
+            @($issues | Where-Object { $_.api -like '*Advisor*' -or $_.api -like '*Service Health*' } | ForEach-Object effect | Where-Object { $_ -match 'lifecycle evidence is not affected' }).Count | Should -Be 2
+            @(Import-Csv (Join-Path $OptionalDenied.Dir 'vm-assessment.csv')).Count | Should -Be 7
+        }
+    }
+
+    Context 'options and Azure Monitor' {
+        BeforeAll {
+            $script:Options = & $RunWithMetrics 'options' 'ok' '-QuotaSafetyPct 60 -RightsizingLookbackDays 7 -IncludeRightsizing -SkipHtml'
+            $script:Forbidden = & $RunWithMetrics 'metrics-forbidden' 'forbidden' '-IncludeRightsizing'
+            $script:Operator = & $RunWithMetrics 'metrics-forbidden-operator' 'forbidden' '-IncludeRightsizing -IncludeOperatorAccount'
+            $optionalVm = "`$env:MOCK_AZ_EXTRA_VMS='optional:Standard_D4ds_v4:V2';"
+            $script:OptionalOff = & $RunReport 'optional-off' "$PricesShim; $optionalVm"
+            $script:OptionalOn = & $RunReport 'optional-on' "$PricesShim; $optionalVm" '-HtmlIncludeOptionalModernization'
+        }
+
+        It 'writes every output except the HTML with -SkipHtml and records the options in assessment.json' {
+            $Options.ExitCode | Should -Be 0
+            $Options.Log | Should -Match 'Outputs:'
+            foreach ($f in 'assessment.json', 'vm-assessment.csv', 'candidates.csv', 'quota-impact.csv', 'retirement-evidence.json', 'executive-summary.md', 'detailed-report.md', 'run.log') { Join-Path $Options.Dir $f | Should -Exist }
+            @(Get-ChildItem $Options.Dir -Filter '*.html').Count | Should -Be 0
+            $parameters = (Get-Content (Join-Path $Options.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).parameters
+            $parameters.QuotaSafetyPct | Should -Be 60
+            $parameters.RightsizingLookbackDays | Should -Be 7
+            $parameters.IncludeRightsizing | Should -BeTrue
+        }
+
+        It 'reads the Azure Monitor metrics of the last -RightsizingLookbackDays days in one batch' {
+            # All four VMs that are rightsizing targets are in one subscription and region.
+            $Options.Requests.Count | Should -Be 1
+            $window = [regex]::Match($Options.Requests[0], 'starttime=(?<start>[^&]+)Z&endtime=(?<end>[^&]+)Z')
+            $window.Success | Should -BeTrue
+            $start = [datetime]::ParseExact($window.Groups['start'].Value, 's', [cultureinfo]::InvariantCulture)
+            $end = [datetime]::ParseExact($window.Groups['end'].Value, 's', [cultureinfo]::InvariantCulture)
+            ($end - $start).TotalDays | Should -Be 7
+        }
+
+        It 'adds -QuotaSafetyPct to the recommended quota increase, and only where an increase is needed' {
+            $known = @(Import-Csv (Join-Path $Options.Dir 'quota-impact.csv') | Where-Object { $_.Limit })
+            $known.Count | Should -BeGreaterThan 0
+            @($known | Where-Object { [int]$_.MinimumIncrease -gt 0 }).Count | Should -BeGreaterThan 0 -Because 'the fixture has a family that needs an increase'
+            foreach ($row in $known) {
+                $expected = if ([int]$row.MinimumIncrease -gt 0) { [int][math]::Ceiling([int]$row.MinimumIncrease + ([int]$row.RequiredVcpu * 60 / 100)) } else { 0 }
+                [int]$row.RecommendedIncrease | Should -Be $expected -Because "$($row.Scope) $($row.QuotaName)"
+            }
+            $family = { param($Path) Import-Csv $Path | Where-Object { $_.Scope -eq 'Retirement' -and $_.QuotaName -eq 'standardddsv5family' } }
+            [int](& $family (Join-Path $Options.Dir 'quota-impact.csv')).RecommendedIncrease | Should -BeGreaterThan ([int](& $family (Join-Path $Out 'quota-impact.csv')).RecommendedIncrease)
+        }
+
+        It 'rejects a lookback of <Days> days before it collects anything' -ForEach @(@{ Days = 5 }, @{ Days = 94 }) {
+            $run = & $RunReport "lookback-$Days" '' "-RightsizingLookbackDays $Days"
+            $run.ExitCode | Should -Not -Be 0
+            $run.Flat | Should -Match "Cannot validate argument on parameter 'RightsizingLookbackDays'"
+            $run.Dir | Should -Not -Exist
+        }
+
+        It 'records one data-collection issue for the subscription and region when Azure Monitor refuses the metrics' {
+            $Forbidden.ExitCode | Should -Be 0
+            $Forbidden.Log | Should -Match 'Outputs:'
+            $Forbidden.Flat | Should -Match 'Data-collection issues: 1\.'
+            # Three attempts at the one batch.
+            $Forbidden.Requests.Count | Should -Be 3
+            $issues = @((Get-Content (Join-Path $Forbidden.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).collectionIssues)
+            $issues.Count | Should -Be 1
+            $issues[0].api | Should -Be 'Azure Monitor metrics (rightsizing)'
+            $issues[0].subscriptionId | Should -Be '11111111-1111-1111-1111-111111111111'
+            $issues[0].region | Should -Be 'eastus2'
+            $issues[0].message | Should -Match '403'
+            $issues[0].message | Should -Match 'AuthorizationFailed'
+            $issues[0].message | Should -Match 'microsoft\.insights/metrics/read'
+            $issues[0].message | Should -Match "'a\*\*\*\*@contoso\.example'"
+            $issues[0].message | Should -Match "The client 'a\*\*\*\*@contoso\.example' with object id '\*\*\*\*' does not have authorization"
+            $issues[0].effect | Should -Be 'Rightsizing shows Insufficient Data for 4 VM(s) in this scope.'
+            (Get-Content (Join-Path $Forbidden.Dir 'executive-summary.md') -Raw) | Should -Match 'Azure Monitor metrics \(rightsizing\)'
+            foreach ($file in Get-ChildItem $Forbidden.Dir -File -Recurse) {
+                $content = Get-Content $file.FullName -Raw
+                $content | Should -Not -Match 'admin@contoso\.example' -Because "$($file.Name) must not contain the raw account"
+                $content | Should -Not -Match '99999999-9999' -Because "$($file.Name) must not contain the raw object id"
+            }
+        }
+
+        It 'masks the account and the object id in run.log, where PowerShell wrote the error before the report could sanitize it' {
+            $runLog = Get-Content (Join-Path $Forbidden.Dir 'run.log') -Raw
+            $runLog | Should -Match 'TerminatingError' -Because 'the caught error is in the transcript, so the check is meaningful'
+            $runLog | Should -Match "The client (?:'|\\u0027)a\*\*\*\*@contoso\.example(?:'|\\u0027) with object id (?:'|\\u0027)\*\*\*\*(?:'|\\u0027)"
+        }
+
+        It 'keeps the account the operator asked to see in run.log and still masks the object id' {
+            $Operator.ExitCode | Should -Be 0
+            $runLog = Get-Content (Join-Path $Operator.Dir 'run.log') -Raw
+            $runLog | Should -Match 'Account: admin@contoso\.example'
+            $runLog | Should -Not -Match '99999999-9999'
+            $json = Get-Content (Join-Path $Operator.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40
+            $json.parameters.IncludeOperatorAccount | Should -BeTrue
+            $json.signedInAccount | Should -Be 'admin@contoso.example'
+        }
+
+        It 'leaves the retirement recommendations alone and shows Insufficient Data for each VM that has no metrics' {
+            $rows = @(Import-Csv (Join-Path $Forbidden.Dir 'vm-assessment.csv'))
+            $rows.Count | Should -Be 7
+            @($rows | Where-Object RightsizingStatus -eq 'Insufficient Data').Count | Should -Be 4
+            foreach ($row in $rows) {
+                $row.Action | Should -Be $ByVm[$row.VM].Action -Because $row.VM
+                $row.RecommendedSku | Should -Be $ByVm[$row.VM].RecommendedSku -Because $row.VM
+            }
+        }
+
+        It 'lists a VM that only has an optional modernization in the HTML only with -HtmlIncludeOptionalModernization' {
+            foreach ($run in $OptionalOff, $OptionalOn) {
+                $run.ExitCode | Should -Be 0
+                $row = @(Import-Csv (Join-Path $run.Dir 'vm-assessment.csv') | Where-Object VM -eq 'vm-optional')
+                $row.Count | Should -Be 1
+                $row[0].Action | Should -Be 'Modernization Optional'
+            }
+            (Get-Content (Get-ChildItem $OptionalOff.Dir -Filter 'contoso-prod-*.html').FullName -Raw) | Should -Not -Match 'vm-optional'
+            (Get-Content (Get-ChildItem $OptionalOn.Dir -Filter 'contoso-prod-*.html').FullName -Raw) | Should -Match 'vm-optional'
+            (Get-Content (Join-Path $OptionalOff.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).parameters.HtmlIncludeOptionalModernization | Should -BeFalse
+            (Get-Content (Join-Path $OptionalOn.Dir 'assessment.json') -Raw | ConvertFrom-Json -Depth 40).parameters.HtmlIncludeOptionalModernization | Should -BeTrue
+        }
+    }
+
+    Context 'the output schema document' {
+        BeforeAll {
+            $script:SchemaDoc = Get-Content -LiteralPath (Join-Path $Root 'references/output-schema.md') -Raw
+            # Modernization, rightsizing and pricing are all on, so every object the document describes is in the output.
+            $script:Documented = & $RunWithMetrics 'documented' 'ok' '-CheckModernization -IncludeRightsizing'
+            $documentedFile = Join-Path $Documented.Dir 'assessment.json'
+            $script:DocumentedJson = if (Test-Path -LiteralPath $documentedFile) { Get-Content $documentedFile -Raw | ConvertFrom-Json -Depth 50 }
+            $script:DocumentedHeader = @(if (Test-Path -LiteralPath (Join-Path $Documented.Dir 'vm-assessment.csv')) { (Get-Content (Join-Path $Documented.Dir 'vm-assessment.csv') -TotalCount 1) -replace '"', '' -split ',' })
+            # The keys that the sketch of assessment.json lists for an object (for example lifecycle: { SkuName, SeriesKey, ... }).
+            $script:DocumentedKeys = {
+                param([string]$Name)
+                $sketch = [regex]::Match($SchemaDoc, '(?s)## assessment\.json\s+```text\r?\n(.*?)\r?\n```').Groups[1].Value
+                $body = [regex]::Match($sketch, "(?s)\b$Name\s*:\s*\{(.*?)\}").Groups[1].Value
+                @($body -split ',' | ForEach-Object { ($_ -replace '\s+', ' ').Trim() } | Where-Object { $_ } | ForEach-Object { ($_ -split ':')[0].Trim() -replace '\[\]$', '' } | Where-Object { $_ -and $_ -ne '...' })
+            }
+        }
+
+        It 'completes with every optional part switched on' {
+            $Documented.ExitCode | Should -Be 0 -Because $Documented.Log
+            $Documented.Log | Should -Match 'Outputs:'
+        }
+
+        It 'describes the <Object> object with the keys the output has, and no others' -ForEach @(
+            @{ Object = 'lifecycle' }, @{ Object = 'current' }, @{ Object = 'recommendation' }, @{ Object = 'modernization' }
+            @{ Object = 'confidence' }, @{ Object = 'dataQuality' }, @{ Object = 'rightsizing' }, @{ Object = 'pricing' }
+        ) {
+            $documented = @(& $DocumentedKeys $Object)
+            $documented.Count | Should -BeGreaterThan 0 -Because "the sketch lists the keys of $Object"
+            $real = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($vm in $DocumentedJson.vms) {
+                $item = $vm.$Object
+                if ($item) { foreach ($name in $item.PSObject.Properties.Name) { [void]$real.Add($name) } }
+            }
+            $real.Count | Should -BeGreaterThan 0 -Because "at least one VM has $Object data in this run"
+            @($documented | Where-Object { -not $real.Contains($_) }) | Should -BeNullOrEmpty -Because 'every documented key is in the output'
+            @($real | Where-Object { $_ -notin $documented }) | Should -BeNullOrEmpty -Because 'every key of the output is documented'
+        }
+
+        It 'lists the vm-assessment.csv columns in the order the file has them' {
+            $listed = [regex]::Match($SchemaDoc, '(?s)\*\*Column order\.\*\*[^`]*```text\r?\n(.*?)\r?\n```').Groups[1].Value
+            $columns = @($listed -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $columns.Count | Should -Be 88
+            $columns | Should -Be $DocumentedHeader
+        }
+
+        It 'groups the same vm-assessment.csv columns by topic' {
+            $section = ($SchemaDoc -split '(?m)^## vm-assessment\.csv.*$')[1]
+            $table = ($section -split '\*\*Column order\.\*\*')[0]
+            $grouped = @([regex]::Matches($table, '`([A-Za-z_][A-Za-z0-9_]*)`') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+            @($grouped | Where-Object { $_ -notin $DocumentedHeader }) | Should -BeNullOrEmpty -Because 'every grouped column is in the file'
+            @($DocumentedHeader | Where-Object { $_ -notin $grouped }) | Should -BeNullOrEmpty -Because 'every column of the file is grouped'
+        }
     }
 }

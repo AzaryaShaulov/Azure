@@ -16,5 +16,29 @@ Packages are generated from the project root with:
 ./build.ps1 -Task Version, Test, Package
 ```
 
-The package contains the complete `vm-sku-retirement-report` skill, including its scripts, modules, templates,
-bundled data, license, and third-party notices.
+The package contains the `vm-sku-retirement-report` skill: its scripts, modules, templates, bundled data and reference
+documentation, a README, the changelog, the license and the third-party notices. It does not contain the tests, their
+fixtures or the mock Azure CLI. `build.ps1 -Task Package` checks the finished ZIP against the skill folder before it
+writes the checksum. Use `-DistPath <folder>` to build into another folder (for example to try a package without changing
+this directory).
+
+### Disclaimer – Independent Assessment Tool
+
+**This tool is provided "AS IS," without warranties or guarantees of any kind.**
+
+This is an independently developed assessment tool and is **not an official Microsoft product or Microsoft-supported solution**. Microsoft does not provide support, maintenance, warranties, or guarantees for this tool or its generated reports.
+
+Assessment results, Azure VM SKU recommendations, retirement timelines, and modernization guidance are provided for informational and planning purposes only. Findings may not reflect the latest Azure capabilities, regional availability, pricing, retirement announcements, or Microsoft documentation.
+
+**Before making production changes, users must independently validate:**
+
+- VM SKU compatibility and supported migration paths.
+- Regional SKU availability and subscription quotas.
+- Pricing and capacity requirements.
+- VM generation, disk controller, NVMe, and storage compatibility.
+- Redeployment, downtime, and migration requirements.
+- Official Azure retirement dates and Microsoft documentation.
+
+Users are solely responsible for validating assessment findings, evaluating potential operational impacts, and planning and executing changes within their environments.
+
+**Use of this tool and reliance on its outputs are at the user's own risk.**

@@ -5,27 +5,43 @@ function Get-QuotaUsage {
     <#
     .SYNOPSIS
         Returns compute usage/limits for a subscription + region as a hashtable keyed by lower-case quota name.
+    .DESCRIPTION
+        A failure or an empty answer is recorded in -IssueSink (with the sanitized reason) and the quota stays unverified.
     #>
-    param([Parameter(Mandatory)][string]$SubscriptionId, [Parameter(Mandatory)][string]$Region)
-    $raw = Invoke-AzJson -Arguments @('vm', 'list-usage', '--location', $Region, '--subscription', $SubscriptionId) -AllowFailure
-    if ($null -eq $raw) { return $null }
+    param([Parameter(Mandatory)][string]$SubscriptionId, [Parameter(Mandatory)][string]$Region, $IssueSink)
+    $failure = $null
+    $raw = Invoke-AzJson -Arguments @('vm', 'list-usage', '--location', $Region, '--subscription', $SubscriptionId) -AllowFailure -Failure ([ref]$failure)
     $d = @{}
-    foreach ($u in @($raw)) {
-        if (-not $u -or -not $u.name) { continue }
-        $d[$u.name.value.ToLowerInvariant()] = [pscustomobject]@{
-            Name = $u.name.value; LocalName = $u.localName; Used = [int]$u.currentValue; Limit = [int]$u.limit
+    try {
+        foreach ($u in @($raw)) {
+            if (-not $u -or -not $u.name) { continue }
+            $d[$u.name.value.ToLowerInvariant()] = [pscustomobject]@{
+                Name = $u.name.value; LocalName = $u.localName; Used = [int]$u.currentValue; Limit = [int]$u.limit
+            }
         }
     }
+    catch {
+        Add-CollectionIssue -Sink $IssueSink -Api 'Compute usage (az vm list-usage)' -SubscriptionId $SubscriptionId -Region $Region `
+            -Message "The answer could not be read: $(ConvertTo-SafeCliMessage $_.Exception.Message 200)" `
+            -Effect 'Quota cannot be verified for VMs in this scope, so their quota status is not confirmed.'
+        return $null
+    }
+    if ($d.Count -eq 0) {
+        Add-CollectionIssue -Sink $IssueSink -Api 'Compute usage (az vm list-usage)' -SubscriptionId $SubscriptionId -Region $Region `
+            -Message $(if ($failure) { $failure } else { 'The call returned no quota data.' }) `
+            -Effect 'Quota cannot be verified for VMs in this scope, so their quota status is not confirmed.'
+    }
+    if ($null -eq $raw) { return $null }
     return $d
 }
 
 function Get-QuotaUsages {
-    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Pairs, [int]$ThrottleLimit = 6)
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Pairs, [int]$ThrottleLimit = 6, $IssueSink)
     $modulePath = Join-Path $PSScriptRoot 'Quota.psm1'
     $results = $Pairs | ForEach-Object -ThrottleLimit $ThrottleLimit -Parallel {
         Import-Module $using:modulePath -DisableNameChecking
         $p = $_
-        [pscustomobject]@{ Key = "$($p.SubscriptionId)|$($p.Region)".ToLowerInvariant(); Usage = (Get-QuotaUsage -SubscriptionId $p.SubscriptionId -Region $p.Region) }
+        [pscustomobject]@{ Key = "$($p.SubscriptionId)|$($p.Region)".ToLowerInvariant(); Usage = (Get-QuotaUsage -SubscriptionId $p.SubscriptionId -Region $p.Region -IssueSink $using:IssueSink) }
     }
     $out = @{}
     foreach ($r in @($results)) { $out[$r.Key] = $r.Usage }
@@ -50,98 +66,162 @@ function Get-QuotaIncrease {
     }
 }
 
+function New-QuotaImpactRow {
+    <#
+    .SYNOPSIS
+        Builds one QuotaRow. Original columns keep their original order; steady/peak columns are appended.
+    #>
+    param(
+        [string]$SubscriptionId, [string]$Region, [string]$QuotaName, [string]$QuotaDisplayName, [int]$VmCount, [string]$TargetSkus,
+        [int]$SteadyRequired, [AllowNull()]$RequiredAllocatedOnly, [int]$PeakRequired, [int]$SideBySideCount, $QuotaUsage,
+        [double]$SafetyPct = 20, [string]$Scope, [switch]$UnknownFamily, [switch]$UsageAvailable
+    )
+    $model = if ($SideBySideCount -le 0) { 'InPlace' } elseif ($SideBySideCount -ge $VmCount) { 'SideBySide' } else { 'Mixed' }
+    $row = [ordered]@{
+        SubscriptionId = $SubscriptionId; Region = $Region; QuotaName = $QuotaName; QuotaDisplayName = $QuotaDisplayName
+        VmCount = $VmCount; TargetSkus = $TargetSkus; Limit = $null; CurrentUsage = $null; Remaining = $null
+        RequiredVcpu = $SteadyRequired; RequiredVcpuAllocatedOnly = $RequiredAllocatedOnly; PostMigrationUsage = $null
+        MinimumIncrease = $null; RecommendedIncrease = $null; RecommendedNewLimit = $null
+        Status = 'Quota Information Unavailable'; DataQuality = 'Unable to Verify'; Scope = $Scope
+        MigrationQuotaModel = $model; SideBySideVmCount = $SideBySideCount
+        SteadyStateRequiredVcpu = $SteadyRequired; PeakMigrationRequiredVcpu = $PeakRequired; PeakPostMigrationUsage = $null
+        PeakMinimumIncrease = $null; PeakRecommendedIncrease = $null; PeakRecommendedNewLimit = $null
+        PeakStatus = 'Quota Information Unavailable'
+    }
+    if ($UnknownFamily) {
+        $row.QuotaName = '(unknown family)'; $row.Status = 'Manual Validation Required'; $row.PeakStatus = 'Manual Validation Required'
+    }
+    elseif ($QuotaUsage) {
+        $steady = Get-QuotaIncrease -Limit $QuotaUsage.Limit -Used $QuotaUsage.Used -Required $SteadyRequired -SafetyPct $SafetyPct
+        $peak = Get-QuotaIncrease -Limit $QuotaUsage.Limit -Used $QuotaUsage.Used -Required $PeakRequired -SafetyPct $SafetyPct
+        if (-not $row.QuotaDisplayName) { $row.QuotaDisplayName = $QuotaUsage.LocalName }
+        $row.Limit = $steady.Limit; $row.CurrentUsage = $steady.Used; $row.Remaining = $steady.Remaining
+        $row.PostMigrationUsage = $steady.PostMigrationUsage; $row.MinimumIncrease = $steady.MinimumIncrease
+        $row.RecommendedIncrease = $steady.RecommendedIncrease; $row.RecommendedNewLimit = $steady.RecommendedNewLimit
+        $row.Status = $steady.Status; $row.DataQuality = 'Verified'
+        $row.PeakPostMigrationUsage = $peak.PostMigrationUsage; $row.PeakMinimumIncrease = $peak.MinimumIncrease
+        $row.PeakRecommendedIncrease = $peak.RecommendedIncrease; $row.PeakRecommendedNewLimit = $peak.RecommendedNewLimit
+        $row.PeakStatus = $peak.Status
+    }
+    elseif ($UsageAvailable) {
+        $row.Status = 'Manual Validation Required'; $row.PeakStatus = 'Manual Validation Required'; $row.DataQuality = 'Partially Verified'
+    }
+    return [pscustomobject]$row
+}
+
+function Get-PropertySum {
+    param([AllowEmptyCollection()][object[]]$Items, [Parameter(Mandatory)][string]$Property)
+    $sum = 0
+    foreach ($i in @($Items)) { if ($i) { $sum += [int]$i.$Property } }
+    return $sum
+}
+
+function Get-CombinedQuotaStatus {
+    param([string[]]$Statuses)
+    if ($Statuses -contains 'Quota Information Unavailable') { return 'Quota Information Unavailable' }
+    if ($Statuses -contains 'Manual Validation Required') { return 'Manual Validation Required' }
+    if ($Statuses -contains 'Quota Increase Required') { return 'Quota Increase Required' }
+    return 'Quota OK'
+}
+
 function Measure-QuotaImpact {
     <#
     .SYNOPSIS
         Aggregates migration demand per subscription/region/target family and per regional vCPU total.
     .DESCRIPTION
         Demand is summed across every VM moving into the same target family (not validated per VM in isolation).
-        In-place resize model: target family needs +target vCPU for every migrated VM (allocated or deallocated, because a
-        deallocated VM consumes quota when started). Regional total vCPUs needs +(target - current) for allocated VMs
-        and +target for deallocated VMs.
+        RequiredVcpu / MinimumIncrease / Status remain the steady-state (post-migration) values.
+
+        MigrationQuotaModel may be supplied on each move:
+          - InPlace (default): the VM is resized; source and target never consume quota at the same time.
+          - SideBySide: a replacement VM may run while the source still exists, so peak demand is the full target vCPU.
+
+        Family quota (steady): allocated same-family resize +max(0, target - current); otherwise +target.
+        Family quota (peak):   SideBySide same-family +target (the source keeps its current usage); otherwise = steady.
+        Regional vCPUs (steady): allocated +max(0, target - current); deallocated +target.
+        Regional vCPUs (peak):   SideBySide +target; otherwise = steady.
     .PARAMETER Moves
-        Objects: SubscriptionId, Region, VmId, CurrentFamily, CurrentVcpu, TargetSku, TargetFamily, TargetVcpu, IsAllocated.
+        Objects: SubscriptionId, Region, VmId, CurrentFamily, CurrentVcpu, TargetSku, TargetFamily, TargetVcpu,
+        IsAllocated, and optional MigrationQuotaModel (InPlace|SideBySide).
+    .PARAMETER Scope
+        Optional scope label written to every row (Retirement, Retirement+Modernization, Modernization).
     #>
-    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Moves, [Parameter(Mandatory)][hashtable]$Usage, [double]$SafetyPct = 20)
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Moves, [Parameter(Mandatory)][hashtable]$Usage, [double]$SafetyPct = 20, [string]$Scope)
     $familyRows = New-Object System.Collections.Generic.List[object]
     $regionalRows = New-Object System.Collections.Generic.List[object]
     $byVm = @{}
+    $vmDemand = @{}
 
     foreach ($grp in ($Moves | Group-Object { "$($_.SubscriptionId)|$($_.Region)".ToLowerInvariant() })) {
         $pairUsage = $Usage[$grp.Name]
         $sub, $region = $grp.Name -split '\|'
-        foreach ($fg in ($grp.Group | Group-Object { if ($_.TargetFamily) { $_.TargetFamily.ToLowerInvariant() } else { '' } })) {
-            $vms = @($fg.Group)
-            $required = 0
-            $requiredAlloc = 0
-            foreach ($v in $vms) {
-                $sameFamily = $v.CurrentFamily -and $v.TargetFamily -and $v.CurrentFamily -ieq $v.TargetFamily
-                $demand = if ($v.IsAllocated -and $sameFamily) {
-                    [math]::Max(0, [int]$v.TargetVcpu - [int]$v.CurrentVcpu)
-                }
-                else {
-                    [int]$v.TargetVcpu
-                }
-                $required += $demand
-                if ($v.IsAllocated) { $requiredAlloc += $demand }
+
+        foreach ($v in $grp.Group) {
+            $sameFamily = $v.CurrentFamily -and $v.TargetFamily -and $v.CurrentFamily -ieq $v.TargetFamily
+            $model = if ($v.PSObject.Properties.Name -contains 'MigrationQuotaModel' -and $v.MigrationQuotaModel -eq 'SideBySide') { 'SideBySide' } else { 'InPlace' }
+            $target = [int]$v.TargetVcpu
+            $delta = [math]::Max(0, $target - [int]$v.CurrentVcpu)
+            $steadyFamily = if ($v.IsAllocated -and $sameFamily) { $delta } else { $target }
+            $steadyRegional = if ($v.IsAllocated) { $delta } else { $target }
+            $vmDemand[$v.VmId] = [pscustomobject]@{
+                MigrationQuotaModel = $model
+                SteadyStateFamilyVcpu = $steadyFamily
+                PeakMigrationFamilyVcpu = if ($model -eq 'SideBySide' -and $sameFamily) { $target } else { $steadyFamily }
+                SteadyStateRegionalVcpu = $steadyRegional
+                PeakMigrationRegionalVcpu = if ($model -eq 'SideBySide') { $target } else { $steadyRegional }
             }
-            $row = [ordered]@{
-                SubscriptionId = $sub; Region = $region; QuotaName = $fg.Name; QuotaDisplayName = $null
-                VmCount = $vms.Count; TargetSkus = (@($vms | ForEach-Object TargetSku | Sort-Object -Unique) -join ', ')
-                Limit = $null; CurrentUsage = $null; Remaining = $null; RequiredVcpu = $required; RequiredVcpuAllocatedOnly = $requiredAlloc
-                PostMigrationUsage = $null; MinimumIncrease = $null; RecommendedIncrease = $null; RecommendedNewLimit = $null
-                Status = 'Quota Information Unavailable'; DataQuality = 'Unable to Verify'
-            }
-            if (-not $fg.Name) { $row.Status = 'Manual Validation Required'; $row.QuotaName = '(unknown family)' }
-            elseif ($pairUsage -and $pairUsage.ContainsKey($fg.Name)) {
-                $q = $pairUsage[$fg.Name]
-                $calc = Get-QuotaIncrease -Limit $q.Limit -Used $q.Used -Required $required -SafetyPct $SafetyPct
-                $row.QuotaDisplayName = $q.LocalName; $row.Limit = $calc.Limit; $row.CurrentUsage = $calc.Used; $row.Remaining = $calc.Remaining
-                $row.PostMigrationUsage = $calc.PostMigrationUsage; $row.MinimumIncrease = $calc.MinimumIncrease
-                $row.RecommendedIncrease = $calc.RecommendedIncrease; $row.RecommendedNewLimit = $calc.RecommendedNewLimit
-                $row.Status = $calc.Status; $row.DataQuality = 'Verified'
-            }
-            elseif ($pairUsage) { $row.Status = 'Manual Validation Required'; $row.DataQuality = 'Partially Verified' }
-            $familyRows.Add([pscustomobject]$row)
-            foreach ($v in $vms) { $byVm[$v.VmId] = @{ Family = [pscustomobject]$row } }
         }
 
-        $delta = 0
-        foreach ($m in $grp.Group) { $delta += if ($m.IsAllocated) { [math]::Max(0, [int]$m.TargetVcpu - [int]$m.CurrentVcpu) } else { [int]$m.TargetVcpu } }
-        $reg = [ordered]@{
-            SubscriptionId = $sub; Region = $region; QuotaName = 'cores'; QuotaDisplayName = 'Total Regional vCPUs'
-            VmCount = @($grp.Group).Count; TargetSkus = ''; Limit = $null; CurrentUsage = $null; Remaining = $null
-            RequiredVcpu = $delta; RequiredVcpuAllocatedOnly = $null; PostMigrationUsage = $null; MinimumIncrease = $null
-            RecommendedIncrease = $null; RecommendedNewLimit = $null; Status = 'Quota Information Unavailable'; DataQuality = 'Unable to Verify'
+        foreach ($fg in ($grp.Group | Group-Object { if ($_.TargetFamily) { $_.TargetFamily.ToLowerInvariant() } else { '' } })) {
+            $vms = @($fg.Group)
+            $demand = @($vms | ForEach-Object { $vmDemand[$_.VmId] })
+            $steady = Get-PropertySum $demand SteadyStateFamilyVcpu
+            $peak = Get-PropertySum $demand PeakMigrationFamilyVcpu
+            $alloc = Get-PropertySum @($vms | Where-Object IsAllocated | ForEach-Object { $vmDemand[$_.VmId] }) SteadyStateFamilyVcpu
+            $sideBySide = @($demand | Where-Object MigrationQuotaModel -eq 'SideBySide').Count
+            $familyUsage = if ($fg.Name -and $pairUsage -and $pairUsage.ContainsKey($fg.Name)) { $pairUsage[$fg.Name] } else { $null }
+            $familyObj = New-QuotaImpactRow -SubscriptionId $sub -Region $region -QuotaName $fg.Name -VmCount $vms.Count `
+                -TargetSkus (@($vms | ForEach-Object TargetSku | Sort-Object -Unique) -join ', ') -SteadyRequired $steady -RequiredAllocatedOnly $alloc `
+                -PeakRequired $peak -SideBySideCount $sideBySide -QuotaUsage $familyUsage -SafetyPct $SafetyPct -Scope $Scope `
+                -UnknownFamily:(-not $fg.Name) -UsageAvailable:([bool]$pairUsage)
+            $familyRows.Add($familyObj)
+            foreach ($v in $vms) {
+                if (-not $byVm.ContainsKey($v.VmId)) { $byVm[$v.VmId] = @{} }
+                $byVm[$v.VmId].Family = $familyObj
+            }
         }
-        if ($pairUsage -and $pairUsage.ContainsKey('cores')) {
-            $q = $pairUsage['cores']
-            $calc = Get-QuotaIncrease -Limit $q.Limit -Used $q.Used -Required $delta -SafetyPct $SafetyPct
-            $reg.Limit = $calc.Limit; $reg.CurrentUsage = $calc.Used; $reg.Remaining = $calc.Remaining
-            $reg.PostMigrationUsage = $calc.PostMigrationUsage; $reg.MinimumIncrease = $calc.MinimumIncrease
-            $reg.RecommendedIncrease = $calc.RecommendedIncrease; $reg.RecommendedNewLimit = $calc.RecommendedNewLimit
-            $reg.Status = $calc.Status; $reg.DataQuality = 'Verified'
+
+        $demand = @($grp.Group | ForEach-Object { $vmDemand[$_.VmId] })
+        $regionalUsage = if ($pairUsage -and $pairUsage.ContainsKey('cores')) { $pairUsage['cores'] } else { $null }
+        $regionalObj = New-QuotaImpactRow -SubscriptionId $sub -Region $region -QuotaName 'cores' -QuotaDisplayName 'Total Regional vCPUs' `
+            -VmCount @($grp.Group).Count -TargetSkus '' -SteadyRequired (Get-PropertySum $demand SteadyStateRegionalVcpu) -RequiredAllocatedOnly $null `
+            -PeakRequired (Get-PropertySum $demand PeakMigrationRegionalVcpu) -SideBySideCount @($demand | Where-Object MigrationQuotaModel -eq 'SideBySide').Count `
+            -QuotaUsage $regionalUsage -SafetyPct $SafetyPct -Scope $Scope
+        $regionalRows.Add($regionalObj)
+        foreach ($m in $grp.Group) {
+            if (-not $byVm.ContainsKey($m.VmId)) { $byVm[$m.VmId] = @{} }
+            $byVm[$m.VmId].Regional = $regionalObj
         }
-        $regionalRows.Add([pscustomobject]$reg)
-        foreach ($m in $grp.Group) { $byVm[$m.VmId].Regional = [pscustomobject]$reg }
     }
 
     $vmStatus = @{}
     foreach ($k in $byVm.Keys) {
-        $f = $byVm[$k].Family; $r = $byVm[$k].Regional
-        $statuses = @($f.Status, $r.Status)
-        $status = if ($statuses -contains 'Quota Information Unavailable') { 'Quota Information Unavailable' }
-        elseif ($statuses -contains 'Manual Validation Required') { 'Manual Validation Required' }
-        elseif ($statuses -contains 'Quota Increase Required') { 'Quota Increase Required' }
-        else { 'Quota OK' }
+        $f = $byVm[$k].Family; $r = $byVm[$k].Regional; $d = $vmDemand[$k]
         $vmStatus[$k] = [pscustomobject]@{
-            Status = $status; Family = $f; Regional = $r
+            Status = Get-CombinedQuotaStatus @($f.Status, $r.Status)
+            PeakStatus = Get-CombinedQuotaStatus @($f.PeakStatus, $r.PeakStatus)
+            MigrationQuotaModel = $d.MigrationQuotaModel
+            SteadyStateRequiredVcpu = [int]$d.SteadyStateFamilyVcpu
+            PeakMigrationRequiredVcpu = [int]$d.PeakMigrationFamilyVcpu
+            SteadyStateRegionalRequiredVcpu = [int]$d.SteadyStateRegionalVcpu
+            PeakMigrationRegionalRequiredVcpu = [int]$d.PeakMigrationRegionalVcpu
+            Family = $f
+            Regional = $r
             DataQuality = if ($f.DataQuality -eq 'Verified' -and $r.DataQuality -eq 'Verified') { 'Verified' } elseif ($f.DataQuality -eq 'Unable to Verify' -and $r.DataQuality -eq 'Unable to Verify') { 'Unable to Verify' } else { 'Partially Verified' }
         }
     }
     [pscustomobject]@{ FamilyRows = $familyRows.ToArray(); RegionalRows = $regionalRows.ToArray(); ByVm = $vmStatus }
 }
-
 function Test-FamilyHeadroom {
     <# Returns $true when the family quota in sub/region can absorb RequiredVcpu (used for secondary-recommendation reasoning). #>
     param([hashtable]$Usage, [string]$Key, [string]$Family, [int]$RequiredVcpu)
@@ -152,4 +232,4 @@ function Test-FamilyHeadroom {
     return ($u[$f].Limit - $u[$f].Used) -ge $RequiredVcpu
 }
 
-Export-ModuleMember -Function Get-QuotaUsage, Get-QuotaUsages, Get-QuotaIncrease, Measure-QuotaImpact, Test-FamilyHeadroom
+Export-ModuleMember -Function Get-QuotaUsage, Get-QuotaUsages, Get-QuotaIncrease, Get-CombinedQuotaStatus, Measure-QuotaImpact, Test-FamilyHeadroom

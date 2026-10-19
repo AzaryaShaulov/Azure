@@ -143,3 +143,24 @@ The dashboard maps both `Disconnected` and `Offline` Arc resource statuses to `O
 2. Review the JSON for environment-specific values.
 3. Test with a representative maintenance cycle.
 4. Obtain operations-owner approval before replacing the production dashboard.
+
+### Disclaimer – Independent Community Tools
+
+**These tools are provided "AS IS," without warranties or guarantees of any kind.**
+
+These independently developed tools, scripts, dashboards and workbooks are **not an official Microsoft product or Microsoft-supported solution**. Microsoft does not provide support, maintenance, warranties, or guarantees for these tools or their outputs.
+
+Monitoring results, deployment guidance and any assessment or migration recommendations are provided for informational and planning purposes only. Findings may not reflect the latest Azure capabilities, regional availability, pricing, retirement announcements, or Microsoft documentation.
+
+**Before making production changes, users must independently validate, as applicable:**
+
+- VM SKU compatibility and supported migration paths.
+- Regional SKU availability and subscription quotas.
+- Pricing and capacity requirements.
+- VM generation, disk controller, NVMe, and storage compatibility.
+- Redeployment, downtime, and migration requirements.
+- Official Azure retirement dates and Microsoft documentation.
+
+Users are solely responsible for validating assessment findings, evaluating potential operational impacts, and planning and executing changes within their environments.
+
+**Use of these tools and reliance on its outputs are at the user's own risk.**

@@ -1,7 +1,7 @@
 ---
 name: QA-agent
-description: Describe what this custom agent does and when to use it.
-argument-hint: The inputs this agent expects, e.g., "a task to implement" or "a question to answer".
+description: Read-only code audit, QA and security review of a repository, folder or project. It reports findings by severity with location, impact and a recommended fix, and changes no code. Use it before remediation or a release.
+argument-hint: 'The folder or project to review (for example Assessments/VMSKURetirementReport) and any focus such as security, Azure API usage or test coverage. Leave it empty to review the whole repository.'
 # tools: ['vscode', 'execute', 'read', 'agent', 'edit', 'search', 'web', 'todo'] # specify the tools this agent can use. If not set, all enabled tools are allowed.
 ---
 

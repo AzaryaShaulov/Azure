@@ -1,4 +1,4 @@
-﻿# AVD Diagnostics Configuration Tool
+# AVD Diagnostics Configuration Tool
 
 ## Overview
 
@@ -202,17 +202,6 @@ Azure Virtual Desktop diagnostic logs capture telemetry about operations, perfor
 
 See [LICENSE](../LICENSE) file for details.
 
-## Disclaimer
-
-**THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.**
-
-This script is provided as-is under the MIT License. The authors and contributors:
-
-- **Make no warranties or guarantees** about the functionality, reliability, or suitability of this script for any purpose
-- **Accept no responsibility or liability** for any damages, data loss, service interruptions, or other issues arising from the use of this script
-- **Provide no support or maintenance** obligations, though community contributions are welcome
-- **Recommend thorough testing** in a non-production environment before deploying to production systems
-
 ### Important Notes
 
 - **Test First**: Always test in a development/staging environment before running in production
@@ -221,4 +210,23 @@ This script is provided as-is under the MIT License. The authors and contributor
 - **Costs**: Understand Azure Monitor and Log Analytics pricing before enabling diagnostics at scale
 - **Compliance**: Verify this solution meets your organization's security and compliance requirements
 
-**By using this script, you acknowledge and accept these terms and assume all risks associated with its use.**
+### Disclaimer – Independent Community Tools
+
+**These tools are provided "AS IS," without warranties or guarantees of any kind.**
+
+These independently developed tools, scripts, dashboards and workbooks are **not an official Microsoft product or Microsoft-supported solution**. Microsoft does not provide support, maintenance, warranties, or guarantees for these tools or their outputs.
+
+Monitoring results, deployment guidance and any assessment or migration recommendations are provided for informational and planning purposes only. Findings may not reflect the latest Azure capabilities, regional availability, pricing, retirement announcements, or Microsoft documentation.
+
+**Before making production changes, users must independently validate, as applicable:**
+
+- VM SKU compatibility and supported migration paths.
+- Regional SKU availability and subscription quotas.
+- Pricing and capacity requirements.
+- VM generation, disk controller, NVMe, and storage compatibility.
+- Redeployment, downtime, and migration requirements.
+- Official Azure retirement dates and Microsoft documentation.
+
+Users are solely responsible for validating assessment findings, evaluating potential operational impacts, and planning and executing changes within their environments.
+
+**Use of these tools and reliance on its outputs are at the user's own risk.**

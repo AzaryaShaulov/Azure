@@ -382,17 +382,46 @@ function Get-NonVmSizeEntries {
     return @(@($Catalog.nonVmSizeEntries) | Where-Object { $_ })
 }
 
+function Get-CatalogRegressionWarning {
+    <#
+    .SYNOPSIS
+        Compares a freshly parsed catalog with the cached one. Series, or list rows, that the cache has and the live parse lacks
+        usually mean that a Learn page changed format and rows were dropped, which would turn retiring sizes into
+        'No Retirement Announced'. Returns a warning text, or $null when nothing was lost.
+    #>
+    param([Parameter(Mandatory)]$Live, [Parameter(Mandatory)]$Cached)
+    $keysOf = { param($c) @($c.series | ForEach-Object { $_.key }) }
+    $countWith = { param($c, [string]$prop) @($c.series | Where-Object { $_.PSObject.Properties.Name -contains $prop -and $_.$prop }).Count }
+    $found = New-Object System.Collections.Generic.List[string]
+    $liveKeys = & $keysOf $Live
+    $cachedKeys = & $keysOf $Cached
+    $missing = @($cachedKeys | Where-Object { $_ -notin $liveKeys })
+    if ($missing.Count -gt 0) { $found.Add("$($missing.Count) of the $($cachedKeys.Count) series in the cached catalog are missing ($((@($missing | Select-Object -First 8)) -join ', ')$(if ($missing.Count -gt 8) { ', ...' }))") }
+    foreach ($list in @(@('retiredList', 'the retired-sizes list'), @('previousGen', 'the previous-generation list'))) {
+        $liveCount = & $countWith $Live $list[0]
+        $cachedCount = & $countWith $Cached $list[0]
+        if ($liveCount -lt $cachedCount) { $found.Add("$($list[1]) now covers $liveCount series (the cache has $cachedCount)") }
+    }
+    if ($found.Count -eq 0) { return $null }
+    "The live Microsoft Learn parse looks incomplete: $($found -join '; '). A page format change may have dropped rows; validate against Microsoft Learn before relying on 'No Retirement Announced'."
+}
+
 function Get-RetirementCatalog {
     <#
     .SYNOPSIS
         Returns the retirement catalog: live from Microsoft Learn, falling back to the cached catalog.
+    .DESCRIPTION
+        A live parse that lost series or list rows compared with the cache is returned with a warning, and -UpdateCache then
+        leaves the cache untouched. A cached catalog older than -CacheMaxAgeDays at -AsOf is returned with a warning.
     #>
     param(
         [Parameter(Mandatory)][string]$SeriesMapPath,
         [Parameter(Mandatory)][string]$CachePath,
         [switch]$Offline,
         [switch]$UpdateCache,
-        [int]$TimeoutSec = 30
+        [int]$TimeoutSec = 30,
+        [datetime]$AsOf = (Get-Date),
+        [int]$CacheMaxAgeDays = 90
     )
     $seriesMap = Get-SeriesMap -Path $SeriesMapPath
     $liveError = $null
@@ -404,10 +433,16 @@ function Get-RetirementCatalog {
                 $pages[$pair[0]] = @{ Url = $pair[1]; Html = [string]$resp.Content; RetrievedUtc = (Get-Date).ToUniversalTime().ToString('o') }
             }
             $catalog = New-RetirementCatalog -Pages $pages -SeriesMap $seriesMap
-            if ($UpdateCache) {
-                $catalog | ConvertTo-Json -Depth 20 | Out-File -FilePath $CachePath -Encoding utf8
+            $regression = $null
+            if (Test-Path $CachePath) {
+                try { $regression = Get-CatalogRegressionWarning -Live $catalog -Cached (Get-Content $CachePath -Raw | ConvertFrom-Json -Depth 20) }
+                catch { Write-Verbose "The cached catalog could not be compared with the live parse: $($_.Exception.Message)" }
             }
-            return [pscustomobject]@{ Catalog = $catalog; Source = 'Live'; Warning = $null; SeriesMap = $seriesMap }
+            if ($UpdateCache) {
+                if ($regression) { $regression += ' The cache was not updated.' }
+                else { $catalog | ConvertTo-Json -Depth 20 | Out-File -FilePath $CachePath -Encoding utf8 }
+            }
+            return [pscustomobject]@{ Catalog = $catalog; Source = 'Live'; Warning = $regression; SeriesMap = $seriesMap }
         }
         catch {
             $liveError = $_.Exception.Message
@@ -421,10 +456,18 @@ function Get-RetirementCatalog {
     $when = ($cached.sources | ForEach-Object RetrievedUtc | Sort-Object | Select-Object -First 1)
     $parsed = [datetime]::MinValue
     if ($when -is [string] -and [datetime]::TryParse($when, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AdjustToUniversal, [ref]$parsed)) { $when = $parsed }
-    if ($when -is [datetime]) { $when = $when.ToUniversalTime().ToString('yyyy-MM-dd HH:mm') + ' UTC' }
+    $retrieved = if ($when -is [datetime]) { $when.ToUniversalTime() } else { $null }
+    $notes = @(if ($liveError) { "Live fetch failed: $liveError" } else { 'Offline mode requested.' })
+    if ($retrieved) {
+        $ageDays = [int][math]::Floor(($AsOf.Date - $retrieved.Date).TotalDays)
+        if ($ageDays -gt $CacheMaxAgeDays) {
+            $notes += "The cached catalog was retrieved $($retrieved.ToString('yyyy-MM-dd')), $ageDays days before the assessment date, so newer Microsoft retirement announcements may be missing. Run without -OfflineCatalog for live evidence, or refresh the cache with scripts/Update-Catalogs.ps1."
+        }
+        $when = $retrieved.ToString('yyyy-MM-dd HH:mm') + ' UTC'
+    }
     return [pscustomobject]@{
         Catalog = $cached; Source = "Cached ($when)"; SeriesMap = $seriesMap
-        Warning = if ($liveError) { "Live fetch failed: $liveError" } else { 'Offline mode requested.' }
+        Warning = $notes -join ' '
     }
 }
 
@@ -455,6 +498,25 @@ function Get-RetirementUrgency {
     return 'More than 36 Months'
 }
 
+function Get-LifecycleStage {
+    <#
+    .SYNOPSIS
+        Microsoft VM lifecycle stage for a lifecycle result: Retired, End of Life, Not End of Life or Unknown.
+    .DESCRIPTION
+        Microsoft defines four stages (Current, Extended, End of Life, Retired); End of Life means a retirement has been
+        announced (https://learn.microsoft.com/azure/virtual-machines/sizes/lifecycle/lifecycle-overview). Current and
+        Extended depend on the VM family, so sizes without an announced retirement are reported as 'Not End of Life'
+        rather than guessed.
+    #>
+    param([Parameter(Mandatory)]$Lifecycle)
+    $previous = if ($Lifecycle.PSObject.Properties.Name -contains 'PreviousGenStatus') { $Lifecycle.PreviousGenStatus } else { $null }
+    switch ($Lifecycle.EvidenceClass) {
+        'Already Retired' { return 'Retired' }
+        { $_ -in 'Confirmed Retirement', 'Retirement Announced' } { return 'End of Life' }
+        'Unable to Confirm' { return 'Unknown' }
+        default { if ($previous -eq 'End of Life') { return 'End of Life' } else { return 'Not End of Life' } }
+    }
+}
 function Resolve-SkuLifecycle {
     <#
     .SYNOPSIS
@@ -473,7 +535,7 @@ function Resolve-SkuLifecycle {
         SkuName = $SkuName; SeriesKey = $info.SeriesKey; LearnSeriesName = $null
         EvidenceClass = 'No Retirement Announced'; RetirementStatus = 'No Retirement Announced'
         AnnouncementDate = $null; RetirementDate = $null; MonthsRemaining = $null; Urgency = 'No Retirement Announced'
-        SourceUrl = $null; AnnouncementUrl = $null; MigrationGuideUrl = $null; PreviousGenStatus = $null
+        SourceUrl = $null; AnnouncementUrl = $null; MigrationGuideUrl = $null; PreviousGenStatus = $null; LifecycleStage = $null
         RecommendedTargets = @(); GuideDifferences = @(); SizeTargets = @(); Notes = @()
         CatalogSource = $CatalogSource; DataQuality = 'Verified'
     }
@@ -481,7 +543,7 @@ function Resolve-SkuLifecycle {
         $result.EvidenceClass = 'Unable to Confirm'; $result.RetirementStatus = 'Unable to Confirm'
         $result.Urgency = 'Unable to Determine'; $result.DataQuality = 'Unable to Verify'
         $result.Notes = @("VM size name '$SkuName' does not follow the Azure naming convention; cannot match to Microsoft lifecycle data.")
-        return [pscustomobject]$result
+        $result.LifecycleStage = Get-LifecycleStage -Lifecycle ([pscustomobject]$result); return [pscustomobject]$result
     }
     $unmappedHit = @($Catalog.unmappedSeries | Where-Object { (ConvertTo-NormalizedSeriesName $_.SeriesName) -eq $info.SeriesKey })
     if (-not $entry) {
@@ -490,7 +552,7 @@ function Resolve-SkuLifecycle {
             $result.Urgency = 'Unable to Determine'; $result.DataQuality = 'Unable to Verify'
             $result.Notes = @("Microsoft Learn lists series '$($unmappedHit[0].SeriesName)' ($($unmappedHit[0].Source): $($unmappedHit[0].Status)) which has no SKU mapping in series-map.json. Add a mapping to classify.")
         }
-        return [pscustomobject]$result
+        $result.LifecycleStage = Get-LifecycleStage -Lifecycle ([pscustomobject]$result); return [pscustomobject]$result
     }
     $result.LearnSeriesName = ($entry.learnNames -join ' / ')
     $result.RecommendedTargets = @($entry.recommendedTargets)
@@ -550,9 +612,9 @@ function Resolve-SkuLifecycle {
     $result.Urgency = Get-RetirementUrgency -RetirementDate $date -AsOf $AsOf -EvidenceClass $result.EvidenceClass
     if ($CatalogSource -ne 'Live' -and $result.DataQuality -eq 'Verified') { $result.DataQuality = 'Partially Verified'; $notes.Add("Retirement evidence from cached catalog: $CatalogSource.") }
     $result.Notes = $notes.ToArray()
-    return [pscustomobject]$result
+    $result.LifecycleStage = Get-LifecycleStage -Lifecycle ([pscustomobject]$result); return [pscustomobject]$result
 }
 
 Export-ModuleMember -Function ConvertTo-NormalizedSeriesName, Get-LearnHtmlTables, Get-LearnPageMetadata, Get-SeriesMap, Resolve-SeriesKeys, `
     ConvertFrom-RetiredSizesHtml, ConvertFrom-PreviousGenHtml, ConvertTo-TargetSeriesKey, ConvertFrom-MigrationGuideHtml, New-RetirementCatalog, Get-RetirementCatalog, `
-    Get-UnmappedSeriesNames, Get-NonVmSizeEntries, Find-CatalogSeries, Get-RetirementUrgency, Resolve-SkuLifecycle
+    Get-UnmappedSeriesNames, Get-NonVmSizeEntries, Find-CatalogSeries, Get-RetirementUrgency, Get-LifecycleStage, Resolve-SkuLifecycle

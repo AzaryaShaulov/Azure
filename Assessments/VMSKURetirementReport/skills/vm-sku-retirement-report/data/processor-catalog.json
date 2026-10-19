@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedUtc": "2026-09-24T18:55:52.8147262Z",
+  "generatedUtc": "2026-10-16T20:56:26.3759227Z",
   "source": "https://github.com/MicrosoftDocs/azure-compute-docs (Microsoft Learn size-series spec pages)",
   "note": "CPU vendor per series from the Processor row of each Microsoft Learn size-series spec table. Series absent here fall back to the Azure VM naming convention (Partially Verified).",
   "series": {
@@ -1513,6 +1513,96 @@
       ],
       "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/eav4-series"
     },
+    "ebdsv5": {
+      "docSeries": "ebdsv5-ebsv5",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Hyper-Threading Technology](https://www.intel.com/content/www/us/en/gaming/resources/hyper-threading.html)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "https://www.intel.com/content/www/us/en/gaming/resources/hyper-threading.html"
+        },
+        {
+          "Model": "Intel Advanced Vector Extensions 512 (Intel AVX-512)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Intel AVX-512"
+        },
+        {
+          "Model": "Intel Deep Learning Boost](https://software.intel.com/content/www/us/en/develop/topics/ai/deep-learning-boost.html)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "https://software.intel.com/content/www/us/en/develop/topics/ai/deep-learning-boost.html"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "3rd Generation Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ebdsv5-ebsv5-series"
+    },
+    "ebsv5": {
+      "docSeries": "ebdsv5-ebsv5",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        },
+        {
+          "Model": "Intel Hyper-Threading Technology](https://www.intel.com/content/www/us/en/gaming/resources/hyper-threading.html)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "https://www.intel.com/content/www/us/en/gaming/resources/hyper-threading.html"
+        },
+        {
+          "Model": "Intel Advanced Vector Extensions 512 (Intel AVX-512)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Intel AVX-512"
+        },
+        {
+          "Model": "Intel Deep Learning Boost](https://software.intel.com/content/www/us/en/develop/topics/ai/deep-learning-boost.html)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "https://software.intel.com/content/www/us/en/develop/topics/ai/deep-learning-boost.html"
+        },
+        {
+          "Model": "Intel Xeon Platinum 8272CL (Cascade Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Cascade Lake"
+        },
+        {
+          "Model": "3rd Generation Intel Xeon Platinum 8370C (Ice Lake)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "Ice Lake"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ebdsv5-ebsv5-series"
+    },
     "ebdsv6": {
       "docSeries": "ebdsv6",
       "category": "memory-optimized",
@@ -1558,6 +1648,36 @@
       ],
       "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ecadsv6-series"
     },
+    "ecasccv5ecadsccv5": {
+      "docSeries": "ecasccv5-ecadsccv5",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD processors](/azure/confidential-computing/confidential-vm-overview)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "/azure/confidential-computing/confidential-vm-overview"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ecasccv5-ecadsccv5-series"
+    },
+    "ecasv5ecadsv5": {
+      "docSeries": "ecasv5-ecadsv5",
+      "category": "memory-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD processors](/azure/confidential-computing/virtual-machine-options)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "/azure/confidential-computing/virtual-machine-options"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ecasv5-ecadsv5-series"
+    },
     "ecasv6": {
       "docSeries": "ecasv6",
       "category": "memory-optimized",
@@ -1572,6 +1692,48 @@
         }
       ],
       "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ecasv6-series"
+    },
+    "ecedsv6": {
+      "docSeries": "ecedsv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Advanced Matrix Extensions (AMX)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "AMX"
+        },
+        {
+          "Model": "Intel Trust Domain Extensions (TDX)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "TDX"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ecedsv6-series"
+    },
+    "ecesv6": {
+      "docSeries": "ecesv6",
+      "category": "memory-optimized",
+      "vendor": "Intel",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "Intel Advanced Matrix Extensions (AMX)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "AMX"
+        },
+        {
+          "Model": "Intel Trust Domain Extensions (TDX)",
+          "Vendor": "Intel",
+          "Architecture": "x64",
+          "Generation": "TDX"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/memory-optimized/ecesv6-series"
     },
     "edsv4": {
       "docSeries": "edsv4",
@@ -2407,6 +2569,21 @@
       ],
       "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/laosv4-series"
     },
+    "laosv5": {
+      "docSeries": "laosv5",
+      "category": "storage-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/laosv5-series"
+    },
     "lasv3": {
       "docSeries": "lasv3",
       "category": "storage-optimized",
@@ -2436,6 +2613,21 @@
         }
       ],
       "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/lasv4-series"
+    },
+    "lasv5": {
+      "docSeries": "lasv5",
+      "category": "storage-optimized",
+      "vendor": "AMD",
+      "architecture": "x64",
+      "processors": [
+        {
+          "Model": "AMD EPYC 9005 (Turin)",
+          "Vendor": "AMD",
+          "Architecture": "x64",
+          "Generation": "Turin"
+        }
+      ],
+      "sourceUrl": "https://learn.microsoft.com/azure/virtual-machines/sizes/storage-optimized/lasv5-series"
     },
     "lsv2": {
       "docSeries": "lsv2",
