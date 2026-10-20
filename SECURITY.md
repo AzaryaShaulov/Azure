@@ -1,8 +1,10 @@
 # Security Policy
 
-This policy covers every folder of this repository. The VM SKU Retirement Report also has its own
-[security policy](Assessments/VMSKURetirementReport/SECURITY.md), which describes how that tool is built to be read-only
-and to keep personal data out of its reports.
+This policy covers every folder of this repository, including historical snapshots.
+The VM SKU Retirement Report has moved to
+[AzaryaShaulov/VMSKURetirementReport](https://github.com/AzaryaShaulov/VMSKURetirementReport/);
+follow its [security policy](https://github.com/AzaryaShaulov/VMSKURetirementReport/security/policy)
+for the maintained project. The local copy is retired and no longer receives fixes.
 
 ## Reporting a vulnerability
 
@@ -26,7 +28,7 @@ You should receive an acknowledgement within 5 business days. Coordinated disclo
 
 | Folder | What it contains | Supported versions |
 |---|---|---|
-| [`Assessments/VMSKURetirementReport`](Assessments/VMSKURetirementReport/) | The assessment scripts and modules, report templates, release package and CI workflows | The latest minor release (1.2.x) |
+| [`Assessments/VMSKURetirementReport`](Assessments/VMSKURetirementReport/) | Retired historical snapshot; maintained in the [new repository](https://github.com/AzaryaShaulov/VMSKURetirementReport/) | None in this repository |
 | [`AVD`](AVD/) | PowerShell scripts, KQL queries and a template that configure diagnostics, Data Collection Rules, alerts and a Logic App email workflow | No versioned releases |
 | [`azure-arc`](azure-arc/) | An Azure Portal dashboard definition | No versioned releases |
 | [`AzureDashboards`](AzureDashboards/) | Azure Portal dashboard definitions | No versioned releases |

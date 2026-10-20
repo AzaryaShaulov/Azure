@@ -1,7 +1,12 @@
 name: VMSKURetirementReport feature request
-description: Suggest an improvement to the assessment, report or skill.
+description: Project moved; request features in AzaryaShaulov/VMSKURetirementReport.
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        **Project moved:** this repository contains only a retired historical snapshot.
+        Request features at https://github.com/AzaryaShaulov/VMSKURetirementReport/issues.
   - type: textarea
     id: problem
     attributes:

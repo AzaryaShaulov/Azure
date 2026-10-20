@@ -1,8 +1,12 @@
 # Support
 
+> **Project moved.** This folder is a retired, unmaintained historical snapshot.
+> Current documentation and support are at
+> [AzaryaShaulov/VMSKURetirementReport](https://github.com/AzaryaShaulov/VMSKURetirementReport/).
+
 This is a community project, provided as-is under the MIT license.
 
-- **Questions and bugs:** open a [GitHub issue](https://github.com/AzaryaShaulov/Azure/issues). Please sanitize any
+- **Questions and bugs:** open a [GitHub issue](https://github.com/AzaryaShaulov/VMSKURetirementReport/issues). Please sanitize any
   tenant, subscription or VM identifiers first.
 - **Security issues:** see [SECURITY.md](SECURITY.md).
 - **Azure retirement dates and policies:** the authoritative source is Microsoft, via the

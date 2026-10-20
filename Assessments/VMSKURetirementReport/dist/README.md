@@ -1,5 +1,9 @@
 # Customer downloads
 
+> **Retired downloads.** These packages are retained only for historical reference and are no longer maintained here.
+> Get current releases from
+> [AzaryaShaulov/VMSKURetirementReport](https://github.com/AzaryaShaulov/VMSKURetirementReport/).
+
 This directory contains versioned customer packages for VMSKURetirementReport.
 
 For each release, download both files:

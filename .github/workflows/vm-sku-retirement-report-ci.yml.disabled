@@ -1,3 +1,5 @@
+# Retired historical workflow. The .disabled extension prevents GitHub Actions from running it.
+# Maintained project: https://github.com/AzaryaShaulov/VMSKURetirementReport/
 name: VMSKURetirementReport CI
 
 # The tool is supported on Windows only (Azure CLI and local PowerShell, as a GitHub Copilot skill or a standalone script),

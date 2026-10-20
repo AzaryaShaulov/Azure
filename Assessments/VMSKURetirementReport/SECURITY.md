@@ -2,18 +2,22 @@
 
 ## Supported versions
 
-Security fixes are released for the latest minor version only.
+This local copy is retired and no longer receives security fixes.
+See the [maintained project's security policy](https://github.com/AzaryaShaulov/VMSKURetirementReport/security/policy)
+for current supported versions and reporting instructions.
 
 | Version | Supported |
 |---|---|
-| 1.2.x | Yes |
+| 1.2.x (local snapshot) | No |
 | < 1.2 | No |
 
 ## Reporting a vulnerability
 
 **Do not open a public issue for security problems.**
 
-Report privately through GitHub's
+For the maintained project, follow its
+[security policy](https://github.com/AzaryaShaulov/VMSKURetirementReport/security/policy).
+For a vulnerability specific to this archived copy, report privately through this repository's GitHub
 [private vulnerability reporting](https://docs.github.com/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)
 (**Security** tab > **Report a vulnerability**).
 

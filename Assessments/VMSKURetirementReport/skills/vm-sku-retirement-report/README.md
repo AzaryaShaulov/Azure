@@ -1,5 +1,9 @@
 # VMSKURetirementReport
 
+> **Retired local copy.** This skill is an unmaintained historical snapshot.
+> Use [AzaryaShaulov/VMSKURetirementReport](https://github.com/AzaryaShaulov/VMSKURetirementReport/)
+> for the maintained skill, downloads and documentation.
+
 Read-only assessment of the Azure VMs in your tenant that run on VM sizes Microsoft has retired or scheduled for
 retirement. It recommends the closest current-generation, same-CPU-vendor replacement, checks regional availability,
 subscription restrictions and vCPU quota, and writes an HTML, Markdown, CSV and JSON report. It never resizes,
@@ -7,7 +11,7 @@ redeploys or otherwise changes a VM and never requests a quota increase.
 
 This file is part of the skill folder and of the release ZIP. The full documentation, the screenshots and a sample
 report are in the source repository:
-<https://github.com/AzaryaShaulov/Azure/tree/main/Assessments/VMSKURetirementReport>
+<https://github.com/AzaryaShaulov/VMSKURetirementReport/>
 
 > **This tool is provided "AS IS," without warranties or guarantees.** It is independently developed, is not an
 > official Microsoft product, and is not supported or endorsed by Microsoft. Findings, retirement timelines, SKU

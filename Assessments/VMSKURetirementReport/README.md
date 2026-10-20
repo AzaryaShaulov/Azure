@@ -1,6 +1,12 @@
 # VMSKURetirementReport
 
-[![CI](https://github.com/AzaryaShaulov/Azure/actions/workflows/vm-sku-retirement-report-ci.yml/badge.svg)](https://github.com/AzaryaShaulov/Azure/actions/workflows/vm-sku-retirement-report-ci.yml)
+> **Retired in this repository - project moved.**
+> The maintained project is now at
+> [AzaryaShaulov/VMSKURetirementReport](https://github.com/AzaryaShaulov/VMSKURetirementReport/).
+> Use that repository for current code, downloads, documentation, issues and contributions.
+> This folder is an unmaintained historical snapshot. Its CI and release workflows are disabled;
+> the documentation below describes the archived version, not the current project.
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![PowerShell 7.2+](https://img.shields.io/badge/PowerShell-7.2%2B-5391FE)
 ![Read-only](https://img.shields.io/badge/Azure-read--only-2e9e5b)

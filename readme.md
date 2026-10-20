@@ -7,7 +7,7 @@ prerequisites and usage instructions.
 
 | Area | Subproject | Summary |
 |---|---|---|
-| Assessments | [VM SKU Retirement Report](Assessments/VMSKURetirementReport/README.md) | Read-only assessment of Azure VMs affected by Microsoft SKU retirement announcements. Recommends retirement targets and optional v6/v7 modernization paths, checks availability and quota, and generates HTML, Markdown, CSV and JSON reports with PAYGO price estimates. |
+| Assessments | [VM SKU Retirement Report](https://github.com/AzaryaShaulov/VMSKURetirementReport/) | Moved to its own repository. The local copy is retired and retained only as a historical snapshot; use the linked repository for current code, downloads, documentation and support. |
 | Azure Virtual Desktop | [Diagnostics](AVD/AVD-Diagnostics/README.md) | Configures diagnostic logging for AVD host pools, application groups and workspaces to provide telemetry for troubleshooting and alerting. |
 | Azure Virtual Desktop | [Azure Monitor Alerts](AVD/AVD-AzAlerts/README.md) | Deploys WVDErrors-based alert categories and a Logic App email workflow with affected hosts, errors and troubleshooting context. |
 | Azure Virtual Desktop | [Session Host Insights](AVD/AVD-SessionHost-Insights/README.md) | Sets up Data Collection Rules and session-host performance telemetry for CPU, memory, disk, networking, GPU and session quality. |
@@ -18,12 +18,19 @@ prerequisites and usage instructions.
 
 See the [AVD overview](AVD/README.md) for the monitoring decision guide and deployment sequence.
 
+## Moved projects
+
+The **VM SKU Retirement Report** is now maintained at
+[AzaryaShaulov/VMSKURetirementReport](https://github.com/AzaryaShaulov/VMSKURetirementReport/).
+The [local copy](Assessments/VMSKURetirementReport/README.md) is retired and no longer maintained here.
+Its files remain for historical reference; its CI and release workflows are disabled.
+
 ## Repository structure
 
 ```text
 Azure
 |-- Assessments/
-|   `-- VMSKURetirementReport/
+|   `-- VMSKURetirementReport/ (retired historical snapshot; see new repository)
 |-- AVD/
 |   |-- AVD-Diagnostics/
 |   |-- AVD-AzAlerts/

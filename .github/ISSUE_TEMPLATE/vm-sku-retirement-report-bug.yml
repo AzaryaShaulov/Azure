@@ -1,10 +1,12 @@
 name: VMSKURetirementReport bug report
-description: Something in the assessment or report is wrong or broken.
+description: Archived copy only; report current project bugs in AzaryaShaulov/VMSKURetirementReport.
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
+        **Project moved:** this repository contains only a retired historical snapshot.
+        For the maintained project, open an issue at https://github.com/AzaryaShaulov/VMSKURetirementReport/issues.
         **Do not paste tenant IDs, subscription IDs, VM names or report files.** Replace them with placeholders.
         Security issues: follow SECURITY.md instead of opening an issue.
   - type: textarea

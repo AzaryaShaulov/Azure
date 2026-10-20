@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: VM SKU Retirement Report (moved)
+    url: https://github.com/AzaryaShaulov/VMSKURetirementReport/issues
+    about: The local copy is retired. Open report bugs and feature requests in the maintained repository.
   - name: Security vulnerability
     url: https://github.com/AzaryaShaulov/Azure/security/advisories/new
     about: Report security issues privately (see SECURITY.md).
